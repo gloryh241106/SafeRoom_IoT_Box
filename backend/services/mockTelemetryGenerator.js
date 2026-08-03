@@ -32,7 +32,6 @@ function startMockTelemetryGenerator(deviceId = 'safebox-01') {
   let tempBase = 28.0;
   let humBase = 62.0;
   let gasBase = 180;
-  let lightBase = 450;
 
   mockIntervalId = setInterval(async () => {
     try {
@@ -40,13 +39,11 @@ function startMockTelemetryGenerator(deviceId = 'safebox-01') {
       tempBase += (Math.random() - 0.5) * 0.4;
       humBase += (Math.random() - 0.5) * 0.6;
       gasBase += (Math.random() - 0.5) * 5;
-      lightBase += (Math.random() - 0.5) * 10;
 
       // Keep within plausible hardware bounds
       const temperature = parseFloat(Math.max(15, Math.min(50, tempBase)).toFixed(1));
       const humidity = parseFloat(Math.max(30, Math.min(95, humBase)).toFixed(1));
       const gasLevel = Math.round(Math.max(50, Math.min(1000, gasBase)));
-      const lightIntensity = Math.round(Math.max(0, Math.min(1024, lightBase)));
       const motionDetected = Math.random() < 0.05; // 5% chance of motion trigger
 
       const readingDoc = await SensorReading.create({
@@ -56,7 +53,6 @@ function startMockTelemetryGenerator(deviceId = 'safebox-01') {
           temperature,
           humidity,
           gasLevel,
-          lightIntensity,
           motionDetected
         },
         actuatorStates: { ...currentActuatorStates }

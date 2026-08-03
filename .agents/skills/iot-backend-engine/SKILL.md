@@ -16,7 +16,7 @@ The Node.js / Express.js backend acts as the orchestrator between the MQTT Broke
 ### 1. `sensor_readings` (Time-Series Collection)
 - Configured as MongoDB Time-Series: `timeField: 'timestamp'`, `metaField: 'deviceId'`, `granularity: 'seconds'`.
 - Includes TTL index: `expireAfterSeconds: 2592000` (30-day auto purge).
-- Fields: `timestamp`, `deviceId`, `metrics` (temperature, humidity, gasLevel, lightIntensity, motionDetected), `actuatorStates` (fanOn, buzzerActive, alertLedActive).
+- Fields: `timestamp`, `deviceId`, `metrics` (temperature, humidity, gasLevel, motionDetected), `actuatorStates` (fanOn, buzzerActive, alertLedActive).
 
 ### 2. `anomaly_logs`
 - Fields: `deviceId`, `timestamp`, `sensorType`, `triggerType` (`Z_SCORE_EXCEEDED`, `HARD_THRESHOLD_BREACH`, `EDGE_SAFETY_TRIGGER`), `observedValue`, `calculatedZScore`, `thresholdLimit`, `severity` (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), `actionsTaken`, `resolved`, `resolvedAt`, `resolvedBy`.

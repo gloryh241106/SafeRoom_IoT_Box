@@ -62,10 +62,18 @@ async function processTelemetryForAnomalies(telemetryDoc) {
       calculatedZScore: null,
       thresholdLimit: metrics.temperature > 45 ? 45 : 10,
       severity: 'HIGH',
-      actionsTaken: ['FAN_AUTO_TRIGGER', 'LOGGED'],
+      actionsTaken: ['FAN_AUTO_TRIGGER', 'EMAIL_SENT'],
       resolved: false
     });
     anomaliesDetected.push(anomaly);
+    await sendAlertEmail({
+      deviceId,
+      sensorType: 'temperature',
+      severity: 'HIGH',
+      observedValue: `${metrics.temperature}°C`,
+      thresholdLimit: metrics.temperature > 45 ? '45°C' : '10°C',
+      timestamp
+    });
   }
 
   // 3. Motion Detection Check (PIR HC-SR501 when System Armed)
@@ -78,19 +86,11 @@ async function processTelemetryForAnomalies(telemetryDoc) {
       observedValue: true,
       calculatedZScore: null,
       thresholdLimit: 'Armed System Motion',
-      severity: 'HIGH',
-      actionsTaken: ['ALERT_LED_ACTIVE', 'EMAIL_SENT'],
+      severity: 'LOW',
+      actionsTaken: ['ALERT_LED_ACTIVE', 'LOGGED'],
       resolved: false
     });
     anomaliesDetected.push(anomaly);
-    await sendAlertEmail({
-      deviceId,
-      sensorType: 'motionDetected',
-      severity: 'HIGH',
-      observedValue: 'Motion Detected',
-      thresholdLimit: 'Armed System',
-      timestamp
-    });
   }
 
   // 4. Humidity Threshold Check (DHT22)

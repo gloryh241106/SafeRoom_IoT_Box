@@ -12,7 +12,6 @@ description: Guidelines, pinout mappings, edge safety autonomy, WiFiManager capt
 | GPIO 4 | DHT22 Temperature & Humidity | Input (Digital / OneWire) | Single-bus readings every 2000ms |
 | GPIO 13 | PIR HC-SR501 Motion | Input (Digital Interrupt) | High/Low motion detection signal |
 | GPIO 34 | MQ2 Gas / Smoke Sensor | Input (Analog ADC1_CH6) | Gas level readings (0-4095 raw -> PPM) |
-| GPIO 35 | LDR Light Sensor | Input (Analog ADC1_CH7) | Light intensity via voltage divider |
 | GPIO 16 | DC Fan Relay | Output (Digital Output) | 5V Optocoupler Relay control (HIGH = ON) |
 | GPIO 17 | Status LED (Green) | Output (Digital Output / PWM) | Normal operation indicator |
 | GPIO 18 | Alert LED (Red) | Output (Digital Output / PWM) | Visual alarm indicator |

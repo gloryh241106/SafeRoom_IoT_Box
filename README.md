@@ -22,7 +22,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
          v                                                              v          v
   +--------------+                                              +---------------+  +--------------+
   | DHT22, PIR,  |                                              | MongoDB Atlas |  | User Email   |
-  |  MQ2, LDR    |                                              |  (3 Colls)    |  | Alerts       |
+  |    MQ2       |                                              |  (3 Colls)    |  | Alerts       |
   +--------------+                                              +---------------+  +--------------+
          |
      [6] | Actuation Output
@@ -43,7 +43,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 - **Database**: MongoDB Atlas / MongoDB Time-Series (`sensor_readings`, `anomaly_logs`, `users`)
 - **Messaging**: EMQX Cloud Serverless (MQTTS Port 8883, TLS, basic auth)
 - **Microcontroller**: ESP32 DevKit V1 (Arduino C++, WiFiManager, PubSubClient)
-- **Sensors & Actuators**: DHT22, PIR HC-SR501, MQ2 Gas, LDR Light, 5V Relay DC Fan, Buzzer, Red/Green LEDs, SSD1306 OLED (I2C)
+- **Sensors & Actuators**: DHT22, PIR HC-SR501, MQ2 Gas, 5V Relay DC Fan, Buzzer, Red/Green LEDs, SSD1306 OLED (I2C)
 
 ---
 
@@ -54,7 +54,6 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 | **GPIO 4** | DHT22 Temperature & Humidity | Input (Digital / OneWire) | Periodic temperature and humidity sampling |
 | **GPIO 13** | PIR HC-SR501 Motion | Input (Digital Interrupt) | Motion presence detection |
 | **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | Gas concentration read (PPM) |
-| **GPIO 35** | LDR Light Sensor | Input (Analog ADC1_CH7) | Light intensity via voltage divider |
 | **GPIO 16** | DC Fan Relay | Output (Digital Output) | Relay actuation (HIGH = ON) |
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |

@@ -41,7 +41,7 @@ router.post('/query', async (req, res) => {
           reply = "System status: Device 'safebox-01' is initializing. No sensor readings recorded yet.";
         } else {
           const { metrics, actuatorStates } = latest;
-          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${metrics.gasLevel} PPM | Light: ${metrics.lightIntensity} LX\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
+          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${metrics.gasLevel} PPM\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
           dataPayload = latest;
         }
         break;

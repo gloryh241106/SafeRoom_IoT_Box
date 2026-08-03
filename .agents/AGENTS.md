@@ -30,7 +30,6 @@ Detailed deliverables are split across 5 phase documents:
 - **GPIO 4**: DHT22 Temp/Humidity (Digital Input)
 - **GPIO 13**: PIR HC-SR501 Motion (Digital Interrupt)
 - **GPIO 34**: MQ2 Gas/Smoke Sensor (Analog Input ADC1_CH6)
-- **GPIO 35**: LDR Light Sensor (Analog Input ADC1_CH7)
 - **GPIO 16**: DC Fan Relay (Digital Output, HIGH = ON)
 - **GPIO 17**: Status LED Green (Digital Output / PWM)
 - **GPIO 18**: Alert LED Red (Digital Output / PWM)

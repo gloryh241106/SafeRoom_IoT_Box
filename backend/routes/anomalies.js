@@ -53,4 +53,17 @@ router.patch('/:id/resolve', async (req, res) => {
   }
 });
 
+// DELETE /api/v1/anomalies/clear-all — Resolve all unresolved anomaly entries
+router.delete('/clear-all', async (req, res) => {
+  try {
+    await AnomalyLog.updateMany(
+      { resolved: false },
+      { resolved: true, resolvedAt: new Date(), resolvedBy: 'Admin (Delete All)' }
+    );
+    res.json({ success: true, message: 'All unresolved anomalies cleared' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

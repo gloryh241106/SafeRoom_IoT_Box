@@ -18,7 +18,6 @@ export default function Dashboard() {
           temperature: item.metrics.temperature,
           humidity: item.metrics.humidity,
           gasLevel: item.metrics.gasLevel,
-          lightIntensity: item.metrics.lightIntensity,
         }));
         setData(formatted);
       }
@@ -37,10 +36,10 @@ export default function Dashboard() {
   const handleExportCSV = () => {
     if (data.length === 0) return;
 
-    const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'Gas Level (PPM)', 'Light (LX)'];
+    const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'Gas Level (PPM)'];
     const csvRows = [
       headers.join(','),
-      ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel, row.lightIntensity].join(','))
+      ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel].join(','))
     ];
 
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -99,7 +98,7 @@ export default function Dashboard() {
           <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Temperature Chart */}
           <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
             <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wider">Temperature (°C)</h3>
@@ -143,22 +142,6 @@ export default function Dashboard() {
                   <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
                   <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }} />
                   <Line type="monotone" dataKey="gasLevel" stroke="#ef4444" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Light Intensity Chart */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
-            <h3 className="text-sm font-semibold text-yellow-400 uppercase tracking-wider">Light Intensity (LX)</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={[0, 1024]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }} />
-                  <Line type="monotone" dataKey="lightIntensity" stroke="#eab308" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

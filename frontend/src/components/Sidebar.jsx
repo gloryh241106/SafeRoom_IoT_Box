@@ -42,7 +42,7 @@ export default function Sidebar() {
         <p className="text-xs text-slate-400">ESP32 DevKit V1</p>
         <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span>DHT22, PIR, MQ2, LDR</span>
+          <span>DHT22, PIR, MQ2</span>
         </div>
       </div>
     </aside>

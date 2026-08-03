@@ -9,7 +9,6 @@ const SensorReadingSchema = new Schema({
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
     gasLevel: { type: Number, required: true },
-    lightIntensity: { type: Number, required: true },
     motionDetected: { type: Boolean, required: true }
   },
   actuatorStates: {
@@ -25,7 +24,7 @@ const AnomalyLogSchema = new Schema({
   timestamp: { type: Date, default: Date.now, index: true },
   sensorType: { 
     type: String, 
-    enum: ['temperature', 'humidity', 'gasLevel', 'lightIntensity', 'motionDetected'],
+    enum: ['temperature', 'humidity', 'gasLevel', 'motionDetected'],
     required: true 
   },
   triggerType: { 

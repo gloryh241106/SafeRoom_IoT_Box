@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { Send, Bot, User, Sparkles, HelpCircle } from 'lucide-react';
 
 export default function Chatbot() {
@@ -114,7 +115,9 @@ export default function Chatbot() {
                     : 'bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-none'
                 }`}
               >
-                <div className="whitespace-pre-line">{msg.text}</div>
+                <div className="prose prose-invert max-w-none text-sm leading-relaxed">
+                  <ReactMarkdown>{msg.text}</ReactMarkdown>
+                </div>
 
                 {msg.timestamp && (
                   <span className="block text-[10px] text-slate-400 text-right mt-1">

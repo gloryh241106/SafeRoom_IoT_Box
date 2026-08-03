@@ -63,7 +63,7 @@ export default function Register({ onLoginSuccess }) {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="choose_username"
+                placeholder="Username"
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
               />
             </div>

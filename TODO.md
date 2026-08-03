@@ -8,7 +8,7 @@ This document tracks all mock components, mock connections, and mock dataset gen
 
 ### Current Mock Implementation
 - Located in: `backend/services/mockTelemetryGenerator.js`
-- Generates simulated sensor readings (DHT22, PIR, MQ2, LDR) every 2 seconds into MongoDB Atlas.
+- Generates simulated sensor readings (DHT22, PIR, MQ2) every 2 seconds into MongoDB Atlas.
 
 ### How to Connect to Real MQTT Broker:
 1. Open [backend/services/mockTelemetryGenerator.js](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/backend/services/mockTelemetryGenerator.js).
@@ -31,7 +31,7 @@ This document tracks all mock components, mock connections, and mock dataset gen
 
 ### Current Mock Implementation
 - Located in: `backend/services/emailService.js`
-- Logs simulated alert dispatches to console while enforcing a 15-minute sliding window throttle per `(deviceId, sensorType)` key.
+- Logs simulated alert dispatches (HIGH and CRITICAL severity only) to console while enforcing a 15-minute sliding window throttle per `(deviceId, sensorType)` key.
 
 ### How to Enable Real Email Dispatches:
 1. Open [backend/services/emailService.js](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/backend/services/emailService.js).
@@ -55,7 +55,7 @@ This document tracks all mock components, mock connections, and mock dataset gen
 - Uses active **value bound threshold checking**:
   - Gas Level: `gasLevel > 600 PPM` (`CRITICAL`)
   - Temperature: `temp > 45°C` or `< 10°C` (`HIGH`)
-  - Motion: `motionDetected == true` when system armed (`HIGH`)
+  - Motion: `motionDetected == true` when system armed (`LOW`)
   - Humidity: `humidity > 85%` or `< 20%` (`MEDIUM`)
 
 ### How to Enable Statistical Z-Score Engine:
@@ -76,7 +76,6 @@ This document tracks all mock components, mock connections, and mock dataset gen
 - **GPIO 4**: DHT22 Temp/Humidity (Digital Input)
 - **GPIO 13**: PIR HC-SR501 Motion (Digital Interrupt)
 - **GPIO 34**: MQ2 Gas/Smoke Sensor (Analog ADC1_CH6)
-- **GPIO 35**: LDR Light Sensor (Analog ADC1_CH7)
 - **GPIO 16**: DC Fan Relay Module (Digital Output, HIGH = ON)
 - **GPIO 17**: Status LED Green (Digital Output)
 - **GPIO 18**: Alert LED Red (Digital Output)

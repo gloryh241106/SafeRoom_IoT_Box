@@ -9,7 +9,7 @@ description: React + Tailwind CSS UI architecture, Recharts historical telemetry
 
 The **SafeboxManager** web dashboard built with React, Vite, Tailwind CSS, Recharts, and Lucide Icons contains four primary views:
 
-1. **Overview Page**: Real-time metric cards (Temp, Humidity, Gas, Light, Motion), active anomaly alert banners, and quick actuator control toggles (DC Fan, Buzzer, Alert LED).
+1. **Overview Page**: Real-time metric cards (Temp, Humidity, Gas, Motion), active anomaly alert banners, and quick actuator control toggles (DC Fan, Buzzer, Alert LED).
 2. **Dashboard Page**: Interactive Recharts time-series charts (1h, 6h, 24h, 7d ranges) with CSV telemetry data export functionality.
 3. **Chatbot Page**: Custom command-line chat UI parsing keyword queries (`status`, `gas`, `motion`, `temp`, `humidity`, `anomalies`, `help`) with quick-action prompt pills.
 4. **Settings Page**: User account profile management, email notification toggles, and display of authoritative system safety thresholds.
