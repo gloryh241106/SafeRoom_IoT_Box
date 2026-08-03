@@ -1,14 +1,59 @@
-import React, { useState } from 'react';
-import { User, Bell, Shield, Save, Key, Sliders } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Bell, Shield, Save, Sliders, CheckCircle, Cpu } from 'lucide-react';
 
 export default function Settings({ user }) {
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [password, setPassword] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
+  
+  // Editable Safety Thresholds State
+  const [thresholds, setThresholds] = useState({
+    gasMax: 600,
+    tempMax: 45,
+    tempMin: 10,
+    humidityMax: 85,
+    humidityMin: 20,
+    zScoreLimit: 3.0,
+    isAutomatic: false
+  });
+  const [thresholdLoading, setThresholdLoading] = useState(false);
+
+  // Fetch initial thresholds from backend
+  useEffect(() => {
+    fetch('/api/v1/control/thresholds')
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setThresholds((prev) => ({ ...prev, ...json.data }));
+        }
+      })
+      .catch((err) => console.error('Error fetching safety thresholds:', err));
+  }, []);
+
+  const handleSaveThresholds = async (e) => {
+    e.preventDefault();
+    setThresholdLoading(true);
+    try {
+      const res = await fetch('/api/v1/control/thresholds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(thresholds)
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSavedMessage('Safety thresholds & anomaly mode updated successfully!');
+        setTimeout(() => setSavedMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error('Error saving safety thresholds:', err);
+    } finally {
+      setThresholdLoading(false);
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setSavedMessage('Settings updated successfully!');
+    setSavedMessage('Profile settings updated successfully!');
     setTimeout(() => setSavedMessage(''), 3000);
   };
 
@@ -16,43 +61,174 @@ export default function Settings({ user }) {
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
         <h2 className="text-2xl font-bold text-white tracking-tight">Settings & Safety Matrix</h2>
-        <p className="text-sm text-slate-400">Account profiles, notification preferences, and system thresholds</p>
+        <p className="text-sm text-slate-400">Account profiles, notification preferences, and editable safety thresholds</p>
       </div>
 
       {savedMessage && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium">
-          {savedMessage}
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" />
+          <span>{savedMessage}</span>
         </div>
       )}
 
-      {/* Authoritative Safety Rule Matrix Display */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <Shield className="w-5 h-5 text-blue-400" />
-          <span>Authoritative System Safety Threshold Matrix</span>
-        </h3>
-        <p className="text-xs text-slate-400">Production threshold values enforced by backend anomaly engine and ESP32 edge safety autonomy</p>
+      {/* Editable Safety Rule Matrix Form */}
+      <form onSubmit={handleSaveThresholds} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-400" />
+              <span>Authoritative System Safety Threshold Matrix</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Configure live safety limits enforced by backend anomaly engine and hardware safety triggers</p>
+          </div>
+          <button
+            type="submit"
+            disabled={thresholdLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl transition-all shadow-lg shadow-blue-600/20 shrink-0"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save Thresholds</span>
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-xs text-slate-400 font-semibold uppercase">MQ2 Gas / Smoke</span>
-            <div className="text-xl font-bold text-red-400">600 PPM</div>
-            <p className="text-[11px] text-slate-500">Local Buzzer + LED + Email Alert</p>
+        {/* Automatic Mode Toggle Switch */}
+        <div className="flex items-center justify-between p-4 bg-slate-900/80 rounded-xl border border-slate-800">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-semibold text-white">Automatic Mode (Z-Score Engine)</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              {thresholds.isAutomatic
+                ? 'ON: Continuous metrics (Temp & Humidity) use statistical Z-Score anomaly engine (|Z| > threshold limit).'
+                : 'OFF: Continuous metrics use static manual upper and lower bound limits.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setThresholds({ ...thresholds, isAutomatic: !thresholds.isAutomatic })}
+            className={`w-12 h-6 rounded-full transition-colors relative p-1 shrink-0 ${
+              thresholds.isAutomatic ? 'bg-purple-600' : 'bg-slate-700'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                thresholds.isAutomatic ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            ></div>
+          </button>
+        </div>
+
+        {/* Grid of Threshold Input Fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+          {/* MQ2 Gas Threshold (Always Active Safety Bound) */}
+          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
+            <label className="block text-xs text-slate-400 font-semibold uppercase">MQ2 Gas Max (PPM)</label>
+            <input
+              type="number"
+              value={thresholds.gasMax}
+              onChange={(e) => setThresholds({ ...thresholds, gasMax: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-red-400 focus:outline-none focus:border-red-500"
+            />
+            <p className="text-[11px] text-slate-500">Triggers Local Buzzer + Red LED + Email</p>
           </div>
 
-          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-xs text-slate-400 font-semibold uppercase">Thermal High Bound</span>
-            <div className="text-xl font-bold text-orange-400">45.0 °C</div>
-            <p className="text-[11px] text-slate-500">Auto-triggers DC Fan Relay</p>
+          {/* Temperature Max Bound */}
+          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs text-slate-400 font-semibold uppercase">Temp Max Bound (°C)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+            </div>
+            <input
+              type="number"
+              step="0.5"
+              disabled={thresholds.isAutomatic}
+              value={thresholds.tempMax}
+              onChange={(e) => setThresholds({ ...thresholds, tempMax: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-orange-400 focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed"
+            />
+            <p className="text-[11px] text-slate-500">Manual upper limit (Fan + Email)</p>
           </div>
 
-          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-xs text-slate-400 font-semibold uppercase">Z-Score Statistical Limit</span>
-            <div className="text-xl font-bold text-blue-400">|Z| &gt; 3.0</div>
-            <p className="text-[11px] text-slate-500">N=30 rolling sample window (Temp/Hum)</p>
+          {/* Temperature Min Bound */}
+          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs text-slate-400 font-semibold uppercase">Temp Min Bound (°C)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+            </div>
+            <input
+              type="number"
+              step="0.5"
+              disabled={thresholds.isAutomatic}
+              value={thresholds.tempMin}
+              onChange={(e) => setThresholds({ ...thresholds, tempMin: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-orange-400 focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed"
+            />
+            <p className="text-[11px] text-slate-500">Manual lower limit alert</p>
+          </div>
+
+          {/* Humidity Max Bound */}
+          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs text-slate-400 font-semibold uppercase">Humidity Max Bound (%)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+            </div>
+            <input
+              type="number"
+              step="1"
+              disabled={thresholds.isAutomatic}
+              value={thresholds.humidityMax}
+              onChange={(e) => setThresholds({ ...thresholds, humidityMax: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-blue-400 focus:outline-none focus:border-blue-500 disabled:cursor-not-allowed"
+            />
+            <p className="text-[11px] text-slate-500">Manual upper moisture limit</p>
+          </div>
+
+          {/* Humidity Min Bound */}
+          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs text-slate-400 font-semibold uppercase">Humidity Min Bound (%)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+            </div>
+            <input
+              type="number"
+              step="1"
+              disabled={thresholds.isAutomatic}
+              value={thresholds.humidityMin}
+              onChange={(e) => setThresholds({ ...thresholds, humidityMin: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-blue-400 focus:outline-none focus:border-blue-500 disabled:cursor-not-allowed"
+            />
+            <p className="text-[11px] text-slate-500">Manual lower moisture limit</p>
+          </div>
+
+          {/* Z-Score Limit */}
+          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+            !thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
+          }`}>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs text-slate-400 font-semibold uppercase">Z-Score Limit (|Z|)</label>
+              {!thresholds.isAutomatic && <span className="text-[10px] text-slate-400 font-medium">Disabled (Manual Mode)</span>}
+            </div>
+            <input
+              type="number"
+              step="0.1"
+              disabled={!thresholds.isAutomatic}
+              value={thresholds.zScoreLimit}
+              onChange={(e) => setThresholds({ ...thresholds, zScoreLimit: Number(e.target.value) })}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-purple-400 focus:outline-none focus:border-purple-500 disabled:cursor-not-allowed"
+            />
+            <p className="text-[11px] text-slate-500">N=30 rolling window limit in Auto mode</p>
           </div>
         </div>
-      </div>
+      </form>
 
       {/* Notification Preferences */}
       <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
@@ -125,7 +301,7 @@ export default function Settings({ user }) {
           className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-blue-600/20"
         >
           <Save className="w-4 h-4" />
-          <span>Save Changes</span>
+          <span>Save Profile</span>
         </button>
       </form>
     </div>

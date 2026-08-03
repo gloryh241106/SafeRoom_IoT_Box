@@ -1,7 +1,29 @@
 const express = require('express');
 const router = express.Router();
 const { updateActuatorState, getCurrentActuatorStates } = require('../services/mockTelemetryGenerator');
-const { setSystemArmed, isSystemArmed } = require('../services/anomalyEngine');
+const { setSystemArmed, isSystemArmed, getThresholds, updateThresholds } = require('../services/anomalyEngine');
+
+// GET /api/v1/control/thresholds — Get current safety thresholds
+router.get('/thresholds', (req, res) => {
+  res.json({
+    success: true,
+    data: getThresholds()
+  });
+});
+
+// POST /api/v1/control/thresholds — Update safety thresholds
+router.post('/thresholds', (req, res) => {
+  try {
+    const updated = updateThresholds(req.body);
+    res.json({
+      success: true,
+      message: 'Safety thresholds updated successfully',
+      data: updated
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // POST /api/v1/control/actuator — Toggle actuators (fan, buzzer, alertLed)
 router.post('/actuator', async (req, res) => {

@@ -37,7 +37,7 @@ router.post('/register', async (req, res) => {
       username,
       email,
       passwordHash,
-      notificationPreferences: { emailEnabled: true }
+      settings: { emailEnabled: true }
     });
 
     const token = jwt.sign({ id: newUser._id, username: newUser.username }, JWT_SECRET, { expiresIn: '7d' });

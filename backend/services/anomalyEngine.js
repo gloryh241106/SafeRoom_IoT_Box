@@ -1,15 +1,32 @@
 /**
  * SafeRoom IoT Box — Anomaly Engine
  * 
- * ACTIVE ENGINE: Value bound threshold checking on incoming metrics.
- * TEMPLATE: Commented rolling window Z-Score engine template (|Z| > 3.0) for continuous variables (Temp, Humidity).
+ * ACTIVE ENGINE: Configurable Manual Bounds & Rolling Window Z-Score Engine.
+ * Supports switching between Manual Bounds and Statistical Z-Score Detection (|Z| > zScoreLimit).
  */
 
 const { AnomalyLog } = require('../models/Schemas');
 const { sendAlertEmail } = require('./emailService');
 
-// System armed state flag (can be toggled via API)
+// System armed state flag & editable safety thresholds
 let systemArmedState = true;
+let systemThresholds = {
+  gasMax: 600,
+  tempMax: 45,
+  tempMin: 10,
+  humidityMax: 85,
+  humidityMin: 20,
+  zScoreLimit: 3.0,
+  isAutomatic: false // false = manual bounds, true = statistical Z-Score mode
+};
+
+// Rolling buffers for Z-Score statistical anomaly engine
+const rollingBuffers = {
+  temperature: [],
+  humidity: []
+};
+const WINDOW_SIZE = 30;
+const MIN_DELTA = { temperature: 1.0, humidity: 2.0 };
 
 function setSystemArmed(state) {
   systemArmedState = Boolean(state);
@@ -19,6 +36,50 @@ function isSystemArmed() {
   return systemArmedState;
 }
 
+function getThresholds() {
+  return systemThresholds;
+}
+
+function updateThresholds(newThresholds) {
+  systemThresholds = {
+    ...systemThresholds,
+    gasMax: newThresholds.gasMax !== undefined ? Number(newThresholds.gasMax) : systemThresholds.gasMax,
+    tempMax: newThresholds.tempMax !== undefined ? Number(newThresholds.tempMax) : systemThresholds.tempMax,
+    tempMin: newThresholds.tempMin !== undefined ? Number(newThresholds.tempMin) : systemThresholds.tempMin,
+    humidityMax: newThresholds.humidityMax !== undefined ? Number(newThresholds.humidityMax) : systemThresholds.humidityMax,
+    humidityMin: newThresholds.humidityMin !== undefined ? Number(newThresholds.humidityMin) : systemThresholds.humidityMin,
+    zScoreLimit: newThresholds.zScoreLimit !== undefined ? Number(newThresholds.zScoreLimit) : systemThresholds.zScoreLimit,
+    isAutomatic: newThresholds.isAutomatic !== undefined ? Boolean(newThresholds.isAutomatic) : systemThresholds.isAutomatic,
+  };
+  return systemThresholds;
+}
+
+/**
+ * Computes Z-Score statistical anomaly over N=30 rolling sample buffer.
+ */
+function computeZScore(sensorType, value) {
+  const buffer = rollingBuffers[sensorType];
+  if (!buffer) return { zScore: null, isAnomaly: false };
+  
+  buffer.push(value);
+  if (buffer.length > WINDOW_SIZE) buffer.shift();
+  
+  // Need at least 5 samples to compute standard deviation
+  if (buffer.length < 5) return { zScore: null, isAnomaly: false };
+  
+  const mean = buffer.reduce((acc, val) => acc + val, 0) / buffer.length;
+  const variance = buffer.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / buffer.length;
+  const stdDev = Math.sqrt(variance);
+  
+  if (stdDev === 0) return { zScore: 0, mean, stdDev, isAnomaly: false };
+  
+  const zScore = (value - mean) / stdDev;
+  const absDeviation = Math.abs(value - mean);
+  const isAnomaly = Math.abs(zScore) > systemThresholds.zScoreLimit && absDeviation > MIN_DELTA[sensorType];
+  
+  return { zScore, mean, stdDev, isAnomaly };
+}
+
 /**
  * Checks telemetry metric bounds and creates anomaly logs when thresholds are breached.
  */
@@ -26,8 +87,8 @@ async function processTelemetryForAnomalies(telemetryDoc) {
   const { deviceId, metrics, timestamp } = telemetryDoc;
   const anomaliesDetected = [];
 
-  // 1. Gas / Smoke Threshold Check (MQ2)
-  if (metrics.gasLevel > 600) {
+  // 1. Gas / Smoke Threshold Check (MQ2 - Always hard bound safety trigger)
+  if (metrics.gasLevel > systemThresholds.gasMax) {
     const anomaly = await AnomalyLog.create({
       deviceId,
       timestamp: timestamp || new Date(),
@@ -35,7 +96,7 @@ async function processTelemetryForAnomalies(telemetryDoc) {
       triggerType: 'HARD_THRESHOLD_BREACH',
       observedValue: metrics.gasLevel,
       calculatedZScore: null,
-      thresholdLimit: 600,
+      thresholdLimit: systemThresholds.gasMax,
       severity: 'CRITICAL',
       actionsTaken: ['LOCAL_BUZZER_ACTIVE', 'LOCAL_ALERT_LED', 'EMAIL_SENT'],
       resolved: false
@@ -46,34 +107,63 @@ async function processTelemetryForAnomalies(telemetryDoc) {
       sensorType: 'gasLevel',
       severity: 'CRITICAL',
       observedValue: metrics.gasLevel,
-      thresholdLimit: 600,
+      thresholdLimit: systemThresholds.gasMax,
       timestamp
     });
   }
 
-  // 2. Temperature Threshold Check (DHT22)
-  if (metrics.temperature > 45 || metrics.temperature < 10) {
-    const anomaly = await AnomalyLog.create({
-      deviceId,
-      timestamp: timestamp || new Date(),
-      sensorType: 'temperature',
-      triggerType: 'HARD_THRESHOLD_BREACH',
-      observedValue: metrics.temperature,
-      calculatedZScore: null,
-      thresholdLimit: metrics.temperature > 45 ? 45 : 10,
-      severity: 'HIGH',
-      actionsTaken: ['FAN_AUTO_TRIGGER', 'EMAIL_SENT'],
-      resolved: false
-    });
-    anomaliesDetected.push(anomaly);
-    await sendAlertEmail({
-      deviceId,
-      sensorType: 'temperature',
-      severity: 'HIGH',
-      observedValue: `${metrics.temperature}°C`,
-      thresholdLimit: metrics.temperature > 45 ? '45°C' : '10°C',
-      timestamp
-    });
+  // 2. Temperature Check (DHT22 - Manual bounds or Z-Score Automatic mode)
+  if (systemThresholds.isAutomatic) {
+    const { zScore, isAnomaly } = computeZScore('temperature', metrics.temperature);
+    if (isAnomaly) {
+      const anomaly = await AnomalyLog.create({
+        deviceId,
+        timestamp: timestamp || new Date(),
+        sensorType: 'temperature',
+        triggerType: 'Z_SCORE_EXCEEDED',
+        observedValue: metrics.temperature,
+        calculatedZScore: Number(zScore.toFixed(2)),
+        thresholdLimit: `Z > ${systemThresholds.zScoreLimit}`,
+        severity: 'HIGH',
+        actionsTaken: ['FAN_AUTO_TRIGGER', 'EMAIL_SENT'],
+        resolved: false
+      });
+      anomaliesDetected.push(anomaly);
+      await sendAlertEmail({
+        deviceId,
+        sensorType: 'temperature',
+        severity: 'HIGH',
+        observedValue: `${metrics.temperature}°C (Z=${zScore.toFixed(2)})`,
+        thresholdLimit: `Z > ${systemThresholds.zScoreLimit}`,
+        timestamp
+      });
+    }
+  } else {
+    if (metrics.temperature > systemThresholds.tempMax || metrics.temperature < systemThresholds.tempMin) {
+      const isHighBreach = metrics.temperature > systemThresholds.tempMax;
+      const limitVal = isHighBreach ? systemThresholds.tempMax : systemThresholds.tempMin;
+      const anomaly = await AnomalyLog.create({
+        deviceId,
+        timestamp: timestamp || new Date(),
+        sensorType: 'temperature',
+        triggerType: 'HARD_THRESHOLD_BREACH',
+        observedValue: metrics.temperature,
+        calculatedZScore: null,
+        thresholdLimit: limitVal,
+        severity: 'HIGH',
+        actionsTaken: ['FAN_AUTO_TRIGGER', 'EMAIL_SENT'],
+        resolved: false
+      });
+      anomaliesDetected.push(anomaly);
+      await sendAlertEmail({
+        deviceId,
+        sensorType: 'temperature',
+        severity: 'HIGH',
+        observedValue: `${metrics.temperature}°C`,
+        thresholdLimit: `${limitVal}°C`,
+        timestamp
+      });
+    }
   }
 
   // 3. Motion Detection Check (PIR HC-SR501 when System Armed)
@@ -93,64 +183,51 @@ async function processTelemetryForAnomalies(telemetryDoc) {
     anomaliesDetected.push(anomaly);
   }
 
-  // 4. Humidity Threshold Check (DHT22)
-  if (metrics.humidity > 85 || metrics.humidity < 20) {
-    const anomaly = await AnomalyLog.create({
-      deviceId,
-      timestamp: timestamp || new Date(),
-      sensorType: 'humidity',
-      triggerType: 'HARD_THRESHOLD_BREACH',
-      observedValue: metrics.humidity,
-      calculatedZScore: null,
-      thresholdLimit: metrics.humidity > 85 ? 85 : 20,
-      severity: 'MEDIUM',
-      actionsTaken: ['LOGGED'],
-      resolved: false
-    });
-    anomaliesDetected.push(anomaly);
+  // 4. Humidity Check (DHT22 - Manual bounds or Z-Score Automatic mode)
+  if (systemThresholds.isAutomatic) {
+    const { zScore, isAnomaly } = computeZScore('humidity', metrics.humidity);
+    if (isAnomaly) {
+      const anomaly = await AnomalyLog.create({
+        deviceId,
+        timestamp: timestamp || new Date(),
+        sensorType: 'humidity',
+        triggerType: 'Z_SCORE_EXCEEDED',
+        observedValue: metrics.humidity,
+        calculatedZScore: Number(zScore.toFixed(2)),
+        thresholdLimit: `Z > ${systemThresholds.zScoreLimit}`,
+        severity: 'MEDIUM',
+        actionsTaken: ['LOGGED'],
+        resolved: false
+      });
+      anomaliesDetected.push(anomaly);
+    }
+  } else {
+    if (metrics.humidity > systemThresholds.humidityMax || metrics.humidity < systemThresholds.humidityMin) {
+      const isHighBreach = metrics.humidity > systemThresholds.humidityMax;
+      const limitVal = isHighBreach ? systemThresholds.humidityMax : systemThresholds.humidityMin;
+      const anomaly = await AnomalyLog.create({
+        deviceId,
+        timestamp: timestamp || new Date(),
+        sensorType: 'humidity',
+        triggerType: 'HARD_THRESHOLD_BREACH',
+        observedValue: metrics.humidity,
+        calculatedZScore: null,
+        thresholdLimit: limitVal,
+        severity: 'MEDIUM',
+        actionsTaken: ['LOGGED'],
+        resolved: false
+      });
+      anomaliesDetected.push(anomaly);
+    }
   }
 
   return anomaliesDetected;
 }
 
-/* =========================================================================
- * TEMPLATE: ROLLING WINDOW Z-SCORE ANOMALY DETECTOR (|Z| > 3.0)
- * (Uncomment to replace/extend bound checking with statistical Z-score)
- * =========================================================================
- * 
- * const rollingBuffers = {
- *   temperature: [],
- *   humidity: []
- * };
- * const WINDOW_SIZE = 30;
- * const MIN_DELTA = { temperature: 1.5, humidity: 3.0 }; // Filter physical noise
- * 
- * function computeZScore(sensorType, value) {
- *   const buffer = rollingBuffers[sensorType];
- *   if (!buffer) return { zScore: null, isAnomaly: false };
- *   
- *   buffer.push(value);
- *   if (buffer.length > WINDOW_SIZE) buffer.shift();
- *   
- *   // Cold start safeguard: need at least 30 samples for Z-score
- *   if (buffer.length < WINDOW_SIZE) return { zScore: null, isAnomaly: false };
- *   
- *   const mean = buffer.reduce((acc, val) => acc + val, 0) / buffer.length;
- *   const variance = buffer.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / buffer.length;
- *   const stdDev = Math.sqrt(variance);
- *   
- *   if (stdDev === 0) return { zScore: 0, isAnomaly: false };
- *   
- *   const zScore = (value - mean) / stdDev;
- *   const absDeviation = Math.abs(value - mean);
- *   const isAnomaly = Math.abs(zScore) > 3.0 && absDeviation > MIN_DELTA[sensorType];
- *   
- *   return { zScore, mean, stdDev, isAnomaly };
- * }
- * ========================================================================= */
-
 module.exports = {
   processTelemetryForAnomalies,
   setSystemArmed,
-  isSystemArmed
+  isSystemArmed,
+  getThresholds,
+  updateThresholds
 };

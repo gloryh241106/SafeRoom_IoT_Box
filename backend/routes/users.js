@@ -15,18 +15,18 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH /api/v1/users/profile — Update password & notification preferences
+// PATCH /api/v1/users/profile — Update password & user settings
 router.post('/profile', authenticateToken, async (req, res) => {
   try {
-    const { newPassword, notificationPreferences } = req.body;
+    const { newPassword, settings } = req.body;
     const updates = {};
 
     if (newPassword) {
       updates.passwordHash = await bcrypt.hash(newPassword, 10);
     }
 
-    if (notificationPreferences) {
-      updates.notificationPreferences = notificationPreferences;
+    if (settings) {
+      updates.settings = settings;
     }
 
     const updatedUser = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-passwordHash');

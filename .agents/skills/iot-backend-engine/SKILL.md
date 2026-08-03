@@ -22,7 +22,7 @@ The Node.js / Express.js backend acts as the orchestrator between the MQTT Broke
 - Fields: `deviceId`, `timestamp`, `sensorType`, `triggerType` (`Z_SCORE_EXCEEDED`, `HARD_THRESHOLD_BREACH`, `EDGE_SAFETY_TRIGGER`), `observedValue`, `calculatedZScore`, `thresholdLimit`, `severity` (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`), `actionsTaken`, `resolved`, `resolvedAt`, `resolvedBy`.
 
 ### 3. `users`
-- Fields: `username`, `email`, `passwordHash` (bcrypt), `notificationPreferences`, `createdAt`.
+- Fields: `username`, `email`, `passwordHash` (bcrypt), `settings`, `createdAt`.
 
 ---
 

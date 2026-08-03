@@ -141,6 +141,8 @@ Open `http://localhost:3000` in your browser to access the **SafeboxManager** we
 | `GET` | `/api/v1/telemetry/latest` | Get latest live sensor reading |
 | `GET` | `/api/v1/telemetry/historical` | Query historical time-series sensor data |
 | `POST` | `/api/v1/control/actuator` | Actuate remote outputs (Fan, Buzzer, Alert LED, Armed) |
+| `GET` | `/api/v1/control/thresholds` | Fetch current system safety thresholds |
+| `POST` | `/api/v1/control/thresholds` | Update production safety thresholds (Gas, Temp, Humidity, Z-Score) |
 | `GET` | `/api/v1/anomalies` | Query active or historical anomaly logs |
 | `PATCH` | `/api/v1/anomalies/:id/resolve` | Mark an anomaly as resolved |
 | `POST` | `/api/v1/chatbot/query` | Sentence natural language intent query assistant |

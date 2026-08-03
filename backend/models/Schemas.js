@@ -47,11 +47,16 @@ const UserSchema = new Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
-  notificationPreferences: {
+  settings: {
     emailEnabled: { type: Boolean, default: true },
     thresholds: {
-      gasLevel: { type: Number, default: 600 },
-      temperature: { type: Number, default: 45 }
+      gasMax: { type: Number, default: 600 },
+      tempMax: { type: Number, default: 45 },
+      tempMin: { type: Number, default: 10 },
+      humidityMax: { type: Number, default: 85 },
+      humidityMin: { type: Number, default: 20 },
+      zScoreLimit: { type: Number, default: 3.0 },
+      isAutomatic: { type: Boolean, default: false }
     }
   },
   createdAt: { type: Date, default: Date.now }

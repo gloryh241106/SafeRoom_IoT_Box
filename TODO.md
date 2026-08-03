@@ -52,18 +52,14 @@ This document tracks all mock components, mock connections, and mock dataset gen
 
 ### Current Implementation
 - Located in: `backend/services/anomalyEngine.js`
-- Uses active **value bound threshold checking**:
-  - Gas Level: `gasLevel > 600 PPM` (`CRITICAL`)
-  - Temperature: `temp > 45°C` or `< 10°C` (`HIGH`)
-  - Motion: `motionDetected == true` when system armed (`LOW`)
-  - Humidity: `humidity > 85%` or `< 20%` (`MEDIUM`)
-
-### How to Enable Statistical Z-Score Engine:
-1. Open [backend/services/anomalyEngine.js](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/backend/services/anomalyEngine.js).
-2. Uncomment the `computeZScore(sensorType, value)` template block.
-3. Integrate `computeZScore` into `processTelemetryForAnomalies` for continuous variables (`temperature` & `humidity`):
-   - Computes rolling mean $\mu$ and standard deviation $\sigma$ over $N = 30$ sample window.
-   - Triggers anomaly when $|Z| = \left|\frac{x - \mu}{\sigma}\right| > 3.0$ and $|x - \mu| > \Delta_{\text{min\_sense}}$.
+- Supports runtime switching between **Manual Bounds** and **Automatic Z-Score Engine**:
+  - **Manual Mode (Automatic OFF)**:
+    - Gas Level: `gasLevel > gasMax` (`CRITICAL`)
+    - Temperature: `temp > tempMax` or `< tempMin` (`HIGH`)
+    - Motion: `motionDetected == true` when system armed (`LOW`)
+    - Humidity: `humidity > humidityMax` or `< humidityMin` (`MEDIUM`)
+  - **Automatic Mode (Automatic ON)**:
+    - Continuous metrics (Temperature & Humidity) use rolling $N=30$ window statistical Z-score calculations ($|Z| > \text{zScoreLimit}$).
 
 ---
 
