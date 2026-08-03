@@ -1,19 +1,26 @@
 # SafeRoom IoT Box (Safebox) — Agent Guidelines & Project Rules
 
-This document outlines team roles, code architecture rules, phase implementation boundaries, documentation maintenance rules, and verification workflows for agents collaborating on the **SafeRoom IoT Box ("Safebox")** project.
+This document outlines team roles, code architecture rules, task tracking, documentation maintenance rules, and verification workflows for agents collaborating on the **SafeRoom IoT Box ("Safebox")** project.
 
 ---
 
-## 1. Project Overview & Phase Roadmap Summary
+## 1. Project Overview & Task Registry
 
 SafeRoom IoT Box is a 5-week university coursework project (HCMUS, 3 team members: Hoàng, Khang, Kiệt) combining ESP32 hardware sensing, cloud MQTT messaging (EMQX), Express.js backend, MongoDB Atlas time-series storage, Z-score anomaly detection, Nodemailer alerts, and a React web dashboard ("SafeboxManager").
 
-Detailed deliverables are split across 5 phase documents:
-- [PHASE-1.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-1.md) — Weeks 1–2: Infrastructure Bootstrap & End-to-End Vertical Slices (CB-01, CB-02, CB-03, NC-08 start).
-- [PHASE-2.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-2.md) — Weeks 2–3: User Authentication (NC-07), MQ2/LDR Edge Safety & Local Alerts (NC-02), MongoDB Time-Series (NC-03), Dashboard Charts (NC-04 start), WiFiManager (NC-09 start).
-- [PHASE-3.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-3.md) — Weeks 3–4: Z-Score Anomaly Engine (NC-01 start), Email Notifications (NC-05), Dashboard Charts (NC-04 finish), WiFiManager Polish (NC-09 finish).
-- [PHASE-4.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-4.md) — Weeks 4–5: Rule-based Chatbot (NC-06), Z-Score Finalization & Edge Cases (NC-01 finish), Settings Page.
-- [PHASE-5.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-5.md) — Week 5 (final): System Integration Testing (TC-01..TC-06), Quality Polish & Demonstration.
+All tasks are tracked in a single **[TODO.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/TODO.md)**, classified by system layer:
+
+| Section | Layer | Scope |
+|---------|-------|-------|
+| §1 | **Hardware / ESP32 Firmware** | Sensor wiring, actuator wiring, MQTT comms, edge safety, WiFiManager, firmware stability |
+| §2 | **Backend (Express.js)** | Server scaffold, auth, telemetry API, actuator control, anomaly engine, email, chatbot, user profile, hardening |
+| §3 | **Database (MongoDB Atlas)** | Cluster setup, schemas, time-series configuration |
+| §4 | **Frontend (React + Vite + Tailwind)** | Scaffold, auth pages, Overview, Dashboard, Chatbot, Settings, i18n, polish |
+| §5 | **Messaging Infrastructure (EMQX)** | Broker setup, MQTT topic registry |
+| §6 | **Documentation & Testing** | README, inline comments, TC-01 to TC-06, demo preparation |
+| §7 | **Stretch Goals** | Socket.IO, LLM chatbot, local fan auto-trigger, anomaly resolution |
+
+> **Task completion convention**: Finished tasks use `[x]`. Pending tasks use `[ ]`.
 
 ---
 
@@ -52,10 +59,10 @@ Detailed deliverables are split across 5 phase documents:
 ## 4. Documentation Maintenance Directive (Mandatory Rule)
 
 > [!IMPORTANT]
-> **Post-Implementation Documentation Protocol**:
-> At the conclusion of **EVERY implementation session**, code change, or feature addition, agents MUST automatically inspect and update both:
-> 1. **[TODO.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/TODO.md)**: Ensure all mock data generators, mock services, connection templates, and pending hardware integration steps accurately reflect the current codebase.
-> 2. **[README.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/README.md)**: Ensure project architecture diagrams, endpoint references, setup instructions, hardware pinouts, and tech stack summaries are kept fully up to date.
+> **Pre-Implementation & Post-Implementation Documentation Protocol**:
+> 1. **Before writing any code**, add the planned task(s) as `[ ]` items to the correct section of **[TODO.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/TODO.md)**.
+> 2. **After completing** each task, mark it `[x]` in TODO.md and ensure pending items accurately reflect the current codebase.
+> 3. **[README.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/README.md)**: Keep architecture diagrams, endpoint references, setup instructions, hardware pinouts, and tech stack summaries fully up to date at the end of every session.
 
 ---
 
