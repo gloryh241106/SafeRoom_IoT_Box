@@ -37,25 +37,25 @@ export default function Register({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950">
-      <div className="glass-card max-w-md w-full p-8 rounded-3xl border border-slate-800 space-y-6 shadow-2xl">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 bg-slate-50">
+      <div className="glass-card max-w-md w-full p-8 rounded-lg space-y-6 shadow-sm">
         <div className="text-center space-y-2">
-          <div className="inline-flex p-3 bg-blue-600/20 text-blue-400 rounded-2xl border border-blue-500/30 mb-2">
+          <div className="inline-flex p-3 bg-blue-50 text-blue-600 rounded-lg border border-blue-200 mb-2">
             <Shield className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Create an Account</h2>
-          <p className="text-sm text-slate-400">Join SafeboxManager to monitor environmental metrics</p>
+          <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Create an Account</h2>
+          <p className="text-sm text-slate-500">Join SafeboxManager to monitor environmental metrics</p>
         </div>
 
         {error && (
-          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium text-center">
+          <div className="p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-medium text-center">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Username</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Username</label>
             <div className="relative">
               <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
               <input
@@ -64,13 +64,13 @@ export default function Register({ onLoginSuccess }) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Username"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-slate-300 rounded-md pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email Address</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
               <input
@@ -79,13 +79,13 @@ export default function Register({ onLoginSuccess }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="user@example.com"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                className="w-full bg-white border border-slate-300 rounded-md pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Password</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password</label>
             <div className="relative">
               <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-3.5" />
               <input
@@ -93,8 +93,8 @@ export default function Register({ onLoginSuccess }) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                placeholder="Enter password"
+                className="w-full bg-white border border-slate-300 rounded-md pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </div>
           </div>
@@ -102,16 +102,16 @@ export default function Register({ onLoginSuccess }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md transition-colors flex items-center justify-center gap-2"
           >
             <span>{loading ? 'Creating account...' : 'Register'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
-        <div className="text-center text-xs text-slate-500">
+        <div className="text-center text-xs text-slate-600">
           Already have an account?{' '}
-          <Link to="/login" className="text-blue-400 hover:underline font-medium">
+          <Link to="/login" className="text-blue-600 hover:underline font-medium">
             Sign in
           </Link>
         </div>

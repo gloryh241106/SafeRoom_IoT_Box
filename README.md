@@ -150,6 +150,27 @@ pio device monitor
 
 The firmware subscribes to `safebox/{deviceId}/control` at QoS 1 and accepts only `{"actuator":"fan","state":"on|off"}`. `FanController::appendActuatorState()` adds `fanOn` to the shared telemetry payload.
 
+#### Test CB-03 fan control
+
+Run the isolated simulation test first. It does not connect to MongoDB, Atlas, EMQX, or an ESP32:
+
+```bash
+cd backend
+npm run test:cb03
+```
+
+The command sends fan ON through the REST API, verifies the reported actuator state, sends fan OFF, and exits with `CB-03 PASS` when the control path works.
+
+For a physical relay and fan test:
+
+1. Connect the relay signal input to ESP32 GPIO 16, use a common ground, and power the relay/fan from a suitable external supply. Do not power the fan from an ESP32 GPIO pin.
+2. Put the same device ID and EMQX credentials in `firmware/include/secrets.h` and the backend `.env`.
+3. Set `MOCK_HARDWARE=false` in the backend and configure `MQTT_BROKER_URL`, `MQTT_USERNAME`, and `MQTT_PASSWORD`.
+4. Flash the ESP32 with `pio run --target upload`, then open `pio device monitor`.
+5. Start backend and frontend, open Overview, and press the `CB-03 | DC Fan Relay` button.
+
+Expected result: the dashboard shows `MQTT live`, the serial monitor prints `[Fan] Relay state: ON` or `OFF`, GPIO 16 changes level, and the relay switches the fan. The ESP32 always initializes GPIO 16 LOW so the fan remains off during boot.
+
 ### 4. Frontend Setup
 In a new terminal:
 ```bash

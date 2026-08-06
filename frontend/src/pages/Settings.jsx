@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Bell, Shield, Save, Sliders, CheckCircle, Cpu } from 'lucide-react';
+import { User, Bell, Shield, Save, CheckCircle, Cpu } from 'lucide-react';
 
 export default function Settings({ user }) {
   const [emailEnabled, setEmailEnabled] = useState(true);
@@ -60,31 +60,31 @@ export default function Settings({ user }) {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
-        <h2 className="text-2xl font-bold text-white tracking-tight">Settings & Safety Matrix</h2>
-        <p className="text-sm text-slate-400">Account profiles, notification preferences, and editable safety thresholds</p>
+        <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Settings & Safety Matrix</h2>
+        <p className="text-sm text-slate-500">Account profiles, notification preferences, and editable safety thresholds</p>
       </div>
 
       {savedMessage && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm font-medium flex items-center gap-2">
+        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
           <span>{savedMessage}</span>
         </div>
       )}
 
       {/* Editable Safety Rule Matrix Form */}
-      <form onSubmit={handleSaveThresholds} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-5">
+      <form onSubmit={handleSaveThresholds} className="glass-card p-6 rounded-lg space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Shield className="w-5 h-5 text-blue-400" />
+            <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
               <span>Authoritative System Safety Threshold Matrix</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-1">Configure live safety limits enforced by backend anomaly engine and hardware safety triggers</p>
+            <p className="text-xs text-slate-500 mt-1">Configure live safety limits enforced by backend anomaly engine and hardware safety triggers</p>
           </div>
           <button
             type="submit"
             disabled={thresholdLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs rounded-xl transition-all shadow-lg shadow-blue-600/20 shrink-0"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-md transition-colors shrink-0"
           >
             <Save className="w-4 h-4" />
             <span>Save Thresholds</span>
@@ -92,13 +92,13 @@ export default function Settings({ user }) {
         </div>
 
         {/* Automatic Mode Toggle Switch */}
-        <div className="flex items-center justify-between p-4 bg-slate-900/80 rounded-xl border border-slate-800">
+        <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-purple-400" />
-              <span className="text-sm font-semibold text-white">Automatic Mode (Z-Score Engine)</span>
+              <Cpu className="w-4 h-4 text-violet-600" />
+              <span className="text-sm font-semibold text-slate-950">Automatic Mode (Z-Score Engine)</span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               {thresholds.isAutomatic
                 ? 'ON: Continuous metrics (Temp & Humidity) use statistical Z-Score anomaly engine (|Z| > threshold limit).'
                 : 'OFF: Continuous metrics use static manual upper and lower bound limits.'}
@@ -108,7 +108,7 @@ export default function Settings({ user }) {
             type="button"
             onClick={() => setThresholds({ ...thresholds, isAutomatic: !thresholds.isAutomatic })}
             className={`w-12 h-6 rounded-full transition-colors relative p-1 shrink-0 ${
-              thresholds.isAutomatic ? 'bg-purple-600' : 'bg-slate-700'
+              thresholds.isAutomatic ? 'bg-violet-600' : 'bg-slate-300'
             }`}
           >
             <div
@@ -122,24 +122,24 @@ export default function Settings({ user }) {
         {/* Grid of Threshold Input Fields */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
           {/* MQ2 Gas Threshold (Always Active Safety Bound) */}
-          <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2">
-            <label className="block text-xs text-slate-400 font-semibold uppercase">MQ2 Gas Max (PPM)</label>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label className="block text-xs text-slate-600 font-semibold uppercase">MQ2 Gas Max (PPM)</label>
             <input
               type="number"
               value={thresholds.gasMax}
               onChange={(e) => setThresholds({ ...thresholds, gasMax: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-red-400 focus:outline-none focus:border-red-500"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-red-600 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
             />
             <p className="text-[11px] text-slate-500">Triggers Local Buzzer + Red LED + Email</p>
           </div>
 
           {/* Temperature Max Bound */}
-          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
             <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-400 font-semibold uppercase">Temp Max Bound (°C)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+              <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Max Bound (°C)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
             </div>
             <input
               type="number"
@@ -147,18 +147,18 @@ export default function Settings({ user }) {
               disabled={thresholds.isAutomatic}
               value={thresholds.tempMax}
               onChange={(e) => setThresholds({ ...thresholds, tempMax: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-orange-400 focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed"
             />
             <p className="text-[11px] text-slate-500">Manual upper limit (Fan + Email)</p>
           </div>
 
           {/* Temperature Min Bound */}
-          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
             <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-400 font-semibold uppercase">Temp Min Bound (°C)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+              <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Min Bound (°C)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
             </div>
             <input
               type="number"
@@ -166,18 +166,18 @@ export default function Settings({ user }) {
               disabled={thresholds.isAutomatic}
               value={thresholds.tempMin}
               onChange={(e) => setThresholds({ ...thresholds, tempMin: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-orange-400 focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed"
             />
             <p className="text-[11px] text-slate-500">Manual lower limit alert</p>
           </div>
 
           {/* Humidity Max Bound */}
-          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
             <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-400 font-semibold uppercase">Humidity Max Bound (%)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+              <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Max Bound (%)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
             </div>
             <input
               type="number"
@@ -185,18 +185,18 @@ export default function Settings({ user }) {
               disabled={thresholds.isAutomatic}
               value={thresholds.humidityMax}
               onChange={(e) => setThresholds({ ...thresholds, humidityMax: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-blue-400 focus:outline-none focus:border-blue-500 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
             />
             <p className="text-[11px] text-slate-500">Manual upper moisture limit</p>
           </div>
 
           {/* Humidity Min Bound */}
-          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
             <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-400 font-semibold uppercase">Humidity Min Bound (%)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-purple-400 font-medium">Disabled (Auto Mode)</span>}
+              <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Min Bound (%)</label>
+              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
             </div>
             <input
               type="number"
@@ -204,18 +204,18 @@ export default function Settings({ user }) {
               disabled={thresholds.isAutomatic}
               value={thresholds.humidityMin}
               onChange={(e) => setThresholds({ ...thresholds, humidityMin: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-blue-400 focus:outline-none focus:border-blue-500 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
             />
             <p className="text-[11px] text-slate-500">Manual lower moisture limit</p>
           </div>
 
           {/* Z-Score Limit */}
-          <div className={`bg-slate-900/60 p-4 rounded-xl border border-slate-800 space-y-2 transition-all ${
+          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             !thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
             <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-400 font-semibold uppercase">Z-Score Limit (|Z|)</label>
-              {!thresholds.isAutomatic && <span className="text-[10px] text-slate-400 font-medium">Disabled (Manual Mode)</span>}
+              <label className="block text-xs text-slate-600 font-semibold uppercase">Z-Score Limit (|Z|)</label>
+              {!thresholds.isAutomatic && <span className="text-[10px] text-slate-500 font-medium">Disabled (Manual Mode)</span>}
             </div>
             <input
               type="number"
@@ -223,7 +223,7 @@ export default function Settings({ user }) {
               disabled={!thresholds.isAutomatic}
               value={thresholds.zScoreLimit}
               onChange={(e) => setThresholds({ ...thresholds, zScoreLimit: Number(e.target.value) })}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-base font-bold text-purple-400 focus:outline-none focus:border-purple-500 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-violet-600 focus:outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 disabled:cursor-not-allowed"
             />
             <p className="text-[11px] text-slate-500">N=30 rolling window limit in Auto mode</p>
           </div>
@@ -231,21 +231,21 @@ export default function Settings({ user }) {
       </form>
 
       {/* Notification Preferences */}
-      <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <Bell className="w-5 h-5 text-blue-400" />
+      <div className="glass-card p-6 rounded-lg space-y-4">
+        <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-blue-600" />
           <span>Transactional Alert Preferences</span>
         </h3>
 
-        <div className="flex items-center justify-between p-4 bg-slate-900/60 rounded-xl border border-slate-800">
+        <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
           <div className="space-y-0.5">
-            <span className="text-sm font-semibold text-white">Nodemailer Email Alerts</span>
-            <p className="text-xs text-slate-400">Sends emergency emails on HIGH & CRITICAL severity anomalies</p>
+            <span className="text-sm font-semibold text-slate-950">Nodemailer Email Alerts</span>
+            <p className="text-xs text-slate-500">Sends emergency emails on HIGH & CRITICAL severity anomalies</p>
           </div>
           <button
             onClick={() => setEmailEnabled(!emailEnabled)}
             className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
-              emailEnabled ? 'bg-blue-600' : 'bg-slate-700'
+              emailEnabled ? 'bg-blue-600' : 'bg-slate-300'
             }`}
           >
             <div
@@ -258,47 +258,47 @@ export default function Settings({ user }) {
       </div>
 
       {/* Profile & Security Form */}
-      <form onSubmit={handleSaveProfile} className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <User className="w-5 h-5 text-blue-400" />
+      <form onSubmit={handleSaveProfile} className="glass-card p-6 rounded-lg space-y-4">
+        <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
+          <User className="w-5 h-5 text-blue-600" />
           <span>User Profile Management</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Username</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Username</label>
             <input
               type="text"
               readOnly
               value={user?.username || 'admin'}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed"
+              className="w-full bg-slate-100 border border-slate-200 rounded-md px-4 py-2.5 text-sm text-slate-600 cursor-not-allowed"
             />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Email Address</label>
             <input
               type="email"
               readOnly
               value={user?.email || 'admin@safebox.io'}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed"
+              className="w-full bg-slate-100 border border-slate-200 rounded-md px-4 py-2.5 text-sm text-slate-600 cursor-not-allowed"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-400 mb-1">Change Password</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Change Password</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter new password..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            className="w-full bg-white border border-slate-300 rounded-md px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </div>
 
         <button
           type="submit"
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg shadow-blue-600/20"
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md transition-colors"
         >
           <Save className="w-4 h-4" />
           <span>Save Profile</span>

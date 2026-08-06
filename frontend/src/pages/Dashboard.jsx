@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, Calendar, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
@@ -56,18 +56,18 @@ export default function Dashboard() {
       {/* Header & Export controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Historical Telemetry Charts</h2>
-          <p className="text-sm text-slate-400">Recharts time-series data analysis and CSV reporting</p>
+          <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Historical Telemetry Charts</h2>
+          <p className="text-sm text-slate-500">Recharts time-series data analysis and CSV reporting</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-medium text-slate-400">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 text-xs font-medium text-slate-600">
             {['1h', '6h', '24h', '7d'].map((range) => (
               <button
                 key={range}
                 onClick={() => setTimeRange(range)}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
-                  timeRange === range ? 'bg-blue-600 text-white font-semibold' : 'hover:text-slate-200'
+                className={`px-3 py-1.5 rounded-md transition-colors ${
+                  timeRange === range ? 'bg-white text-blue-700 font-semibold shadow-sm' : 'hover:text-slate-950'
                 }`}
               >
                 {range}
@@ -78,14 +78,14 @@ export default function Dashboard() {
           <button
             onClick={fetchHistoricalData}
             title="Refresh"
-            className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="p-2.5 rounded-md bg-white border border-slate-300 text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold transition-all shadow-lg shadow-emerald-600/20"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold transition-colors"
           >
             <Download className="w-4 h-4" />
             <span>Export CSV</span>
@@ -100,15 +100,15 @@ export default function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Temperature Chart */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
-            <h3 className="text-sm font-semibold text-orange-400 uppercase tracking-wider">Temperature (°C)</h3>
+          <div className="glass-card p-5 rounded-lg space-y-4">
+            <h3 className="text-sm font-semibold text-orange-600 uppercase tracking-wider">Temperature (°C)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '0.5rem', fontSize: '12px', color: '#0f172a' }} />
                   <Line type="monotone" dataKey="temperature" stroke="#f97316" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -116,15 +116,15 @@ export default function Dashboard() {
           </div>
 
           {/* Humidity Chart */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
-            <h3 className="text-sm font-semibold text-blue-400 uppercase tracking-wider">Humidity (%)</h3>
+          <div className="glass-card p-5 rounded-lg space-y-4">
+            <h3 className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Humidity (%)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={[0, 100]} />
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '0.5rem', fontSize: '12px', color: '#0f172a' }} />
                   <Line type="monotone" dataKey="humidity" stroke="#3b82f6" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -132,15 +132,15 @@ export default function Dashboard() {
           </div>
 
           {/* Gas Level Chart */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-800 space-y-4">
-            <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider">Gas / Smoke Level (PPM)</h3>
+          <div className="glass-card p-5 rounded-lg space-y-4">
+            <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wider">Gas / Smoke Level (PPM)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', fontSize: '12px' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '0.5rem', fontSize: '12px', color: '#0f172a' }} />
                   <Line type="monotone" dataKey="gasLevel" stroke="#ef4444" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>

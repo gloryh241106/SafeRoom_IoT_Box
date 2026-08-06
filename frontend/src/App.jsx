@@ -44,13 +44,13 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
         <Navbar user={user} onLogout={handleLogout} />
 
         <div className="flex-1 flex">
           <Sidebar />
 
-          <main className="flex-1 p-6 md:p-8 overflow-y-auto max-w-7xl">
+          <main className="flex-1 w-full p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8 overflow-y-auto max-w-7xl">
             <Routes>
               <Route path="/" element={<Navigate to="/overview" replace />} />
               <Route path="/overview" element={<Overview />} />
