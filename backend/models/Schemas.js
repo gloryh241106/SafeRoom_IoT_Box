@@ -9,6 +9,7 @@ const SensorReadingSchema = new Schema({
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
     gasLevel: { type: Number, required: true },
+    lightIntensity: { type: Number, default: null },
     motionDetected: { type: Boolean, required: true }
   },
   actuatorStates: {
@@ -16,6 +17,9 @@ const SensorReadingSchema = new Schema({
     buzzerActive: { type: Boolean, required: true, default: false },
     alertLedActive: { type: Boolean, required: true, default: false }
   }
+}, {
+  autoCreate: false,
+  autoIndex: false
 });
 
 // 2. AnomalyLog Schema

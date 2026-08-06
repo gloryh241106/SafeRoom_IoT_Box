@@ -69,10 +69,16 @@ SafeRoom_IoT_Box/
 ├── backend/                  # Node.js / Express REST API Backend
 │   ├── models/               # Mongoose Schemas (SensorReading, AnomalyLog, User)
 │   ├── routes/               # API Routes (auth, telemetry, control, anomalies, chatbot, users)
-│   ├── services/             # Anomaly engine, mock telemetry generator, email service
-│   ├── .env                  # Backend environment configuration
+│   ├── services/             # MQTT, Time Series, anomaly, telemetry, email services
+│   ├── test/                 # Node test runner coverage for core IoT logic
+│   ├── .env.example          # Safe backend configuration template
 │   ├── package.json          # Node dependencies
 │   └── server.js             # Express server entry point
+│
+├── firmware/                 # PlatformIO ESP32 firmware for MQTT fan control
+│   ├── include/              # Local secrets template
+│   ├── src/                  # GPIO 16 relay controller and MQTT client
+│   └── platformio.ini        # ESP32 DevKit build configuration
 │
 ├── frontend/                 # SafeboxManager React + Vite Dashboard
 │   ├── src/
@@ -84,10 +90,8 @@ SafeRoom_IoT_Box/
 │   └── vite.config.js        # Vite config & API proxy
 │
 ├── .agents/skills/           # Agent domain skills (esp32, iot-backend, safebox-frontend)
-├── PHASE-1.md ... PHASE-5.md # 5-Week Phase Deliverables Roadmap
-├── TODO.md                   # Real hardware, MQTT, Nodemailer & Z-score integration guide
+├── TODO.md                   # Master task registry and integration checklist
 ├── AGENTS.md                 # Agent guidelines and project rules
-├── RESOLUTION.md             # Project constraints and ambiguity resolutions
 └── README.md                 # Project documentation
 ```
 
@@ -98,21 +102,34 @@ SafeRoom_IoT_Box/
 ### 1. Prerequisites
 - Node.js (v18+) & `npm`
 - MongoDB database connection (local or MongoDB Atlas)
+- PlatformIO (only required to build/flash the ESP32 firmware)
 
 ### 2. Backend Setup
 ```bash
 cd backend
-npm install
+npm ci
 ```
 
-Configure `backend/.env`:
+Copy `backend/.env.example` to `backend/.env`. Local development can keep `MOCK_HARDWARE=true` and `EMAIL_ENABLED=false`. For real hardware, configure these values:
+
 ```env
 PORT=5000
 MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/safebox
-JWT_SECRET=safebox_secret_key_2026
+JWT_SECRET=<long-random-secret>
 DEVICE_ID=safebox-01
-MOCK_HARDWARE=true
+MOCK_HARDWARE=false
+MQTT_BROKER_URL=mqtts://<emqx-host>:8883
+MQTT_USERNAME=<emqx-username>
+MQTT_PASSWORD=<emqx-password>
+EMAIL_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=<smtp-user>
+SMTP_PASS=<smtp-app-password>
+ALERT_RECIPIENT_EMAIL=<recipient-email>
 ```
+
+On startup, the backend creates `sensor_readings` as a MongoDB Time Series collection when it does not exist and verifies `timeField`, `metaField`, granularity, and 30-day expiry. Startup fails with a migration message if an existing collection has incompatible options.
 
 Start the backend server:
 ```bash
@@ -120,11 +137,24 @@ npm start
 ```
 The server will run on `http://localhost:5000`.
 
-### 3. Frontend Setup
+### 3. ESP32 Fan Control Firmware
+
+Copy `firmware/include/secrets.example.h` to `firmware/include/secrets.h`, then set WiFi, EMQX and CA certificate values. The relay signal pin is GPIO 16 and defaults to LOW (fan off).
+
+```bash
+cd firmware
+pio run
+pio run --target upload
+pio device monitor
+```
+
+The firmware subscribes to `safebox/{deviceId}/control` at QoS 1 and accepts only `{"actuator":"fan","state":"on|off"}`. `FanController::appendActuatorState()` adds `fanOn` to the shared telemetry payload.
+
+### 4. Frontend Setup
 In a new terminal:
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 Open `http://localhost:3000` in your browser to access the **SafeboxManager** web dashboard.
@@ -141,6 +171,7 @@ Open `http://localhost:3000` in your browser to access the **SafeboxManager** we
 | `GET` | `/api/v1/telemetry/latest` | Get latest live sensor reading |
 | `GET` | `/api/v1/telemetry/historical` | Query historical time-series sensor data |
 | `POST` | `/api/v1/control/actuator` | Actuate remote outputs (Fan, Buzzer, Alert LED, Armed) |
+| `GET` | `/api/v1/control/status` | Get MQTT/device connection and actuator status |
 | `GET` | `/api/v1/control/thresholds` | Fetch current system safety thresholds |
 | `POST` | `/api/v1/control/thresholds` | Update production safety thresholds (Gas, Temp, Humidity, Z-Score) |
 | `GET` | `/api/v1/anomalies` | Query active or historical anomaly logs |
@@ -151,12 +182,15 @@ Open `http://localhost:3000` in your browser to access the **SafeboxManager** we
 
 ---
 
-## 📖 Phase Roadmap & Hardware Integration
+## 🧪 Verification
 
-- **[PHASE-1.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-1.md)** — Weeks 1–2: Infrastructure Bootstrap & End-to-End Vertical Slices
-- **[PHASE-2.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-2.md)** — Weeks 2–3: User Authentication, MQ2/LDR Edge Alerts, MongoDB Time-Series
-- **[PHASE-3.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-3.md)** — Weeks 3–4: Anomaly Engine, Email Notifications, Dashboard Charts
-- **[PHASE-4.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-4.md)** — Weeks 4–5: Rule-based Chatbot, Z-Score Finalization, Settings Page
-- **[PHASE-5.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/PHASE-5.md)** — Week 5 (final): System Integration Testing (TC-01..TC-06) & Demonstration
+```bash
+cd backend
+npm test
+npm audit
 
-For instructions on connecting real ESP32 hardware, real EMQX MQTT brokers, real SMTP email servers, or enabling statistical Z-score calculations ($|Z| > 3.0$), refer to **[TODO.md](file:///home/pbkhang404/Documents/HCMUS/Y2/S3/iot/SafeRoom_IoT_Box/TODO.md)**.
+cd ../frontend
+npm run build
+```
+
+The automated suite covers the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, telemetry/edge-alert validation, Time Series creation, SMTP severity filtering, HTML escaping, and the 15-minute email throttle. Hardware, EMQX, Atlas and SMTP end-to-end checks remain tracked as `TC-02`, `TC-05`, and `TC-06` in [TODO.md](TODO.md).

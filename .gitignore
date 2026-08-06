@@ -28,6 +28,11 @@ yarn-error.log*
 # local env files
 */.env*.local
 */.env
+firmware/include/secrets.h
+firmware/.pio/
+
+# generated review artifacts
+/tmp/
 
 # vercel
 */.vercel

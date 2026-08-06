@@ -1,7 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { updateActuatorState, getCurrentActuatorStates } = require('../services/mockTelemetryGenerator');
+const { getCurrentActuatorStates } = require('../services/mockTelemetryGenerator');
 const { setSystemArmed, isSystemArmed, getThresholds, updateThresholds } = require('../services/anomalyEngine');
+const { getMqttStatus, publishControlCommand } = require('../services/mqttService');
+
+const ALLOWED_ACTUATORS = new Set(['fan', 'buzzer', 'alertLed']);
+
+function parseActuatorState(value) {
+  if (typeof value === 'boolean') return value;
+  if (value === 'on') return true;
+  if (value === 'off') return false;
+  throw new TypeError("state must be a boolean or the string 'on'/'off'");
+}
 
 // GET /api/v1/control/thresholds — Get current safety thresholds
 router.get('/thresholds', (req, res) => {
@@ -28,54 +38,51 @@ router.post('/thresholds', (req, res) => {
 // POST /api/v1/control/actuator — Toggle actuators (fan, buzzer, alertLed)
 router.post('/actuator', async (req, res) => {
   try {
-    const { deviceId = 'safebox-01', actuator, state } = req.body;
+    const { deviceId = process.env.DEVICE_ID || 'safebox-01', actuator, state } = req.body;
 
     if (!actuator || state === undefined) {
       return res.status(400).json({ success: false, error: 'Actuator name and target state are required' });
     }
 
     if (actuator === 'systemArmed') {
-      setSystemArmed(state);
+      const targetState = parseActuatorState(state);
+      setSystemArmed(targetState);
       return res.json({
         success: true,
-        message: `System armed state set to ${Boolean(state)}`,
+        message: `System armed state set to ${targetState}`,
         systemArmed: isSystemArmed()
       });
     }
 
-    const updatedStates = updateActuatorState(actuator, state);
+    if (!ALLOWED_ACTUATORS.has(actuator)) {
+      return res.status(400).json({ success: false, error: `Unsupported actuator '${actuator}'` });
+    }
 
-    console.log(`[Control API] Actuator '${actuator}' on device '${deviceId}' updated to ${state}`);
-
-    /* =========================================================================
-     * TEMPLATE: MQTT REAL PUBLISH COMMAND
-     * (Uncomment when using real MQTT broker client)
-     * =========================================================================
-     * if (global.mqttClient) {
-     *   const topic = `safebox/${deviceId}/control`;
-     *   const payload = JSON.stringify({ actuator, state: state ? 'on' : 'off' });
-     *   global.mqttClient.publish(topic, payload, { qos: 1 });
-     * }
-     * ========================================================================= */
+    const targetState = parseActuatorState(state);
+    const publishResult = await publishControlCommand(deviceId, actuator, targetState);
 
     res.json({
       success: true,
       deviceId,
       actuator,
-      state: Boolean(state),
-      currentActuatorStates: updatedStates
+      state: targetState,
+      delivery: publishResult.status,
+      currentActuatorStates: getCurrentActuatorStates()
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.code === 'MQTT_OFFLINE' ? 503 : err instanceof TypeError ? 400 : 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
 // GET /api/v1/control/status — Get actuator & armed states
 router.get('/status', (req, res) => {
+  const deviceId = req.query.deviceId || process.env.DEVICE_ID || 'safebox-01';
   res.json({
     success: true,
     actuators: getCurrentActuatorStates(),
-    systemArmed: isSystemArmed()
+    systemArmed: isSystemArmed(),
+    mqtt: getMqttStatus(deviceId)
   });
 });
 

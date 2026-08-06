@@ -6,24 +6,33 @@ export default function Overview() {
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [systemArmed, setSystemArmed] = useState(true);
-  const [actuatorLoading, setActuatorLoading] = useState(false);
+  const [pendingActuator, setPendingActuator] = useState(null);
+  const [connectionState, setConnectionState] = useState('connecting');
+  const [controlFeedback, setControlFeedback] = useState(null);
 
   // Fetch telemetry and anomalies
   const fetchData = async () => {
     try {
       const telRes = await fetch('/api/v1/telemetry/latest');
       const telJson = await telRes.json();
-      if (telJson.success) {
-        setTelemetry(telJson.data);
-      }
+      if (!telRes.ok || !telJson.success) throw new Error(telJson.error || 'Telemetry request failed');
+      setTelemetry(telJson.data);
+
+      const statusRes = await fetch(`/api/v1/control/status?deviceId=${encodeURIComponent(telJson.data.deviceId)}`);
+      const statusJson = await statusRes.json();
+      if (!statusRes.ok || !statusJson.success) throw new Error(statusJson.error || 'Device status request failed');
 
       const anomRes = await fetch('/api/v1/anomalies?status=unresolved');
       const anomJson = await anomRes.json();
       if (anomJson.success) {
         setAnomalies(anomJson.data);
       }
+      const mqtt = statusJson.mqtt;
+      const deviceOnline = mqtt.mode === 'mock' || (mqtt.brokerConnected && mqtt.device?.status === 'online');
+      setConnectionState(deviceOnline ? 'online' : 'degraded');
     } catch (err) {
       console.error('Error polling telemetry:', err);
+      setConnectionState('offline');
     } finally {
       setLoading(false);
     }
@@ -37,36 +46,44 @@ export default function Overview() {
 
   // Handle manual actuator toggle
   const handleActuatorToggle = async (actuator, currentState) => {
-    setActuatorLoading(true);
+    setPendingActuator(actuator);
+    setControlFeedback(null);
     try {
       const targetState = !currentState;
       const res = await fetch('/api/v1/control/actuator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          deviceId: 'safebox-01',
+          deviceId: telemetry?.deviceId || 'safebox-01',
           actuator,
           state: targetState
         })
       });
       const json = await res.json();
-      if (json.success) {
-        if (actuator === 'systemArmed') {
-          setSystemArmed(targetState);
-        } else {
-          setTelemetry((prev) => ({
-            ...prev,
-            actuatorStates: {
-              ...prev.actuatorStates,
-              [actuator === 'fan' ? 'fanOn' : actuator === 'buzzer' ? 'buzzerActive' : 'alertLedActive']: targetState
-            }
-          }));
-        }
+      if (!res.ok || !json.success) throw new Error(json.error || 'Control command failed');
+
+      if (actuator === 'systemArmed') {
+        setSystemArmed(targetState);
+      } else {
+        setTelemetry((prev) => ({
+          ...prev,
+          actuatorStates: {
+            ...prev.actuatorStates,
+            [actuator === 'fan' ? 'fanOn' : actuator === 'buzzer' ? 'buzzerActive' : 'alertLedActive']: targetState
+          }
+        }));
       }
+      const successMessage = actuator === 'systemArmed'
+        ? 'System state updated'
+        : json.delivery === 'mocked'
+          ? 'Simulation updated'
+          : 'Command published';
+      setControlFeedback({ type: 'success', message: successMessage });
     } catch (err) {
       console.error('Error toggling actuator:', err);
+      setControlFeedback({ type: 'error', message: err.message });
     } finally {
-      setActuatorLoading(false);
+      setPendingActuator(null);
     }
   };
 
@@ -96,6 +113,18 @@ export default function Overview() {
 
   const metrics = telemetry?.metrics || { temperature: 0, humidity: 0, gasLevel: 0, motionDetected: false };
   const actuators = telemetry?.actuatorStates || { fanOn: false, buzzerActive: false, alertLedActive: false };
+  const connectionLabel = connectionState === 'connecting'
+    ? 'Connecting'
+    : connectionState === 'online'
+      ? 'Live'
+      : connectionState === 'degraded'
+        ? 'Device offline'
+        : 'Disconnected';
+  const connectionColor = connectionState === 'online'
+    ? 'bg-emerald-400'
+    : connectionState === 'connecting'
+      ? 'bg-amber-400'
+      : 'bg-red-400';
 
   return (
     <div className="space-y-6">
@@ -106,7 +135,12 @@ export default function Overview() {
           <p className="text-sm text-slate-400">Live environmental telemetry and remote actuator command center</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300" aria-live="polite">
+            <span className={`h-2.5 w-2.5 rounded-full ${connectionColor}`} />
+            {connectionLabel}
+          </div>
           <button
+            disabled={pendingActuator !== null}
             onClick={() => handleActuatorToggle('systemArmed', systemArmed)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all border ${
               systemArmed
@@ -200,10 +234,17 @@ export default function Overview() {
 
       {/* Remote Actuator Controls */}
       <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-          <Fan className="w-5 h-5 text-blue-400" />
-          <span>Remote Actuator Command Controls</span>
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <Fan className="w-5 h-5 text-blue-400" />
+            <span>Remote Actuator Command Controls</span>
+          </h3>
+          {controlFeedback && (
+            <p className={`text-xs font-semibold ${controlFeedback.type === 'error' ? 'text-red-300' : 'text-emerald-300'}`}>
+              {controlFeedback.message}
+            </p>
+          )}
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* DC Fan Toggle */}
           <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
@@ -212,7 +253,7 @@ export default function Overview() {
               <p className="text-xs text-slate-400">GPIO 16 (HIGH = ON)</p>
             </div>
             <button
-              disabled={actuatorLoading}
+              disabled={pendingActuator !== null || connectionState !== 'online'}
               onClick={() => handleActuatorToggle('fan', actuators.fanOn)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 actuators.fanOn
@@ -220,7 +261,7 @@ export default function Overview() {
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
               }`}
             >
-              {actuators.fanOn ? 'ON' : 'OFF'}
+              {pendingActuator === 'fan' ? 'SENDING' : actuators.fanOn ? 'ON' : 'OFF'}
             </button>
           </div>
 
@@ -231,7 +272,7 @@ export default function Overview() {
               <p className="text-xs text-slate-400">GPIO 19 PWM LEDC</p>
             </div>
             <button
-              disabled={actuatorLoading}
+              disabled={pendingActuator !== null || connectionState !== 'online'}
               onClick={() => handleActuatorToggle('buzzer', actuators.buzzerActive)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 actuators.buzzerActive
@@ -239,7 +280,7 @@ export default function Overview() {
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
               }`}
             >
-              {actuators.buzzerActive ? 'ACTIVE' : 'OFF'}
+              {pendingActuator === 'buzzer' ? 'SENDING' : actuators.buzzerActive ? 'ACTIVE' : 'OFF'}
             </button>
           </div>
 
@@ -250,7 +291,7 @@ export default function Overview() {
               <p className="text-xs text-slate-400">GPIO 18 Digital Output</p>
             </div>
             <button
-              disabled={actuatorLoading}
+              disabled={pendingActuator !== null || connectionState !== 'online'}
               onClick={() => handleActuatorToggle('alertLed', actuators.alertLedActive)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 actuators.alertLedActive
@@ -258,7 +299,7 @@ export default function Overview() {
                   : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
               }`}
             >
-              {actuators.alertLedActive ? 'ON' : 'OFF'}
+              {pendingActuator === 'alertLed' ? 'SENDING' : actuators.alertLedActive ? 'ON' : 'OFF'}
             </button>
           </div>
         </div>

@@ -28,8 +28,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Publish JSON telemetry to `safebox/{deviceId}/telemetry` (QoS 0) every 2s `(CB-01)`
 - [ ] Configure **LWT** on `safebox/{deviceId}/status` with `{"status":"offline"}` (QoS 1, retained) `(CB-01)`
 - [ ] On connect, publish `{"status":"online"}` to status topic (QoS 1, retained) `(CB-01)`
-- [ ] Subscribe to `safebox/{deviceId}/control` (QoS 1) for fan commands `(CB-03)`
-- [ ] On message `{"actuator":"fan","state":"on"}` → GPIO 16 HIGH; `"off"` → LOW `(CB-03)`
+- [x] Subscribe to `safebox/{deviceId}/control` (QoS 1) for fan commands `(CB-03)`
+- [x] On message `{"actuator":"fan","state":"on"}` → GPIO 16 HIGH; `"off"` → LOW `(CB-03)`
 - [ ] Include `actuatorStates.fanOn`, `.buzzerActive`, `.alertLedActive` in telemetry `(CB-03, NC-02)`
 - [ ] Include `gasLevel`, `lightIntensity` in periodic telemetry payloads `(NC-02)`
 - [ ] Include `motionDetected` from PIR state in periodic telemetry `(CB-02)`
@@ -81,28 +81,28 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Mock telemetry generator (`mockTelemetryGenerator.js`) simulating DHT22, PIR, MQ2 every 2s `(CB-01)`
 - [x] `GET /api/v1/telemetry/latest` — returns most recent document for device `(CB-01)`
 - [x] `GET /api/v1/telemetry/historical?from=&to=&sensor=` — historical query `(NC-03)`
-- [ ] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
-- [ ] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
+- [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
+- [x] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
 
 ### 2.4 Remote Actuator Control
 
 - [x] `POST /api/v1/control/actuator` — accepts `{deviceId, actuator, state}` `(CB-03)`
-- [ ] Publish real MQTT command to `safebox/{deviceId}/control` (QoS 1) `(CB-03)`
+- [x] Publish real MQTT command to `safebox/{deviceId}/control` (QoS 1) `(CB-03)`
 
 ### 2.5 Anomaly Detection Engine (NC-01)
 
 - [x] Rolling window buffer (N=30) per device per metric `(NC-01)`
 - [x] Z-score computation: μ, σ, Z = (x - μ) / σ, anomaly if |Z| > limit `(NC-01)`
 - [x] Apply Z-score to temperature and humidity only `(NC-01)`
-- [x] Multi-sensor rule engine (gas CRITICAL, temp HIGH, motion LOW, humidity MEDIUM) `(NC-01)`
+- [x] Multi-sensor rule engine (gas CRITICAL, temp HIGH, motion HIGH, humidity MEDIUM) `(NC-01)`
 - [x] Create `anomaly_logs` document on detection `(NC-01)`
 - [x] Runtime switching: Manual Bounds vs. Automatic Z-Score mode `(NC-01)`
-- [ ] Validate Z-score with controlled test data (30 stable → spike → confirm anomaly) `(NC-01)`
-- [ ] Edge case: cold start (<30 samples) → skip Z-score, rely on hard thresholds `(NC-01)`
-- [ ] Edge case: σ = 0 (identical readings) → treat as no anomaly `(NC-01)`
-- [ ] Edge case: rapid repeated anomalies → deduplication `(NC-01)`
-- [ ] Subscribe to `safebox/+/alerts` for edge alerts → create `EDGE_SAFETY_TRIGGER` entries `(NC-01)`
-- [ ] Δ_min_sense filter to prevent micro-fluctuation false positives `(NC-01)`
+- [x] Validate Z-score with controlled test data (30 stable → spike → confirm anomaly) `(NC-01)`
+- [x] Edge case: cold start (<30 samples) → skip Z-score, rely on hard thresholds `(NC-01)`
+- [x] Edge case: σ = 0 (identical readings) → treat as no anomaly `(NC-01)`
+- [x] Edge case: rapid repeated anomalies → deduplication `(NC-01)`
+- [x] Subscribe to `safebox/+/alerts` for edge alerts → create `EDGE_SAFETY_TRIGGER` entries `(NC-01)`
+- [x] Δ_min_sense filter to prevent micro-fluctuation false positives `(NC-01)`
 
 ### 2.6 Anomaly Logs API
 
@@ -113,9 +113,9 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 - [x] Email dispatch function with 15-minute sliding window throttle per `(deviceId, sensorType)` `(NC-05)`
 - [x] Triggered on `HIGH` or `CRITICAL` severity anomalies only `(NC-05)`
-- [ ] Replace mock email with real Nodemailer SMTP transport (`nodemailer.createTransport()`) `(NC-05)`
-- [ ] Configure `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `ALERT_RECIPIENT_EMAIL` `(NC-05)`
-- [ ] HTML email template with clear alert formatting `(NC-05)`
+- [x] Replace mock email with real Nodemailer SMTP transport (`nodemailer.createTransport()`) `(NC-05)`
+- [x] Configure `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `ALERT_RECIPIENT_EMAIL` `(NC-05)`
+- [x] HTML email template with clear alert formatting `(NC-05)`
 
 ### 2.8 Chatbot Command Router (NC-06)
 
@@ -135,7 +135,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Error handling middleware (catch-all, return JSON `{ success, data, error }`)
 - [ ] Environment variable validation on startup (fail fast if required vars missing)
 - [ ] API response consistency: standard envelope format
-- [ ] Handle MQTT broker disconnect/reconnect gracefully
+- [x] Handle MQTT broker disconnect/reconnect gracefully
 
 ---
 
@@ -157,8 +157,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 3.3 Time-Series Configuration
 
-- [ ] Verify `sensor_readings` is configured as MongoDB Time-Series: `timeField: 'timestamp'`, `metaField: 'deviceId'`, `granularity: 'seconds'`, `expireAfterSeconds: 2592000` `(NC-03)`
-- [ ] Validate TTL index is active (documents auto-expire after 30 days) `(Phase 5)`
+- [x] Verify `sensor_readings` is configured as MongoDB Time-Series: `timeField: 'timestamp'`, `metaField: 'deviceId'`, `granularity: 'seconds'`, `expireAfterSeconds: 2592000` `(NC-03)`
+- [x] Validate Time-Series expiry is active (documents auto-expire after 30 days) `(Phase 5)`
 
 ---
 
@@ -259,7 +259,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 6.1 Documentation
 
-- [ ] Update `README.md` with architecture diagram, setup instructions, env var reference, API summary, hardware pinout
+- [x] Update `README.md` with architecture diagram, setup instructions, env var reference, API summary, hardware pinout
 - [ ] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
 
 ### 6.2 Integration Tests (TC-01 to TC-06)
