@@ -9,53 +9,53 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 1.1 Sensor Wiring & Reading
 
-- [ ] Wire **DHT22** to GPIO 4 (pull-up resistor), read temp + humidity every 2 000 ms `(CB-01)`
-- [ ] Wire **PIR HC-SR501** to GPIO 13 (digital interrupt), detect LOW→HIGH state change `(CB-02)`
-- [ ] Wire **MQ2 gas sensor** analog to GPIO 34 (ADC1_CH6), heater to 5V rail `(NC-02)`
-- [ ] Wire **LDR** to GPIO 35 (ADC1_CH7) via voltage divider `(NC-02)`
+- [x] Wire **DHT22** to GPIO 4 (pull-up resistor), read temp + humidity every 2 000 ms `(CB-01)`
+- [x] Wire **PIR HC-SR501** to GPIO 13 (digital interrupt), detect LOW→HIGH state change `(CB-02)`
+- [x] Wire **MQ2 gas sensor** analog to GPIO 34 (ADC1_CH6), heater to 5V rail `(NC-02)`
 
 ### 1.2 Actuator Wiring & Control
 
-- [ ] Wire **DC Fan relay** to GPIO 16 (HIGH = ON) `(CB-03)`
-- [ ] Wire **Alert LED (Red)** to GPIO 18 (digital output) `(NC-02)`
-- [ ] Wire **Status LED (Green)** to GPIO 17 (digital output) `(NC-02)`
-- [ ] Wire **Active Buzzer** to GPIO 19 (PWM via LEDC) `(NC-02)`
-- [ ] Wire **SSD1306 OLED** to GPIO 21 (SDA) / GPIO 22 (SCL) via I2C `(NC-02)`
+- [x] Wire **DC Fan relay** to GPIO 16 (HIGH = ON) `(CB-03)`
+- [x] Wire **Alert LED (Red)** to GPIO 18 (digital output) `(NC-02)`
+- [x] Wire **Status LED (Green)** to GPIO 17 (digital output) `(NC-02)`
+- [x] Wire **Active Buzzer** to GPIO 19 (PWM via LEDC) `(NC-02)`
+- [x] Wire **SSD1306 OLED** to GPIO 21 (SDA) / GPIO 22 (SCL) via I2C `(NC-02)`
 
 ### 1.3 MQTT Communication
 
-- [ ] Connect to EMQX via MQTTS (port 8883, TLS, username/password auth) `(CB-01)`
-- [ ] Publish JSON telemetry to `safebox/{deviceId}/telemetry` (QoS 0) every 2s `(CB-01)`
-- [ ] Configure **LWT** on `safebox/{deviceId}/status` with `{"status":"offline"}` (QoS 1, retained) `(CB-01)`
-- [ ] On connect, publish `{"status":"online"}` to status topic (QoS 1, retained) `(CB-01)`
+- [x] Connect to EMQX via MQTTS (port 8883, TLS, username/password auth) `(CB-01)`
+- [x] Publish JSON telemetry to `safebox/{deviceId}/telemetry` (QoS 0) every 2s `(CB-01)`
+- [x] Configure **LWT** on `safebox/{deviceId}/status` with `{"status":"offline"}` (QoS 1, retained) `(CB-01)`
+- [x] On connect, publish `{"status":"online"}` to status topic (QoS 1, retained) `(CB-01)`
 - [x] Subscribe to `safebox/{deviceId}/control` (QoS 1) for fan commands `(CB-03)`
 - [x] On message `{"actuator":"fan","state":"on"}` → GPIO 16 HIGH; `"off"` → LOW `(CB-03)`
-- [ ] Include `actuatorStates.fanOn`, `.buzzerActive`, `.alertLedActive` in telemetry `(CB-03, NC-02)`
-- [ ] Include `gasLevel`, `lightIntensity` in periodic telemetry payloads `(NC-02)`
-- [ ] Include `motionDetected` from PIR state in periodic telemetry `(CB-02)`
+- [x] Include `actuatorStates.fanOn`, `.buzzerActive`, `.alertLedActive` in telemetry `(CB-03, NC-02)`
+- [x] Include `gasLevel` in periodic telemetry payloads `(NC-02)`
+- [x] Include `motionDetected` from PIR state in periodic telemetry `(CB-02)`
 
 ### 1.4 Edge-Local Safety Logic
 
-- [ ] If `gasLevel > 600 PPM` → immediately activate Buzzer + Alert LED + OLED warning (< 200 ms, no network needed) `(NC-02, TC-03)`
-- [ ] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 1) on gas breach `(NC-02)`
-- [ ] OLED display: cycle through current sensor values (temp, humidity, gas, light, motion) `(NC-02)`
+- [x] If `gasLevel > 600 PPM` → immediately activate Buzzer + Alert LED + OLED warning (< 200 ms, no network needed) `(NC-02, TC-03)`
+- [x] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 1) on gas breach `(NC-02)`
+- [x] OLED sole mission: render the MQ2 gas WARNING screen on threshold breach; brief provisioning header (BOOT/CONNECTING/AP_MODE/CONNECTED) only `(NC-02)`
 
 ### 1.5 WiFiManager Provisioning
 
-- [ ] Integrate **WiFiManager** Arduino library `(NC-09)`
-- [ ] On boot: attempt saved WiFi from NVS; if fail after 30s → SoftAP `Safebox-AP` `(NC-09)`
-- [ ] Captive portal at `192.168.4.1` for credential input `(NC-09)`
-- [ ] Save credentials to NVS, reboot into Station mode `(NC-09)`
-- [ ] Display assigned IP on OLED after WiFi connection `(NC-09)`
-- [ ] Polish: timeout, retry, graceful fallback to SoftAP if network lost `(NC-09)`
-- [ ] Display provisioning status on OLED ("Connecting...", "AP Mode: Safebox-AP", "Connected: x.x.x.x") `(NC-09)`
+- [x] Integrate **WiFiManager** Arduino library `(NC-09)`
+- [x] On boot: attempt saved WiFi from NVS; if fail after 30s → SoftAP `Safebox-AP` `(NC-09)`
+- [x] Captive portal at `192.168.4.1` for credential input `(NC-09)`
+- [x] Save credentials to NVS, reboot into Station mode `(NC-09)`
+- [x] Display assigned IP on OLED after WiFi connection `(NC-09)`
+- [x] Polish: timeout, retry, graceful fallback to SoftAP if network lost `(NC-09)`
+- [x] Display provisioning status on OLED ("Connecting...", "AP Mode: Safebox-AP", "Connected: x.x.x.x") `(NC-09)`
 
 ### 1.6 Firmware Stability & Polish (Phase 5)
 
-- [ ] Reconnect MQTT with exponential backoff; continue local safety alerts while disconnected
-- [ ] Clean up debug `Serial.println` (guard behind debug flag)
-- [ ] Validate all 4 sensors (DHT22, PIR, MQ2, LDR) reading correctly
+- [x] Reconnect MQTT with exponential backoff; continue local safety alerts while disconnected
+- [x] Clean up debug `Serial.println` (guard behind debug flag)
+- [ ] Validate all 3 sensors (DHT22, PIR, MQ2) reading correctly
 - [ ] Validate all 5 actuators (Fan relay, Status LED, Alert LED, Buzzer, OLED) responding
+- [x] Fix `SensorSnapshot` struct (oled_display.h) to carry full telemetry state so `main.cpp` compiles
 
 ---
 
@@ -260,6 +260,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 6.1 Documentation
 
 - [x] Update `README.md` with architecture diagram, setup instructions, env var reference, API summary, hardware pinout
+- [x] Add step-by-step MongoDB Atlas + EMQX Cloud connection guide to `FIRMWARE_INSTRUCTION.md`
+- [x] Remove obsolete LDR hardware and wiring references from `FIRMWARE_INSTRUCTION.md`
 - [ ] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
 
 ### 6.2 Integration Tests (TC-01 to TC-06)

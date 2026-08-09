@@ -37,7 +37,7 @@ All tasks are tracked in a single **[TODO.md](file:///home/pbkhang404/Documents/
 - **GPIO 4**: DHT22 Temp/Humidity (Digital Input)
 - **GPIO 13**: PIR HC-SR501 Motion (Digital Interrupt)
 - **GPIO 34**: MQ2 Gas/Smoke Sensor (Analog Input ADC1_CH6)
-- **GPIO 16**: DC Fan Relay (Digital Output, HIGH = ON)
+- **GPIO 16**: DC Fan Relay (Digital Output, polarity per `RELAY_ACTIVE_LOW` config; HL-52S is active-LOW = relay ON)
 - **GPIO 17**: Status LED Green (Digital Output / PWM)
 - **GPIO 18**: Alert LED Red (Digital Output / PWM)
 - **GPIO 19**: Active Buzzer (PWM via LEDC)

@@ -270,7 +270,7 @@ export default function Overview() {
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
             <div className="space-y-1">
               <span className="text-sm font-semibold text-slate-950">CB-03 | DC Fan Relay</span>
-              <p className="text-xs text-slate-500">GPIO 16 (HIGH = ON)</p>
+              <p className="text-xs text-slate-500">GPIO 16 (relay, active-low)</p>
             </div>
             <button
               disabled={pendingActuator !== null || connectionState !== 'online'}

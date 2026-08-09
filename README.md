@@ -58,7 +58,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |
 | **GPIO 19** | Active Buzzer | Output (PWM via LEDC) | Audible alert tone generator |
-| **GPIO 21 / 22** | SSD1306 OLED | I2C (SDA / SCL) | Local real-time display |
+| **GPIO 21 / 22** | SSD1306 OLED | I2C (SDA / SCL) | Local MQ2 WARNING display only |
 
 ---
 
@@ -75,9 +75,18 @@ SafeRoom_IoT_Box/
 │   ├── package.json          # Node dependencies
 │   └── server.js             # Express server entry point
 │
-├── firmware/                 # PlatformIO ESP32 firmware for MQTT fan control
-│   ├── include/              # Local secrets template
-│   ├── src/                  # GPIO 16 relay controller and MQTT client
+├── firmware/                 # PlatformIO ESP32 firmware (sensing, edge safety, MQTT, WiFiManager)
+│   ├── include/              # Secrets template (secrets.h is git-ignored)
+│   ├── src/
+│   │   ├── sensors/          # DHT22, PIR (interrupt latch), MQ2 drivers
+│   │   ├── actuators/        # Relay, LEDs, Buzzer (PWM) drivers
+│   │   ├── display/          # SSD1306 OLED (MQ2 WARNING only)
+│   │   ├── mqtt/             # MQTTS client (TLS, LWT, backoff reconnect)
+│   │   ├── wifi/             # WiFiManager provisioning (Safebox-AP portal)
+│   │   ├── safety/           # Edge-local gas safety autonomy
+│   │   ├── utils/            # NTP clock + timestamp helpers
+│   │   ├── config/           # Pins + application constants
+│   │   └── main.cpp          # Orchestrates setup + loop
 │   └── platformio.ini        # ESP32 DevKit build configuration
 │
 ├── frontend/                 # SafeboxManager React + Vite Dashboard
@@ -137,9 +146,9 @@ npm start
 ```
 The server will run on `http://localhost:5000`.
 
-### 3. ESP32 Fan Control Firmware
+### 3. ESP32 Firmware
 
-Copy `firmware/include/secrets.example.h` to `firmware/include/secrets.h`, then set WiFi, EMQX and CA certificate values. The relay signal pin is GPIO 16 and defaults to LOW (fan off).
+Copy `firmware/include/secrets.example.h` to `firmware/include/secrets.h`, then set `DEVICE_ID` and the EMQX broker host, credentials, and TLS CA certificate. WiFi credentials are provisioned at runtime through the WiFiManager captive portal — no SSID/password is stored in source control.
 
 ```bash
 cd firmware
@@ -148,7 +157,13 @@ pio run --target upload
 pio device monitor
 ```
 
-The firmware subscribes to `safebox/{deviceId}/control` at QoS 1 and accepts only `{"actuator":"fan","state":"on|off"}`. `FanController::appendActuatorState()` adds `fanOn` to the shared telemetry payload.
+The firmware provides:
+
+- **WiFiManager provisioning**: on boot it tries saved NVS credentials; on failure (30s timeout) it starts the `Safebox-AP` SoftAP captive portal at `192.168.4.1`. Credentials are saved to NVS and the device reboots into Station mode. The OLED shows brief boot/connecting/AP/connected states.
+- **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion, interrupt-based latch), MQ2 (gas PPM).
+- **Edge-local safety autonomy**: when `gasLevel > 600 PPM`, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts` (QoS 1). The OLED's sole mission is rendering this WARNING screen; no sensor pages are shown.
+- **MQTTS telemetry**: publishes the JSON telemetry payload (temperature, humidity, gasLevel, motionDetected, actuatorStates) to `safebox/{deviceId}/telemetry` every 2s (QoS 0), with retained `online`/`offline` LWT on `safebox/{deviceId}/status` (QoS 1).
+- **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay (GPIO 16, HIGH = ON) is remote-only; edge safety overrides remote buzzer/led commands while a gas breach is active.
 
 #### Test CB-03 fan control
 
