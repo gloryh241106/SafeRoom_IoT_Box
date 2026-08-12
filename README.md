@@ -43,7 +43,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 - **Database**: MongoDB Atlas / MongoDB Time-Series (`sensor_readings`, `anomaly_logs`, `users`)
 - **Messaging**: EMQX Cloud Serverless (MQTTS Port 8883, TLS, basic auth)
 - **Microcontroller**: ESP32 DevKit V1 (Arduino C++, WiFiManager, PubSubClient)
-- **Sensors & Actuators**: DHT22, PIR HC-SR501, MQ2 Gas, 5V Relay DC Fan, Buzzer, Red/Green LEDs, SSD1306 OLED (I2C)
+- **Sensors & Actuators**: DHT22, PIR HC-SR501, MQ2 Gas, 5V Relay DC Fan, 3-pin Active Buzzer module, Red/Green LEDs, SSD1306 OLED (I2C), external hardware reset button
 
 ---
 
@@ -57,8 +57,9 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 | **GPIO 16** | DC Fan Relay | Output (Digital Output) | Relay actuation (HIGH = ON) |
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |
-| **GPIO 19** | Active Buzzer | Output (PWM via LEDC) | Audible alert tone generator |
+| **GPIO 19** | 3-pin Active Buzzer module | Digital Output (configurable polarity) | Enables the module's built-in tone oscillator |
 | **GPIO 21 / 22** | SSD1306 OLED | I2C (SDA / SCL) | Local MQ2 WARNING display only |
+| **EN/RST + GND** | Normally-open reset push button | Hardware reset (no GPIO/code) | Pull EN low while pressed to recover from a firmware hang |
 
 ---
 
@@ -79,7 +80,7 @@ SafeRoom_IoT_Box/
 │   ├── include/              # Secrets template (secrets.h is git-ignored)
 │   ├── src/
 │   │   ├── sensors/          # DHT22, PIR (interrupt latch), MQ2 drivers
-│   │   ├── actuators/        # Relay, LEDs, Buzzer (PWM) drivers
+│   │   ├── actuators/        # Relay, LEDs, Active Buzzer module drivers
 │   │   ├── display/          # SSD1306 OLED (MQ2 WARNING only)
 │   │   ├── mqtt/             # MQTTS client (TLS, LWT, backoff reconnect)
 │   │   ├── wifi/             # WiFiManager provisioning (Safebox-AP portal)
@@ -164,6 +165,7 @@ The firmware provides:
 - **Edge-local safety autonomy**: when `gasLevel > 600 PPM`, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts` (QoS 1). The OLED's sole mission is rendering this WARNING screen; no sensor pages are shown.
 - **MQTTS telemetry**: publishes the JSON telemetry payload (temperature, humidity, gasLevel, motionDetected, actuatorStates) to `safebox/{deviceId}/telemetry` every 2s (QoS 0), with retained `online`/`offline` LWT on `safebox/{deviceId}/status` (QoS 1).
 - **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay (GPIO 16, HIGH = ON) is remote-only; edge safety overrides remote buzzer/led commands while a gas breach is active.
+- **Manual hardware recovery**: an optional external normally-open push button connects `EN/RST` to `GND`. It resets the ESP32 without relying on a GPIO or running firmware, so it remains usable if the application hangs. Hold it for about 100 ms and release; never connect EN/RST to 5 V or use a latching switch.
 
 #### Test CB-03 fan control
 

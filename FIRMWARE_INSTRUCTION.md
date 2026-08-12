@@ -10,12 +10,12 @@ from `firmware/src/config/pins.h`.
 
 | # | Component | Qty | Notes |
 |---|-----------|-----|-------|
-| 1 | ESP32 DevKit V1 (30-pin, WROOM-32) | 1 | 3.3 V logic, ADC, I2C, LEDC all built-in |
+| 1 | ESP32 DevKit V1 (30-pin, WROOM-32) | 1 | 3.3 V logic, ADC and I2C built in |
 | 2 | DHT22 (AM2302) temperature/humidity | 1 | Single-wire digital bus |
 | 3 | PIR HC-SR501 motion sensor | 1 | Digital output; 3.3–5 V supply |
 | 4 | MQ2 gas/smoke sensor breakout | 1 | Analog output; needs 5 V for the heater |
 | 5 | SSD1306 128×64 OLED (I²C) | 1 | I²C address 0x3C |
-| 6 | Active buzzer (3.3 V) | 1 | Frequency-driven via PWM |
+| 6 | Active buzzer module (3-pin: SIG/VCC/GND) | 1 | Built-in oscillator; digital ON/OFF control |
 | 7 | Red 5 mm LED | 1 | Alert LED |
 | 8 | Green 5 mm LED | 1 | Status LED |
 | 9 | Relay module (HL-52S) | 1 | Drives the DC fan; active-low input (IN LOW = ON) |
@@ -24,6 +24,7 @@ from `firmware/src/config/pins.h`.
 | 12 | 4.7–10 kΩ resistor | 1 | DHT22 DATA pull-up |
 | 13 | Breadboard + jumper wires (male/male, male/female) | — | |
 | 14 | Micro-USB cable + PC with PlatformIO | 1 | For flashing & serial monitor |
+| 15 | Normally-open momentary push button (2-pin or dry-contact module) | 1 | External hardware reset; connect EN/RST to GND while pressed |
 
 ---
 
@@ -41,12 +42,14 @@ from `firmware/src/config/pins.h`.
 5. Verify each connection with the chip **unpowered**; double-check polarity on
    LEDs, the buzzer, and the relay before plugging in USB.
 6. MQ2 will idle light the first minutes after power-on — this is normal.
+7. Use only a **normally-open momentary** contact for reset. Do not use a
+   latching switch, connect EN/RST to 5 V, or hold EN/RST low continuously.
 
 ---
 
 ## 3. Power Distribution
 
-- **ESP32 3.3 V pin** → DHT22, PIR, OLED, buzzer, LEDs.
+- **ESP32 3.3 V pin** → DHT22, PIR, OLED, 3.3 V buzzer module, LEDs.
 - **ESP32 5 V pin (VIN)** → MQ2 breakout heater input, relay module input.
 - **External 5–12 V supply** → relay COM/DC-in and fan power (common ground to
   ESP32). The relay module's input side can stay on 3.3–5 V logic.
@@ -85,6 +88,7 @@ Complete the steps in order; after each step reference the expected check.
 | Buzzer | 19 | right column, 10th pin |
 | OLED SDA | 21 | right column, 11th pin |
 | OLED SCL | 22 | right column, 12th pin |
+| Hardware reset | EN/RST ↔ GND | pins labeled `EN` (or `RST`) and `GND`; location varies by DevKit revision |
 | 3.3 V rail | 3V3 | right column, 1st & 15th pins |
 | GND | GND | right column, 2nd & 14th; left column 14th |
 | 5 V input | VIN | left column, 15th pin (bottom) |
@@ -162,16 +166,20 @@ Complete the steps in order; after each step reference the expected check.
   (~100–400 PPM in clean air for the calibration curve) and the OLED gas page
   updates.
 
-### Step 6 — Active buzzer → GPIO 19 (PWM)
+### Step 6 — Active buzzer module → GPIO 19 (digital signal)
 
-| Buzzer | ESP32 |
-|--------|-------|
-| + (positive, long leg / labeled side) | GPIO 19 |
-| − (negative) | GND |
+| Active buzzer module | ESP32 |
+|----------------------|-------|
+| `S`, `SIG`, or `IN` | GPIO 19 (`BUZZER_PIN`) |
+| `+` or `VCC` | 3.3 V for a 3.3 V module; otherwise use the module's rated supply |
+| `-` or `GND` | GND |
 
-- Active buzzer self-oscillates when powered; the firmware drives it with a
-  fixed 2 kHz tone via LEDC (2000 Hz) and a 500 ms beep pattern during an
-  edge alert.
+- The active buzzer module contains its own oscillator. Firmware enables its
+  signal pin digitally and keeps the existing 500 ms intermittent alarm
+  pattern; it does not generate a 2 kHz LEDC tone.
+- `config.h` defaults to an active-HIGH input (`BUZZER_ACTIVE_LOW=0`). Set it
+  to `1` if the module is active-LOW. If using a 5 V module, verify that its
+  input accepts 3.3 V logic and never connect 5 V directly to GPIO 19.
 - **Check (TC-03)**: immediate buzzer + red LED + OLED "GAS!" scream within
   < 200 ms when the gas threshold is crossed even with WiFi off.
 
@@ -219,6 +227,34 @@ the relay open (fan off).
 - **Check (TC-06)**: toggling the fan on the Overview page flips IN1 level and
   you hear the relay click / the fan spins within ~500 ms.
 
+### Step 9 — External hardware reset button → EN/RST & GND
+
+Use a **normally-open momentary push button** so the reset circuit is open
+during normal operation. The ESP32 DevKit already has an onboard `EN` button;
+the external button is useful when that button is inaccessible inside the box.
+
+| Reset button contact | ESP32 pin |
+|----------------------|-----------|
+| Contact 1 | `EN` or `RST` (use the board silkscreen label) |
+| Contact 2 | `GND` |
+
+```text
+EN/RST ──── normally-open push button ──── GND
+```
+
+- No GPIO assignment, VCC connection, pull resistor, or firmware handler is
+  required. Pressing the button pulls EN low and resets the chip in hardware,
+  so it still works if firmware, WiFi, or MQTT is hung.
+- Prefer a plain 2-pin button or a module that exposes a voltage-free
+  normally-open contact. Do not connect an unknown powered 3-pin `S/VCC/GND`
+  button module directly to EN/RST without first verifying its schematic.
+- Hold for about 100 ms, then release. The ESP32 boots from the start and all
+  actuators return to their firmware-defined boot state.
+- **Check**: with the serial monitor open, press and release the external
+  button. The boot banner must appear again and the OLED must show the boot /
+  provisioning status. If gas remains above threshold, edge safety will
+  re-activate the alarm after startup.
+
 ---
 
 ## 5. Final Check
@@ -230,6 +266,7 @@ Power off, then with the multi-meter/period pressing your jumper order:
 - [ ] DHT22 pull-up wire in place.
 - [ ] OLED address + I²C pins 21/22 ok.
 - [ ] Relay NO/COM not shorted to the logic side.
+- [ ] Reset button is normally open and connects only EN/RST to GND when pressed.
 
 ---
 
@@ -424,19 +461,22 @@ DEVICE_ID=safebox-01
 | Backend `MQTT_BROKER_URL` rejected | URL lacks `mqtts://` or creds missing | `MOCK_HARDWARE=false` requires `mqtts://` + username/password (see §7) |
 | MongoDB auth/network error | URI password wrong or IP not whitelisted | Check `MONGO_URI`, replace escaped chars, add `0.0.0.0/0` in Network Access |
 | Backend log absent / memory collection | Still in mock mode | Set `MOCK_HARDWARE=false` and restart backend |
+| External reset has no effect | Wrong pin or button is not normally open | Verify the board's `EN`/`RST` silkscreen and continuity to GND only while pressed |
+| ESP32 stays in reset / will not boot | EN/RST is held low by a latching or miswired module | Disconnect the module, confirm the board boots, then use a 2-pin normally-open button |
 
 ---
 
 ## Pin map summary
 
 | GPIO | Function | Module | Direction |
-|------|----------|--------|-----------|
+|-----|----------|--------|-----------|
 | 4 | DHT22 Data | temperature/humidity | input (with 4.7–10 kΩ pull-up) |
 | 13 | PIR OUT | motion | input (RISING interrupt) |
 | 34 | MQ2 AO | gas PPM | analog input (ADC1_CH6) |
 | 16 | Relay IN1 (HL-52S) | fan ON | output (active-low: LOW = ON; boots open) |
 | 17 | Green LED | status LED | output |
 | 18 | Red LED | alert LED | output |
-| 19 | Active Buzzer | alarm tone | PWM output (LEDC) |
+| 19 | Active Buzzer module `SIG/IN` | alarm enable | Digital output (polarity via `BUZZER_ACTIVE_LOW`) |
 | 21 | I²C SDA | OLED | I²C data |
 | 22 | I²C SCL | OLED | I²C clock |
+| EN/RST + GND | Hardware reset | Normally-open momentary push button | Pulls EN low only while pressed; no GPIO/code |

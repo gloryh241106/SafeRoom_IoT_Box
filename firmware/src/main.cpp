@@ -13,7 +13,7 @@
 |   - safety/  edge-local gas safety autonomy (< 200 ms, offline-capable)
 |   - utils/   NTP-backed clock for timestamps
 |   - sensors/ DHT22, PIR (interrupt latch), MQ2
-|   - actuators/ Fan relay, LEDs, Buzzer (PWM)
+|   - actuators/ Fan relay, LEDs, active buzzer module (digital ON/OFF)
 |   - display/ SSD1306 OLED
 |
 | Architecture directives (see AGENTS.md):
@@ -50,7 +50,7 @@ MQ2Sensor mq2(MQ2_PIN);
 Relay fanRelay(FAN_RELAY_PIN);
 Led statusLed(STATUS_LED_PIN);
 Led alertLed(ALERT_LED_PIN);
-Buzzer buzzer(BUZZER_PIN);
+Buzzer buzzer(BUZZER_PIN, BUZZER_ACTIVE_LOW != 0);
 
 OledDisplay oled;
 MqttClient mqtt;

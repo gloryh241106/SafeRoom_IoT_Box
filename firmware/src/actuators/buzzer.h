@@ -6,16 +6,16 @@
 #include <Arduino.h>
 
 /*
- * Active Buzzer (GPIO 19, PWM via LEDC).
+ * Three-pin Active Buzzer module (GPIO 19 digital signal).
  *
- * Uses a dedicated LEDC channel to drive the buzzer at a fixed tone
- * frequency. alarmOn()/alarmOff() support the edge-local safety beep
- * pattern; the main loop toggles alarmOn()/alarmOff() every 500 ms to
- * create an audible intermittent alert.
+ * The module contains its own oscillator, so firmware only enables or
+ * disables its SIG/IN pin. Polarity is configurable for active-HIGH and
+ * active-LOW boards. The edge-safety layer toggles alarmOn()/alarmOff()
+ * every 500 ms to create an intermittent alert without PWM.
  */
 class Buzzer {
 public:
-    explicit Buzzer(uint8_t pin);
+    Buzzer(uint8_t pin, bool activeLow);
     void begin();
     void alarmOn();
     void alarmOff();
@@ -23,6 +23,7 @@ public:
 
 private:
     uint8_t _pin;
+    bool _activeLow;
     bool _active;
 };
 

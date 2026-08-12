@@ -98,7 +98,7 @@ function requireMqttConfig(env = process.env) {
   };
 }
 
-function initializeMqttService({ logger = console } = {}) {
+function initializeMqttService({ logger = console, connect = mqtt.connect } = {}) {
   if (isMockHardware()) {
     mqttMode = 'mock';
     logger.log('[MQTT] MOCK_HARDWARE=true; broker connection is disabled.');
@@ -108,15 +108,15 @@ function initializeMqttService({ logger = console } = {}) {
 
   const { brokerUrl, options } = requireMqttConfig();
   mqttMode = 'connecting';
-  mqttClient = mqtt.connect(brokerUrl, options);
+  mqttClient = connect(brokerUrl, options);
 
   mqttClient.on('connect', () => {
     mqttMode = 'connected';
-    mqttClient.subscribe([
-      { topic: 'safebox/+/telemetry', qos: 0 },
-      { topic: 'safebox/+/alerts', qos: 1 },
-      { topic: 'safebox/+/status', qos: 1 }
-    ], (error) => {
+    mqttClient.subscribe({
+      'safebox/+/telemetry': { qos: 0 },
+      'safebox/+/alerts': { qos: 1 },
+      'safebox/+/status': { qos: 1 }
+    }, (error) => {
       if (error) logger.error('[MQTT] Subscription failed:', error.message);
       else logger.log('[MQTT] Connected and subscribed to telemetry, alerts, and status topics.');
     });

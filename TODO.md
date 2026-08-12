@@ -18,8 +18,10 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Wire **DC Fan relay** to GPIO 16 (HIGH = ON) `(CB-03)`
 - [x] Wire **Alert LED (Red)** to GPIO 18 (digital output) `(NC-02)`
 - [x] Wire **Status LED (Green)** to GPIO 17 (digital output) `(NC-02)`
-- [x] Wire **Active Buzzer** to GPIO 19 (PWM via LEDC) `(NC-02)`
+- [x] Wire **Active Buzzer module** signal pin to GPIO 19 `(NC-02)`
+- [x] Convert Active Buzzer module driver from LEDC tone generation to configurable digital ON/OFF, update wiring docs, and verify the firmware build `(NC-02, TC-03)`
 - [x] Wire **SSD1306 OLED** to GPIO 21 (SDA) / GPIO 22 (SCL) via I2C `(NC-02)`
+- [ ] Wire a **normally-open hardware reset push button** between EN/RST and GND (no GPIO or firmware dependency)
 
 ### 1.3 MQTT Communication
 
@@ -239,8 +241,11 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ## 5. Messaging Infrastructure (EMQX)
 
-- [ ] Create **EMQX Cloud Serverless** free-tier instance `(CB-01)`
-- [ ] Note broker URL, port 8883, credentials `(CB-01)`
+- [x] Create **EMQX Cloud Serverless** free-tier instance `(CB-01)`
+- [x] Note broker URL, port 8883, credentials `(CB-01)`
+- [x] Configure backend and firmware MQTTS clients with the EMQX Serverless host, identity, and TLS CA `(CB-01)`
+- [x] Rotate the exposed MQTT password, update both local secret files, and verify broker authentication `(CB-01)`
+- [x] Fix MQTT.js multi-topic subscription shape and add a regression test for real broker startup `(CB-01)`
 - [ ] Confirm EMQX free-tier limits are not exceeded during demo `(Phase 5)`
 
 ### MQTT Topic Registry
@@ -262,12 +267,13 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Update `README.md` with architecture diagram, setup instructions, env var reference, API summary, hardware pinout
 - [x] Add step-by-step MongoDB Atlas + EMQX Cloud connection guide to `FIRMWARE_INSTRUCTION.md`
 - [x] Remove obsolete LDR hardware and wiring references from `FIRMWARE_INSTRUCTION.md`
+- [x] Document the external EN/RST hardware reset button in `FIRMWARE_INSTRUCTION.md` and `README.md`
 - [ ] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
 
 ### 6.2 Integration Tests (TC-01 to TC-06)
 
 - [ ] **TC-01 (WiFi Provisioning)**: Captive portal `Safebox-AP` at `192.168.4.1`, NVS persistence, OLED IP
-- [ ] **TC-02 (Telemetry Pipeline)**: 2s ESP32 → EMQX → MongoDB `sensor_readings`
+- [x] **TC-02 (Telemetry Pipeline)**: 2s ESP32 → EMQX → MongoDB `sensor_readings`
 - [ ] **TC-03 (Edge Safety Autonomy)**: Offline gas breach < 200ms, no WiFi needed
 - [ ] **TC-04 (Z-Score Engine)**: Temp spike → Z > 3.0 → `anomaly_logs` + frontend alert
 - [ ] **TC-05 (Nodemailer)**: Email < 5s on CRITICAL anomaly; 15-min debounce verified

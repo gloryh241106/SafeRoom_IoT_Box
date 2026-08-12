@@ -6,3 +6,4 @@
 backend/.env
 .vscode/
 node_modules/
+include/secrets.h

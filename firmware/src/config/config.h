@@ -63,6 +63,14 @@
 #define RELAY_ACTIVE_LOW 1
 
 // =========================
+// Active Buzzer Module Logic Level
+// =========================
+// 0 = active-HIGH module (SIG HIGH = sound), the common 3-pin default
+// 1 = active-LOW module  (SIG LOW = sound); change this if the module sounds
+//     continuously at boot or reacts with reversed ON/OFF commands.
+#define BUZZER_ACTIVE_LOW 0
+
+// =========================
 // OLED Display
 // =========================
 #define OLED_I2C_ADDR    0x3C
