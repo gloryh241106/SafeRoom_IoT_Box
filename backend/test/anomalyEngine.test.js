@@ -78,6 +78,32 @@ test('does not apply Z-score analysis to gas or motion values', () => {
   });
 });
 
+test('does not create gas anomalies while calibrated PPM is unavailable', async () => {
+  const originalCreate = AnomalyLog.create;
+  let createCalls = 0;
+  AnomalyLog.create = async (document) => {
+    createCalls++;
+    return document;
+  };
+
+  try {
+    const created = await processTelemetryForAnomalies({
+      deviceId: 'device-a',
+      timestamp: new Date('2026-08-06T00:00:00.000Z'),
+      metrics: {
+        temperature: 25,
+        humidity: 60,
+        gasLevel: null,
+        motionDetected: false
+      }
+    });
+    assert.deepEqual(created, []);
+    assert.equal(createCalls, 0);
+  } finally {
+    AnomalyLog.create = originalCreate;
+  }
+});
+
 test('deduplicates rapid repeated anomalies for the same device, sensor, and trigger', async () => {
   const originalCreate = AnomalyLog.create;
   const createdDocuments = [];

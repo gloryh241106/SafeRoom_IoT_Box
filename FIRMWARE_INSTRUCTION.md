@@ -33,15 +33,16 @@ from `firmware/src/config/pins.h`.
 1. **Never power the fan or any high-current load from an ESP32 GPIO pin.**
    The relay output side and fan must use a separate 5 V supply; GPIO 16 only
    drives the relay input.
-2. GPIO 34 is an **input-only** pin on the ESP32 (no internal pull-up/pull-down)
-   — use an external voltage divider if the MQ2 analog output can exceed 3.3 V.
+2. GPIO 34 is an **input-only** pin on the ESP32 (no internal pull-up/pull-down).
+   The MQ2 AO connection **must** use the 15 kΩ / 10 kΩ divider in Step 5.
 3. Do not feed **5 V into any GPIO** (including sensor outputs). If a 5 V
    module outputs > 3.3 V on its signal pin, add a voltage divider first.
 4. Common ground: the ESP32 GND must be shared with every module, the relay,
    and the fan power supply.
 5. Verify each connection with the chip **unpowered**; double-check polarity on
    LEDs, the buzzer, and the relay before plugging in USB.
-6. MQ2 will idle light the first minutes after power-on — this is normal.
+6. A new or long-stored MQ2 needs a 48-hour powered burn-in in clean air. The
+   firmware records progress in NVS; do not treat burn-in readings as PPM.
 7. Use only a **normally-open momentary** contact for reset. Do not use a
    latching switch, connect EN/RST to 5 V, or hold EN/RST low continuously.
 
@@ -143,28 +144,40 @@ Complete the steps in order; after each step reference the expected check.
 
 ### Step 5 — MQ2 gas sensor (analog) → GPIO 34
 
-| MQ2 breakout | ESP32 |
-|--------------|-------|
-| VCC | 5 V |
-| GND | GND |
-| AO (analog out) | GPIO 34 (`MQ2_PIN`, ADC1_CH6) |
-| DO / heater | leave unused (heater is internal, powered via VCC) |
+| MQ2 breakout | Connection |
+|--------------|------------|
+| VCC | ESP32 5 V / VIN |
+| GND | Common GND |
+| AO | 15 kΩ resistor to GPIO 34; 10 kΩ from GPIO 34 to GND |
+| DO | Leave unused |
 
-- **Voltage-safe note**: if your 5 V VCC module can raise AO above ~3.3 V at
-  high gas, insert a divider so the max is ≤ 3.3 V (see below). Most boards
-  idle at 0.1–0.9 V and only approach the rail in extreme smoke, but the
-  divider protects the ADC.
-- Optional divider (if used): 
+- **Required voltage divider**: firmware uses `MQ2_ADC_DIVIDER_RATIO=0.4` and
+  calculates the divider's loading effect. Do not connect 5 V AO directly and
+  do not substitute the previous 10 kΩ / 20 kΩ divider without updating the
+  circuit constants in `config.h`.
+- Verify the breakout load resistor before relying on the estimate. The default
+  `MQ2_MODULE_LOAD_RESISTANCE_OHM=1000` expects an SMD resistor marked `102`
+  (1 kΩ). If the board uses another value, measure/check its marking and update
+  the constant before flashing.
 
   ```
-  AO (5 V board) ── 10 kΩ ──●── GPIO 34
-                           │
-                           20 kΩ → │GND
+  MQ2 AO ── 15 kΩ ──●── GPIO 34 (ADC1_CH6)
+                    │
+                   10 kΩ
+                    │
+                   GND
   ```
 
-- **Check**: serial shows a stable `gasLevel` PPM reading close to baseline
-  (~100–400 PPM in clean air for the calibration curve) and the OLED gas page
-  updates.
+- **Lifecycle**: first boot enters `burn_in` for 48 accumulated powered hours,
+  then `calibrating` for stable clean-air sampling. Later boots enter a 5-minute
+  `warming_up` state and reuse the persisted `Ro` calibration.
+- **Cloud behavior**: while not `ready`, telemetry sends `gasLevel: null`; the
+  backend stores diagnostics but creates no gas anomaly or email. A near-rail
+  raw ADC breach still activates the local buzzer/LED/OLED as a conservative
+  fallback and is never labeled as PPM.
+- **Check**: Overview must show the lifecycle state. After `ready`, Serial/MQTT
+  expose ADC millivolts, estimated source voltage, `Ro`, `Rs/Ro`, and an
+  LPG-equivalent PPM estimate. MQ2 is not a laboratory-selective PPM instrument.
 
 ### Step 6 — Active buzzer module → GPIO 19 (digital signal)
 
@@ -452,7 +465,8 @@ DEVICE_ID=safebox-01
 |---------|--------------|-----|
 | OLED stays black | I²C wiring/address not 0x3C, or `begin()` fails silently | Recheck SDA/SCL; test an I²C scan sketch (expect 0x3C) |
 | DHT reads NaN | Missing pull-up; wrong data pin | Add pull-up; verify GPIO 4 |
-| Gas always 0/empty | Sensor still heating (2 min warmup); AO divider wrong | Wait; rewire divider |
+| Gas shows burn-in/warm-up | Expected MQ2 lifecycle; PPM intentionally unavailable | Keep the sensor powered in clean air; first calibration needs 48 hours, later boots 5 minutes |
+| Gas sensor fault | AO open/short, wrong divider, or ADC outside valid range | Rewire the required 15 kΩ / 10 kΩ divider and verify common ground |
 | No WiFi portal | Config already saved; connect to your AP instead | To re-provision: connect to `Safebox-AP` during the 30 s connect window or wipe NVS via `pio run -t erase` |
 | Fan not switching | Relay module logic mismatch (HL-52S is active-low) | `config.h` `RELAY_ACTIVE_LOW 1`; check the JD-VCC jumper (see Step 8) |
 | Serial only shows boot | `SAFEBOX_DEBUG=0` | Build with `-DSAFEBOX_DEBUG=1` |

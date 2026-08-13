@@ -338,3 +338,37 @@ Action được thực hiện trước khi `AnomalyLog.create()` để lưu đ�
 - NC-01: `backend/services/anomalyEngine.js` tại `evaluateZScore` và `processTelemetryForAnomalies`.
 - NC-03: `timeSeriesService.js`, `telemetryService.js`, rồi `routes/telemetry.js`.
 - NC-05: `emailService.js` tại `sendAlertEmail`.
+
+## Câu hỏi bổ sung về MQ2 sau hiệu chỉnh
+
+### 81. Tại sao `gasLevel` có thể là null?
+
+Vì MQ2 chưa ở trạng thái `ready`. `null` biểu diễn đúng việc PPM chưa có giá trị,
+khác với `0` vốn là một phép đo. Backend vẫn lưu `sensorStatus.gas` nhưng không
+tạo gas anomaly hoặc email từ dữ liệu chưa hiệu chuẩn.
+
+### 82. Vì sao cần burn-in 48 giờ và lưu `Ro` trong NVS?
+
+Datasheet MQ2 yêu cầu preheat ban đầu trên 48 giờ. `Ro` là điện trở cảm biến
+trong không khí sạch; hiệu chuẩn ngay khi bật nguồn sẽ học một baseline sai.
+NVS giữ `Ro` qua reset, nên các lần sau chỉ warm-up 5 phút và không hiệu chuẩn
+sai lại từ đầu.
+
+### 83. Trong 48 giờ burn-in có mất an toàn local không?
+
+Không hoàn toàn. Firmware chưa được phép gọi điện áp raw là PPM hoặc gửi email,
+nhưng vẫn có ngưỡng ADC gần bão hòa để bật còi, LED và OLED tại chỗ. Đây là lớp
+dự phòng bảo thủ, không thay cho cảnh báo 600 PPM sau hiệu chuẩn.
+
+### 84. Tại sao phải dùng FreeRTOS task riêng cho gas?
+
+WiFi và bắt tay TLS có thể chặn Arduino `loop()` lâu hơn 200 ms. Task gas ưu
+tiên cao chạy mỗi 100 ms, chỉ đọc ADC và điều khiển local; task mạng publish bản
+ghi đã xếp hàng sau. Vì vậy đường an toàn không chờ cloud.
+
+### 85. MQ2 có đo PPM chính xác cho mọi loại khí không?
+
+Không. MQ2 phản ứng chéo với propane, methane, cồn và khói. Hệ thống nội suy
+đường propane trong datasheet nên phải gọi là LPG-equivalent PPM estimate.
+Muốn PPM chuẩn cần khí chuẩn, điều kiện nhiệt độ/độ ẩm kiểm soát và cảm biến chọn
+lọc phù hợp.

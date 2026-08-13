@@ -53,7 +53,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 |---|---|---|---|
 | **GPIO 4** | DHT22 Temperature & Humidity | Input (Digital / OneWire) | Periodic temperature and humidity sampling |
 | **GPIO 13** | PIR HC-SR501 Motion | Input (Digital Interrupt) | Motion presence detection |
-| **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | Gas concentration read (PPM) |
+| **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | AO through required 15 kΩ / 10 kΩ divider; calibrated LPG-equivalent estimate |
 | **GPIO 16** | DC Fan Relay | Output (Digital Output) | Polarity follows `RELAY_ACTIVE_LOW`; HL-52S uses LOW = ON |
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |
@@ -169,10 +169,11 @@ pio device monitor
 
 The firmware provides:
 
-- **WiFiManager provisioning**: on boot it tries saved NVS credentials; on failure (30s timeout) it starts the `Safebox-AP` SoftAP captive portal at `192.168.4.1`. Credentials are saved to NVS and the device reboots into Station mode. The OLED shows brief boot/connecting/AP/connected states.
-- **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion, interrupt-based latch), MQ2 (gas PPM).
-- **Edge-local safety autonomy**: when `gasLevel > 600 PPM`, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts` (QoS 1). The OLED's sole mission is rendering this WARNING screen; no sensor pages are shown.
-- **MQTTS telemetry**: publishes the JSON telemetry payload (temperature, humidity, gasLevel, motionDetected, actuatorStates) to `safebox/{deviceId}/telemetry` every 2s (QoS 0), with retained `online`/`offline` LWT on `safebox/{deviceId}/status` (QoS 1).
+- **WiFiManager provisioning**: on boot it tries saved NVS credentials asynchronously; on failure (30s timeout) it starts the non-blocking `Safebox-AP` captive portal at `192.168.4.1`. Credentials are saved to NVS while the independent gas-safety task keeps running. The OLED shows boot/connecting/AP/connected states.
+- **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion latch), and MQ2 with calibrated ESP32 millivolt reads. MQ2 reports an LPG-equivalent estimate, not a gas-selective laboratory PPM measurement.
+- **MQ2 lifecycle**: first use accumulates a 48-hour powered burn-in in NVS, calibrates `Ro` only after a stable clean-air window, and persists `Ro`. Later boots warm for 5 minutes and reuse the saved calibration. States are `burn_in`, `warming_up`, `calibrating`, `ready`, and `fault`.
+- **Edge-local safety autonomy**: a priority-3 FreeRTOS task samples MQ2 every 100 ms independently of WiFi/MQTTS. When a ready sensor exceeds `600 PPM`, buzzer and red LED activate immediately and OLED shows WARNING. During preparation, a conservative near-rail ADC fallback stays local; it never creates a fake PPM cloud/email alert.
+- **MQTTS telemetry**: publishes temperature, humidity, `gasLevel`, motion, actuator states, and MQ2 diagnostics every 2s. Until MQ2 is ready, `gasLevel` is `null`; backend anomaly/email logic skips gas while retaining the diagnostic state.
 - **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay on GPIO 16 is remote-only and defaults to active-low for the HL-52S module; edge safety overrides remote buzzer/LED commands while a gas breach is active.
 - **Manual hardware recovery**: an optional external normally-open push button connects `EN/RST` to `GND`. It resets the ESP32 without relying on a GPIO or running firmware, so it remains usable if the application hangs. Hold it for about 100 ms and release; never connect EN/RST to 5 V or use a latching switch.
 
@@ -256,6 +257,6 @@ cd ../frontend
 npm run build
 ```
 
-The full backend suite contains 33 tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation, telemetry/edge-alert validation, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs the focused tests for Thai Kiet's scope and then the isolated CB-03 simulation, which must exit with `CB-03 PASS`. Hardware, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md).
+The full backend suite contains 36 tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation, MQ2 readiness/diagnostic telemetry, false gas-alert suppression, edge-alert validation, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs the focused tests for Thai Kiet's scope and then the isolated CB-03 simulation, which must exit with `CB-03 PASS`. Hardware timing, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md).
 
 Current dependency audit status: backend reports 0 vulnerabilities. Frontend production build succeeds, while `npm audit` reports advisories in the Vite/esbuild and React Router dependency lines; the required migration and regression pass remains tracked in `TODO.md` rather than applying forced major upgrades during feature work.

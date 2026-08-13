@@ -366,6 +366,18 @@ Không đưa `.env` hoặc app password lên màn hình quay demo.
 - Kiểm tra MQTT topic phải đúng `safebox/{id}/telemetry`.
 - Kiểm tra backend log rejected payload do type/range/device mismatch.
 
+### Gas cao hoặc không có PPM
+
+- Nếu web hiện `First burn-in`, giữ MQ2 cấp nguồn trong không khí sạch đủ 48 giờ;
+  tiến độ được checkpoint vào NVS mỗi 10 phút.
+- Nếu hiện `Warming up`, chờ 5 phút; firmware đang dùng lại `Ro` đã lưu.
+- Nếu hiện `Calibrating`, không đưa cồn/khói/bật lửa gần cảm biến; firmware cần
+  ít nhất 100 mẫu ổn định trong cửa sổ 60 giây.
+- Nếu hiện `Sensor fault`, đo AO sau cầu chia áp và kiểm tra đúng 15 kΩ / 10 kΩ,
+  common ground, VCC 5 V.
+- TC-03 phải đo phản hồi local bằng phần cứng. Build pass không chứng minh thời
+  gian thực tế dưới 200 ms.
+
 ## 11. Bằng chứng dự phòng
 
 Trước ngày vấn đáp nên chuẩn bị:

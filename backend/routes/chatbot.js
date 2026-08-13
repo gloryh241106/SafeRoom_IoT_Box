@@ -41,7 +41,11 @@ router.post('/query', async (req, res) => {
           reply = "System status: Device 'safebox-01' is initializing. No sensor readings recorded yet.";
         } else {
           const { metrics, actuatorStates } = latest;
-          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${metrics.gasLevel} PPM\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
+          const gasReady = latest.sensorStatus?.gas?.ready !== false && Number.isFinite(metrics.gasLevel);
+          const gasText = gasReady
+            ? `${metrics.gasLevel} PPM (LPG estimate)`
+            : `Unavailable (${latest.sensorStatus?.gas?.state || 'sensor preparing'})`;
+          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${gasText}\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
           dataPayload = latest;
         }
         break;
@@ -50,13 +54,14 @@ router.post('/query', async (req, res) => {
       case 'gas': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
         const lastGasAnomaly = await AnomalyLog.findOne({ deviceId, sensorType: 'gasLevel' }).sort({ timestamp: -1 });
-        const gasVal = latest ? latest.metrics.gasLevel : 0;
+        const gasVal = latest?.metrics?.gasLevel;
+        const gasReady = latest?.sensorStatus?.gas?.ready !== false && Number.isFinite(gasVal);
         
-        reply = `💨 **Gas & Smoke Status**:\n• Current Gas Level: ${gasVal} PPM (Threshold limit: 600 PPM).\n` +
+        reply = `💨 **Gas & Smoke Status**:\n• Current Gas Level: ${gasReady ? `${gasVal} PPM LPG estimate (threshold: 600 PPM)` : `Unavailable (${latest?.sensorStatus?.gas?.state || 'no ready sensor'})`}.\n` +
           (lastGasAnomaly 
             ? `• Last Gas Alert: Observed ${lastGasAnomaly.observedValue} PPM on ${new Date(lastGasAnomaly.timestamp).toLocaleString()} (Severity: ${lastGasAnomaly.severity}).`
             : `• No historical gas anomalies detected.`);
-        dataPayload = { currentGasLevel: gasVal, lastAnomaly: lastGasAnomaly };
+        dataPayload = { currentGasLevel: gasReady ? gasVal : null, gasSensor: latest?.sensorStatus?.gas, lastAnomaly: lastGasAnomaly };
         break;
       }
 

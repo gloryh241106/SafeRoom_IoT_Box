@@ -15,29 +15,45 @@ void OledDisplay::begin(uint8_t sdaPin, uint8_t sclPin) {
 }
 
 void OledDisplay::setMode(DisplayMode mode) {
+    if (_mode != mode) _dirty = true;
     _mode = mode;
 }
 
+void OledDisplay::setWarningActive(bool active) {
+    if (_warningActive != active) _dirty = true;
+    _warningActive = active;
+}
+
 void OledDisplay::setTextInfo(const String& line1, const String& line2) {
+    if (_line1 == line1 && _line2 == line2) return;
     _line1 = line1;
     _line2 = line2;
+    _dirty = true;
 }
 
 void OledDisplay::setSensorSnapshot(const SensorSnapshot& snapshot) {
+    const bool warningChanged = _warningActive
+        && (_snapshot.gasReady != snapshot.gasReady
+            || _snapshot.gasAdcMillivolts != snapshot.gasAdcMillivolts
+            || static_cast<int>(_snapshot.gasPpm) != static_cast<int>(snapshot.gasPpm));
     _snapshot = snapshot;
+    if (warningChanged) _dirty = true;
 }
 
 void OledDisplay::update() {
-    if (_mode != _renderedMode) render();
+    const DisplayMode desiredMode = _warningActive ? DisplayMode::WARNING : _mode;
+    if (_dirty || desiredMode != _renderedMode) render();
 }
 
 void OledDisplay::render() {
-    _renderedMode = _mode;
+    const DisplayMode renderMode = _warningActive ? DisplayMode::WARNING : _mode;
+    _renderedMode = renderMode;
+    _dirty = false;
     _display.clearDisplay();
     _display.setCursor(0, 0);
     _display.setTextSize(1);
 
-    switch (_mode) {
+    switch (renderMode) {
         case DisplayMode::BOOT:
             _display.println("SafeRoom IoT Box");
             _display.println("Booting...");
@@ -66,12 +82,20 @@ void OledDisplay::render() {
             _display.println("WARNING");
             _display.println("GAS!");
             _display.setTextSize(1);
-            _display.print("Gas: ");
-            _display.print(static_cast<int>(_snapshot.gasPpm));
-            _display.println(" PPM");
-            _display.print("Limit: ");
-            _display.print(static_cast<int>(GAS_ALERT_THRESHOLD_PPM));
-            _display.println(" PPM");
+            if (_snapshot.gasReady) {
+                _display.print("LPG est: ");
+                _display.print(static_cast<int>(_snapshot.gasPpm));
+                _display.println(" ppm");
+                _display.print("Limit: ");
+                _display.print(static_cast<int>(GAS_ALERT_THRESHOLD_PPM));
+                _display.println(" ppm");
+            } else {
+                _display.print("Preparing MQ2");
+                _display.println();
+                _display.print("ADC: ");
+                _display.print(_snapshot.gasAdcMillivolts);
+                _display.println(" mV");
+            }
             break;
     }
 

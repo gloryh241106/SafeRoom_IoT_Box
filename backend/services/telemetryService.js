@@ -2,6 +2,7 @@ const { SensorReading } = require('../models/Schemas');
 const { processTelemetryForAnomalies } = require('./anomalyEngine');
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const GAS_SENSOR_STATES = new Set(['burn_in', 'warming_up', 'calibrating', 'ready', 'fault']);
 
 function requireObject(value, fieldName) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -20,6 +21,60 @@ function requireFiniteNumber(value, fieldName, { min = -Infinity, max = Infinity
 function requireBoolean(value, fieldName) {
   if (typeof value !== 'boolean') throw new TypeError(`${fieldName} must be a boolean`);
   return value;
+}
+
+function optionalFiniteNumber(value, fieldName, options) {
+  if (value === undefined || value === null) return null;
+  return requireFiniteNumber(value, fieldName, options);
+}
+
+function normalizeGasSensorStatus(payloadStatus, gasLevel) {
+  // Legacy firmware/mock payloads predate sensorStatus and always provide PPM.
+  if (payloadStatus === undefined || payloadStatus === null) {
+    if (!Number.isFinite(gasLevel)) {
+      throw new TypeError('metrics.gasLevel must be a finite number for legacy telemetry');
+    }
+    return { state: 'ready', ready: true };
+  }
+
+  const status = requireObject(payloadStatus, 'sensorStatus');
+  const gas = requireObject(status.gas, 'sensorStatus.gas');
+  if (!GAS_SENSOR_STATES.has(gas.state)) {
+    throw new TypeError(`sensorStatus.gas.state must be one of ${[...GAS_SENSOR_STATES].join(', ')}`);
+  }
+  const ready = requireBoolean(gas.ready, 'sensorStatus.gas.ready');
+  if (ready !== (gas.state === 'ready')) {
+    throw new TypeError('sensorStatus.gas.ready must match state=ready');
+  }
+  if (ready && !Number.isFinite(gasLevel)) {
+    throw new TypeError('metrics.gasLevel must be a finite number when the gas sensor is ready');
+  }
+  if (!ready && gasLevel !== null && gasLevel !== undefined) {
+    throw new TypeError('metrics.gasLevel must be null while the gas sensor is not ready');
+  }
+
+  return {
+    state: gas.state,
+    ready,
+    adcRaw: optionalFiniteNumber(gas.adcRaw, 'sensorStatus.gas.adcRaw', { min: 0, max: 4095 }),
+    adcMillivolts: optionalFiniteNumber(
+      gas.adcMillivolts,
+      'sensorStatus.gas.adcMillivolts',
+      { min: 0, max: 3300 }
+    ),
+    sourceMillivolts: optionalFiniteNumber(
+      gas.sourceMillivolts,
+      'sensorStatus.gas.sourceMillivolts',
+      { min: 0, max: 5500 }
+    ),
+    burnInRemainingSeconds: optionalFiniteNumber(
+      gas.burnInRemainingSeconds,
+      'sensorStatus.gas.burnInRemainingSeconds',
+      { min: 0, max: 7 * 24 * 60 * 60 }
+    ) ?? 0,
+    roOhms: optionalFiniteNumber(gas.roOhms, 'sensorStatus.gas.roOhms', { min: 0, max: 1_000_000 }),
+    rsRoRatio: optionalFiniteNumber(gas.rsRoRatio, 'sensorStatus.gas.rsRoRatio', { min: 0, max: 1000 })
+  };
 }
 
 function normalizeTimestamp(value) {
@@ -41,10 +96,14 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
 
   const metrics = requireObject(payload.metrics, 'metrics');
   const actuatorStates = requireObject(payload.actuatorStates, 'actuatorStates');
+  const gasLevel = metrics.gasLevel === null || metrics.gasLevel === undefined
+    ? null
+    : requireFiniteNumber(metrics.gasLevel, 'metrics.gasLevel', { min: 0, max: 100000 });
+  const gasSensorStatus = normalizeGasSensorStatus(payload.sensorStatus, gasLevel);
   const normalizedMetrics = {
     temperature: requireFiniteNumber(metrics.temperature, 'metrics.temperature', { min: -40, max: 85 }),
     humidity: requireFiniteNumber(metrics.humidity, 'metrics.humidity', { min: 0, max: 100 }),
-    gasLevel: requireFiniteNumber(metrics.gasLevel, 'metrics.gasLevel', { min: 0, max: 100000 }),
+    gasLevel,
     motionDetected: requireBoolean(metrics.motionDetected, 'metrics.motionDetected')
   };
 
@@ -64,7 +123,8 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
       fanOn: requireBoolean(actuatorStates.fanOn, 'actuatorStates.fanOn'),
       buzzerActive: requireBoolean(actuatorStates.buzzerActive, 'actuatorStates.buzzerActive'),
       alertLedActive: requireBoolean(actuatorStates.alertLedActive, 'actuatorStates.alertLedActive')
-    }
+    },
+    sensorStatus: { gas: gasSensorStatus }
   };
 }
 
@@ -77,6 +137,7 @@ async function ingestTelemetry(payload, expectedDeviceId) {
 
 module.exports = {
   DEVICE_ID_PATTERN,
+  GAS_SENSOR_STATES,
   ingestTelemetry,
   validateTelemetryPayload
 };

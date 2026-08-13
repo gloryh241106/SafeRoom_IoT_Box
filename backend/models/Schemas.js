@@ -8,7 +8,7 @@ const SensorReadingSchema = new Schema({
   metrics: {
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
-    gasLevel: { type: Number, required: true },
+    gasLevel: { type: Number, default: null },
     lightIntensity: { type: Number, default: null },
     motionDetected: { type: Boolean, required: true }
   },
@@ -16,6 +16,22 @@ const SensorReadingSchema = new Schema({
     fanOn: { type: Boolean, required: true, default: false },
     buzzerActive: { type: Boolean, required: true, default: false },
     alertLedActive: { type: Boolean, required: true, default: false }
+  },
+  sensorStatus: {
+    gas: {
+      state: {
+        type: String,
+        enum: ['burn_in', 'warming_up', 'calibrating', 'ready', 'fault'],
+        default: 'ready'
+      },
+      ready: { type: Boolean, default: true },
+      adcRaw: { type: Number, default: null },
+      adcMillivolts: { type: Number, default: null },
+      sourceMillivolts: { type: Number, default: null },
+      burnInRemainingSeconds: { type: Number, default: 0 },
+      roOhms: { type: Number, default: null },
+      rsRoRatio: { type: Number, default: null }
+    }
   }
 }, {
   autoCreate: false,

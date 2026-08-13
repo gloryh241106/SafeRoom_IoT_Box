@@ -44,6 +44,9 @@ function validateEdgeAlert(payload, deviceId) {
   if (payload.sensorType !== 'gasLevel') {
     throw new TypeError('edge alert sensorType must be gasLevel');
   }
+  if (payload.calibrated === false) {
+    throw new TypeError('uncalibrated gas alerts must remain local to the ESP32');
+  }
   if (!Number.isFinite(payload.observedValue) || !Number.isFinite(payload.threshold)) {
     throw new TypeError('edge alert observedValue and threshold must be finite numbers');
   }

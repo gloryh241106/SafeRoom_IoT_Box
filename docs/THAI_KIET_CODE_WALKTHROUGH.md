@@ -585,6 +585,24 @@ Timestamp vẫn được lưu và xử lý nội bộ theo UTC. Riêng template 
 | `timeSeriesService.test.js` | Collection options và fail-fast |
 | `scripts/testCb03Mock.js` | REST fan ON/status/OFF có JWT trong simulation mode |
 
+## 6.1 MQ2 readiness contract cần biết khi giải thích telemetry
+
+Firmware không còn biến mẫu ADC lúc MQ2 chưa ổn định thành PPM. Driver có năm
+trạng thái: `burn_in`, `warming_up`, `calibrating`, `ready`, `fault`. Chỉ
+`ready` mới gửi `metrics.gasLevel` dạng số; các trạng thái khác gửi `null` cùng
+`sensorStatus.gas` để backend vẫn lưu được chẩn đoán.
+
+`telemetryService.js` kiểm tra tính nhất quán hai chiều: `ready=true` bắt buộc có
+PPM hữu hạn, còn chưa ready bắt buộc `gasLevel=null`. `anomalyEngine.js` bỏ qua
+gas khi giá trị không hữu hạn, nên dữ liệu burn-in không tạo anomaly/email giả.
+Firmware cũ và mock không có `sensorStatus` vẫn tương thích và được xem là
+legacy-ready.
+
+Đường local safety độc lập với cloud: FreeRTOS task ưu tiên cao đọc MQ2 mỗi
+100 ms. Sensor ready dùng ngưỡng 600 PPM; sensor đang chuẩn bị chỉ dùng ngưỡng
+điện áp ADC gần bão hòa để bật còi/LED/OLED tại chỗ. Raw fallback không publish
+MQTT vì nó không phải PPM đã hiệu chuẩn.
+
 ## 7. Điều nên và không nên học thuộc
 
 Nên nhớ:

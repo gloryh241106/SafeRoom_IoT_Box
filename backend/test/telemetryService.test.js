@@ -29,7 +29,45 @@ test('normalizes a complete ESP32 telemetry payload', () => {
   const normalized = validateTelemetryPayload(validPayload(), 'safebox-01');
   assert.equal(normalized.deviceId, 'safebox-01');
   assert.equal(normalized.metrics.lightIntensity, 450);
+  assert.deepEqual(normalized.sensorStatus.gas, { state: 'ready', ready: true });
   assert.ok(normalized.timestamp instanceof Date);
+});
+
+test('accepts unavailable gas PPM only while the MQ2 is preparing', () => {
+  const payload = validPayload();
+  payload.metrics.gasLevel = null;
+  payload.sensorStatus = {
+    gas: {
+      state: 'warming_up',
+      ready: false,
+      adcRaw: 1840,
+      adcMillivolts: 1120,
+      sourceMillivolts: 2240,
+      burnInRemainingSeconds: 0
+    }
+  };
+
+  const normalized = validateTelemetryPayload(payload, 'safebox-01');
+  assert.equal(normalized.metrics.gasLevel, null);
+  assert.equal(normalized.sensorStatus.gas.state, 'warming_up');
+  assert.equal(normalized.sensorStatus.gas.adcMillivolts, 1120);
+});
+
+test('rejects contradictory MQ2 readiness and PPM fields', () => {
+  const readyWithoutPpm = validPayload();
+  readyWithoutPpm.metrics.gasLevel = null;
+  readyWithoutPpm.sensorStatus = { gas: { state: 'ready', ready: true } };
+  assert.throws(
+    () => validateTelemetryPayload(readyWithoutPpm, 'safebox-01'),
+    /gasLevel must be a finite number when the gas sensor is ready/
+  );
+
+  const warmingWithPpm = validPayload();
+  warmingWithPpm.sensorStatus = { gas: { state: 'warming_up', ready: false } };
+  assert.throws(
+    () => validateTelemetryPayload(warmingWithPpm, 'safebox-01'),
+    /gasLevel must be null while the gas sensor is not ready/
+  );
 });
 
 test('rejects topic/payload device mismatches and missing actuator states', () => {
@@ -68,6 +106,14 @@ test('accepts only gas edge-safety alerts with finite values', () => {
     observedValue: 48,
     threshold: 45
   }, 'safebox-01'), /sensorType must be gasLevel/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 1800,
+    threshold: 1500,
+    calibrated: false
+  }, 'safebox-01'), /uncalibrated gas alerts must remain local/);
 });
 
 test('synchronizes actuator status from confirmed device telemetry', async () => {

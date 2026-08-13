@@ -184,6 +184,7 @@ function hardThresholdCandidate(deviceId, timestamp, sensorType, observedValue, 
 }
 
 function buildGasCandidate({ deviceId, timestamp, metrics }) {
+  if (!Number.isFinite(metrics.gasLevel)) return null;
   if (metrics.gasLevel <= systemThresholds.gasMax) return null;
   return hardThresholdCandidate(
     deviceId,

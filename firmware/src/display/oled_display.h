@@ -23,6 +23,8 @@ struct SensorSnapshot {
     float temperature = 0.0f;
     float humidity = 0.0f;
     float gasPpm = 0.0f;
+    uint32_t gasAdcMillivolts = 0;
+    bool gasReady = false;
     bool motionDetected = false;
     bool fanOn = false;
     bool buzzerActive = false;
@@ -41,6 +43,7 @@ public:
     void begin(uint8_t sdaPin, uint8_t sclPin);
 
     void setMode(DisplayMode mode);
+    void setWarningActive(bool active);
     void setTextInfo(const String& line1, const String& line2);
     void setSensorSnapshot(const SensorSnapshot& snapshot);
 
@@ -51,10 +54,12 @@ private:
 
     Adafruit_SSD1306 _display;
     DisplayMode _mode = DisplayMode::BOOT;
+    bool _warningActive = false;
     SensorSnapshot _snapshot;
     String _line1;
     String _line2;
     DisplayMode _renderedMode = static_cast<DisplayMode>(-1);
+    bool _dirty = true;
 };
 
 #endif // __OLED_DISPLAY_H__

@@ -2,17 +2,33 @@
 #include "../config/config.h"
 #include <ArduinoJson.h>
 
-EdgeSafety::EdgeSafety(Buzzer& buzzer, Led& alertLed, MqttClient& mqtt, OledDisplay& oled)
-    : _buzzer(buzzer), _alertLed(alertLed), _mqtt(mqtt), _oled(oled) {}
+EdgeSafety::EdgeSafety(Buzzer& buzzer, Led& alertLed, MqttClient& mqtt)
+    : _buzzer(buzzer), _alertLed(alertLed), _mqtt(mqtt) {}
 
-void EdgeSafety::update(float gasPpm, unsigned long long timestampMs) {
+void EdgeSafety::update(float gasPpm,
+                        bool gasReady,
+                        uint32_t gasAdcMillivolts,
+                        unsigned long long timestampMs) {
     _lastGasPpm = gasPpm;
+    _lastGasAdcMillivolts = gasAdcMillivolts;
     _timestampMs = timestampMs;
 
-    if (gasPpm > GAS_ALERT_THRESHOLD_PPM) {
-        if (!_active) trigger();
+    const bool calibratedDanger = gasReady && gasPpm > GAS_ALERT_THRESHOLD_PPM;
+    const bool rawDanger = !gasReady && gasAdcMillivolts >= MQ2_RAW_ALERT_ADC_MV;
+    const bool calibratedClear = gasReady && gasPpm < GAS_CLEAR_THRESHOLD_PPM;
+    const bool rawClear = !gasReady && gasAdcMillivolts < MQ2_RAW_CLEAR_ADC_MV;
+
+    if (calibratedDanger || rawDanger) {
+        if (!_active) {
+            _calibratedAlert = calibratedDanger;
+            trigger();
+        } else if (calibratedDanger && !_calibratedAlert) {
+            _calibratedAlert = true;
+            _lastAlertPublishMs = millis();
+            queueCloudAlert();
+        }
         liveAlarm();
-    } else if (_active && gasPpm < GAS_CLEAR_THRESHOLD_PPM) {
+    } else if (_active && (calibratedClear || rawClear)) {
         release();
     }
 }
@@ -23,10 +39,17 @@ bool EdgeSafety::isActive() const {
 
 void EdgeSafety::trigger() {
     _active = true;
-    _beepPhase = false;
-    _lastBeepToggleMs = 0;
-    _lastAlertPublishMs = 0;  // publish immediately on breach
-    DBGLN("[EdgeSafety] GAS BREACH detected locally!");
+    _beepPhase = true;
+    _lastBeepToggleMs = millis();
+    _lastAlertPublishMs = millis();
+    _alertLed.on();
+    _buzzer.alarmOn();
+    if (_calibratedAlert) {
+        DBGLN("[EdgeSafety] Calibrated gas breach detected locally!");
+        queueCloudAlert();
+    } else {
+        DBGLN("[EdgeSafety] Raw MQ2 voltage breach during sensor preparation!");
+    }
 }
 
 void EdgeSafety::liveAlarm() {
@@ -40,18 +63,18 @@ void EdgeSafety::liveAlarm() {
         else _buzzer.alarmOff();
     }
 
-    if (now - _lastAlertPublishMs >= EDGE_RETRIGGER_ALERT_MS) {
+    // The high-priority safety task queues data but never performs network I/O.
+    if (_calibratedAlert && now - _lastAlertPublishMs >= EDGE_RETRIGGER_ALERT_MS) {
         _lastAlertPublishMs = now;
-        publishAlert();
+        queueCloudAlert();
     }
-
-    _oled.setMode(DisplayMode::WARNING);
 }
 
 void EdgeSafety::release() {
     if (!_active) return;
     _active = false;
     _beepPhase = false;
+    _calibratedAlert = false;
 
     // Restore remote-commanded actuator states now the local alert is over.
     if (_remoteBuzzer) _buzzer.alarmOn();
@@ -62,19 +85,51 @@ void EdgeSafety::release() {
     DBGLN("[EdgeSafety] Gas back to normal; local alert cleared.");
 }
 
-void EdgeSafety::publishAlert() {
+void EdgeSafety::queueCloudAlert() {
+    portENTER_CRITICAL(&_stateMux);
+    _pendingGasPpm = _lastGasPpm;
+    _pendingTimestampMs = _timestampMs;
+    _cloudAlertPending = true;
+    _cloudAlertGeneration++;
+    portEXIT_CRITICAL(&_stateMux);
+}
+
+void EdgeSafety::serviceCloudAlert() {
+    if (!_cloudAlertPending || !_mqtt.isConnected()) return;
+
+    float gasPpm;
+    unsigned long long timestampMs;
+    uint32_t generation;
+    portENTER_CRITICAL(&_stateMux);
+    gasPpm = _pendingGasPpm;
+    timestampMs = _pendingTimestampMs;
+    generation = _cloudAlertGeneration;
+    portEXIT_CRITICAL(&_stateMux);
+
+    if (!publishAlert(gasPpm, timestampMs)) return;
+
+    // Do not erase a newer alert that was queued while MQTT was publishing.
+    portENTER_CRITICAL(&_stateMux);
+    if (_cloudAlertGeneration == generation) _cloudAlertPending = false;
+    portEXIT_CRITICAL(&_stateMux);
+}
+
+bool EdgeSafety::publishAlert(float gasPpm, unsigned long long timestampMs) {
     JsonDocument doc;
     doc["type"] = "EDGE_SAFETY_TRIGGER";
     doc["sensorType"] = "gasLevel";
-    doc["observedValue"] = static_cast<double>(_lastGasPpm);
+    doc["observedValue"] = static_cast<double>(gasPpm);
     doc["threshold"] = static_cast<double>(GAS_ALERT_THRESHOLD_PPM);
-    if (_timestampMs > 0) doc["timestamp"] = _timestampMs;
+    doc["calibrated"] = true;
+    if (timestampMs > 0) doc["timestamp"] = timestampMs;
 
     char buffer[256];
     serializeJson(doc, buffer, sizeof(buffer));
     if (_mqtt.publishAlert(buffer)) {
         DBGLN("[EdgeSafety] Alert published to safebox/.../alerts");
+        return true;
     }
+    return false;
 }
 
 void EdgeSafety::applyRemoteBuzzer(bool on) {

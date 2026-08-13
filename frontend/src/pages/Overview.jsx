@@ -8,6 +8,22 @@ const ACTUATOR_STATE_FIELDS = {
   alertLed: 'alertLedActive'
 };
 
+const GAS_STATE_LABELS = {
+  burn_in: 'First burn-in',
+  warming_up: 'Warming up',
+  calibrating: 'Calibrating',
+  ready: 'Ready',
+  fault: 'Sensor fault'
+};
+
+function formatRemainingTime(totalSeconds) {
+  const seconds = Math.max(0, Number(totalSeconds) || 0);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.ceil((seconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m remaining`;
+  return `${minutes}m remaining`;
+}
+
 export default function Overview() {
   const [telemetry, setTelemetry] = useState(null);
   const [anomalies, setAnomalies] = useState([]);
@@ -124,8 +140,15 @@ export default function Overview() {
     );
   }
 
-  const metrics = telemetry?.metrics || { temperature: 0, humidity: 0, gasLevel: 0, motionDetected: false };
+  const metrics = telemetry?.metrics || { temperature: 0, humidity: 0, gasLevel: null, motionDetected: false };
   const actuators = telemetry?.actuatorStates || { fanOn: false, buzzerActive: false, alertLedActive: false };
+  const gasStatus = telemetry?.sensorStatus?.gas || {
+    state: Number.isFinite(metrics.gasLevel) ? 'ready' : 'fault',
+    ready: Number.isFinite(metrics.gasLevel)
+  };
+  const gasReady = gasStatus.ready === true && Number.isFinite(metrics.gasLevel);
+  const gasDanger = gasReady && metrics.gasLevel > 600;
+  const gasStateLabel = GAS_STATE_LABELS[gasStatus.state] || 'Preparing';
   const connectionLabel = connectionState === 'connecting'
     ? 'Connecting'
     : connectionState === 'online'
@@ -210,20 +233,41 @@ export default function Overview() {
 
         {/* Gas Level Card */}
         <div className={`glass-card p-5 rounded-lg border transition-colors space-y-3 ${
-          metrics.gasLevel > 600 ? 'border-red-300 !bg-red-50' : 'border-slate-200'
+          gasDanger
+            ? 'border-red-300 !bg-red-50'
+            : gasStatus.state === 'fault'
+              ? 'border-amber-300 !bg-amber-50'
+              : 'border-slate-200'
         }`}>
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Gas / Smoke</span>
-            <div className={`p-2 rounded-lg ${metrics.gasLevel > 600 ? 'bg-red-100 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+            <div className={`p-2 rounded-lg ${gasDanger ? 'bg-red-100 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
               <Flame className="w-5 h-5" />
             </div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-slate-950">{metrics.gasLevel} <span className="text-sm font-normal text-slate-500">PPM</span></div>
-            <p className="text-xs text-slate-500 mt-1">MQ2 Gas Sensor (Max 600)</p>
+            {gasReady ? (
+              <div className="text-3xl font-bold text-slate-950">
+                {metrics.gasLevel} <span className="text-sm font-normal text-slate-500">PPM</span>
+              </div>
+            ) : (
+              <div className="text-xl font-bold text-slate-950">{gasStateLabel}</div>
+            )}
+            <p className="text-xs text-slate-500 mt-1">
+              {gasReady
+                ? 'MQ2 LPG estimate (Max 600)'
+                : gasStatus.state === 'burn_in'
+                  ? formatRemainingTime(gasStatus.burnInRemainingSeconds)
+                  : gasStatus.state === 'fault'
+                    ? 'Check AO wiring and voltage divider'
+                    : 'PPM alerts paused until calibration is valid'}
+            </p>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className={`h-full ${metrics.gasLevel > 600 ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(100, (metrics.gasLevel / 800) * 100)}%` }}></div>
+            <div
+              className={`h-full ${gasDanger ? 'bg-red-500' : 'bg-amber-500'}`}
+              style={{ width: gasReady ? `${Math.min(100, (metrics.gasLevel / 800) * 100)}%` : '0%' }}
+            />
           </div>
         </div>
 

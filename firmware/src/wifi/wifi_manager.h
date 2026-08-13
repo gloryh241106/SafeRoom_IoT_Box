@@ -11,11 +11,10 @@
  *
  *   - begin(...): stores the SoftAP callback and applies connect/portal
  *     timeouts to the underlying WiFiManager instance.
- *   - provision(): tries the saved NVS credentials first; if they fail after
- *     the connect timeout it starts the `Safebox-AP` captive portal (blocking,
- *     at http://192.168.4.1) so the user can save new credentials to NVS.
- *   - handleConnectionLoss(): after a sustained WiFi outage reopens the portal
- *     for re-provisioning and returns true so the caller can reboot.
+ *   - provision(): starts saved-credential connection or `Safebox-AP` without
+ *     blocking the application loop.
+ *   - process(): services the captive portal and reopens it after sustained
+ *     connection loss. Gas edge safety therefore keeps its 100 ms cadence.
  *
  * Only one WiFiManager can exist per boot; a single global instance is used.
  */
@@ -30,8 +29,9 @@ public:
                uint32_t lostFallbackMs);
 
     bool provision();
+    void process();
     bool isConnected() const;
-    bool handleConnectionLoss();
+    bool isPortalActive();
     String ipString() const;
 
 private:
@@ -42,6 +42,10 @@ private:
     ApModeCallback _apModeCallback = nullptr;
     uint32_t _lostFallbackMs = 0;
     uint32_t _lostSinceMs = 0;
+    uint32_t _connectTimeoutMs = 0;
+    uint32_t _initialConnectStartedMs = 0;
+    bool _initialConnectionPending = false;
+    bool _portalRestartedForLoss = false;
 
     static SafeboxWifi* _instance;
 };

@@ -18,7 +18,7 @@ export default function Dashboard() {
           time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           temperature: item.metrics.temperature,
           humidity: item.metrics.humidity,
-          gasLevel: item.metrics.gasLevel,
+          gasLevel: Number.isFinite(item.metrics.gasLevel) ? item.metrics.gasLevel : null,
         }));
         setData(formatted);
       }
@@ -40,7 +40,7 @@ export default function Dashboard() {
     const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'Gas Level (PPM)'];
     const csvRows = [
       headers.join(','),
-      ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel].join(','))
+      ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel ?? ''].join(','))
     ];
 
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });

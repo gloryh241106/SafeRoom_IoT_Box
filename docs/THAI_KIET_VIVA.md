@@ -332,4 +332,9 @@ NC-05:
 Nodemailer chỉ HIGH/CRITICAL.
 Throttle key=deviceId:sensorType, 15 phút.
 Chỉ ghi lastSent sau khi SMTP gửi thành công.
+
+MQ2 telemetry:
+48h burn-in -> stable clean-air Ro -> NVS -> 5m warm-up on later boots.
+Only ready has numeric gasLevel; preparing sends null + sensorStatus.
+100ms high-priority local task; raw fallback stays local, no fake email.
 ```

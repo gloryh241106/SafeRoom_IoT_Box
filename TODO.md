@@ -55,6 +55,9 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 - [x] Reconnect MQTT with exponential backoff; continue local safety alerts while disconnected
 - [x] Clean up debug `Serial.println` (guard behind debug flag)
+- [x] Add MQ2 lifecycle states, 48-hour first burn-in, startup warm-up, stable clean-air calibration, and persisted `Ro` in ESP32 NVS
+- [x] Replace the MQ2 fixed 3.3 V ADC assumption with calibrated millivolt reads and an explicit voltage-divider/load-resistor circuit model
+- [x] Preserve offline gas safety during MQ2 warm-up with a conservative raw-voltage fallback, while suppressing uncalibrated PPM cloud alerts
 - [ ] Validate all 3 sensors (DHT22, PIR, MQ2) reading correctly
 - [ ] Validate all 5 actuators (Fan relay, Status LED, Alert LED, Buzzer, OLED) responding
 - [x] Fix `SensorSnapshot` struct (oled_display.h) to carry full telemetry state so `main.cpp` compiles
@@ -87,6 +90,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
 - [x] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
 - [x] Return the newest bounded historical samples in chronological order and add route regression coverage `(NC-03)`
+- [x] Accept MQ2 readiness/diagnostic telemetry, store unavailable gas as `null`, and skip gas anomaly/email processing until calibrated
 
 ### 2.4 Remote Actuator Control
 
@@ -193,6 +197,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Buzzer toggle, Alert LED toggle (remote actuator controls) `(CB-03)`
 - [x] Anomaly list panel with severity color coding `(NC-01)`
 - [x] "Delete All" anomalies button `(NC-01)`
+- [x] Display MQ2 warm-up, calibration, readiness, and fault states instead of presenting uncalibrated readings as PPM
 
 ### 4.4 Dashboard Page (NC-04)
 
@@ -283,6 +288,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] **TC-04 (Z-Score Engine)**: Temp spike → Z > 3.0 → `anomaly_logs` + frontend alert
 - [ ] **TC-05 (Nodemailer)**: Email < 5s on CRITICAL anomaly; 15-min debounce verified
 - [ ] **TC-06 (Remote Override)**: Fan toggle on web → relay click < 500ms
+- [x] Add software regression coverage and firmware build verification for the MQ2 readiness contract and false-alert suppression
 
 ### 6.3 Demonstration Preparation
 
@@ -297,6 +303,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Simplify non-obvious actuator-state and anomaly-engine code without changing system contracts
 - [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
 - [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
+- [ ] Merge the Thai Kiet viva, Q&A, code walkthrough, and demo guides into one polished, verified PDF handbook
 
 ### 6.5 User-Managed Email Alerts
 
