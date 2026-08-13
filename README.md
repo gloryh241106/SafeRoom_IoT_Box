@@ -53,7 +53,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 |---|---|---|---|
 | **GPIO 4** | DHT22 Temperature & Humidity | Input (Digital / OneWire) | Periodic temperature and humidity sampling |
 | **GPIO 13** | PIR HC-SR501 Motion | Input (Digital Interrupt) | Motion presence detection |
-| **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | Gas concentration read (PPM) |
+| **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | Direct 0–4095 ADC index (not uncalibrated PPM) |
 | **GPIO 16** | DC Fan Relay | Output (Digital Output) | Polarity follows `RELAY_ACTIVE_LOW`; HL-52S uses LOW = ON |
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |
@@ -79,15 +79,14 @@ SafeRoom_IoT_Box/
 ├── firmware/                 # PlatformIO ESP32 firmware (sensing, edge safety, MQTT, WiFiManager)
 │   ├── include/              # Secrets template (secrets.h is git-ignored)
 │   ├── src/
-│   │   ├── sensors/          # DHT22, PIR (interrupt latch), MQ2 drivers
-│   │   ├── actuators/        # Relay, LEDs, Active Buzzer module drivers
-│   │   ├── display/          # SSD1306 OLED (MQ2 WARNING only)
-│   │   ├── mqtt/             # MQTTS client (TLS, LWT, backoff reconnect)
-│   │   ├── wifi/             # WiFiManager provisioning (Safebox-AP portal)
-│   │   ├── safety/           # Edge-local gas safety autonomy
-│   │   ├── utils/            # NTP clock + timestamp helpers
-│   │   ├── config/           # Pins + application constants
-│   │   └── main.cpp          # Orchestrates setup + loop
+│   │   ├── sensors/          # Independent DHT22, PIR and MQ2 readers
+│   │   ├── actuators/        # Buzzer, relay and LED GPIO drivers
+│   │   ├── control/          # Website/backend actuator command routing
+│   │   ├── display/          # SSD1306 OLED rendering
+│   │   ├── mqtt/             # MQTTS connection, topics and JSON commands
+│   │   ├── wifi/             # WiFiManager provisioning and reconnect
+│   │   ├── config/           # Pin mapping and application constants
+│   │   └── main.cpp          # Scheduling, telemetry and local gas safety
 │   └── platformio.ini        # ESP32 DevKit build configuration
 │
 ├── frontend/                 # SafeboxManager React + Vite Dashboard
@@ -169,9 +168,11 @@ pio device monitor
 
 The firmware provides:
 
+- **Layered firmware layout**: DHT22, PIR and MQ2 live under `sensors`; buzzer, relay and LEDs under `actuators`; OLED, WiFiManager, MQTT and website-command routing each have a focused module. `main.cpp` only schedules these modules, builds telemetry and enforces local gas safety.
 - **WiFiManager provisioning**: on boot it tries saved NVS credentials; on failure (30s timeout) it starts the `Safebox-AP` SoftAP captive portal at `192.168.4.1`. Credentials are saved to NVS and the device reboots into Station mode. The OLED shows brief boot/connecting/AP/connected states.
-- **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion, interrupt-based latch), MQ2 (gas PPM).
-- **Edge-local safety autonomy**: when `gasLevel > 600 PPM`, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts` (QoS 1). The OLED's sole mission is rendering this WARNING screen; no sensor pages are shown.
+- **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion, interrupt-based latch), MQ2 (one direct `analogRead(GPIO34)` sample). `gasLevel` and `gasRaw` carry the same relative 0–4095 ADC index—not PPM—because absolute concentration requires a known target gas and reference calibration.
+- **MQ2 reading**: the firmware deliberately performs no interpolation, boot calibration, median filter, or EMA. Each 100 ms safety poll reads GPIO 34 once, so the displayed value can fluctuate with the physical sensor and ESP32 ADC.
+- **Edge-local safety autonomy**: when the valid MQ2 gas index exceeds 600, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts`. Tune this threshold from a properly warmed sensor's clean-air baseline.
 - **MQTTS telemetry**: publishes the JSON telemetry payload (temperature, humidity, gasLevel, motionDetected, actuatorStates) to `safebox/{deviceId}/telemetry` every 2s (QoS 0), with retained `online`/`offline` LWT on `safebox/{deviceId}/status` (QoS 1).
 - **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay on GPIO 16 is remote-only and defaults to active-low for the HL-52S module; edge safety overrides remote buzzer/LED commands while a gas breach is active.
 - **Manual hardware recovery**: an optional external normally-open push button connects `EN/RST` to `GND`. It resets the ESP32 without relying on a GPIO or running firmware, so it remains usable if the application hangs. Hold it for about 100 ms and release; never connect EN/RST to 5 V or use a latching switch.
@@ -197,7 +198,7 @@ For a physical relay and fan test:
 4. Flash the ESP32 with `pio run --target upload`, then open `pio device monitor`.
 5. Start backend and frontend, open Overview, and press the `CB-03 | DC Fan Relay` button.
 
-Expected result: the dashboard shows `MQTT live`, the serial monitor prints `[Fan] Relay state: ON` or `OFF`, GPIO 16 changes level, and the relay switches the fan. With the default `RELAY_ACTIVE_LOW=1`, boot writes GPIO 16 HIGH so the relay remains open and the fan stays off.
+Expected result: the dashboard shows `MQTT live`, GPIO 16 changes level, and the relay switches the fan. With the default `RELAY_ACTIVE_LOW=true`, boot writes GPIO 16 HIGH so the relay remains open and the fan stays off.
 
 The backend keeps optimistic MQTT command state in `actuatorStateService.js`, then replaces it with the next validated device telemetry snapshot. This isolates actuator-state ownership from the mock telemetry generator and makes the requested-versus-confirmed state flow easier to explain and test.
 
@@ -259,3 +260,5 @@ npm run build
 The full backend suite contains 33 tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation, telemetry/edge-alert validation, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs the focused tests for Thai Kiet's scope and then the isolated CB-03 simulation, which must exit with `CB-03 PASS`. Hardware, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md).
 
 Current dependency audit status: backend reports 0 vulnerabilities. Frontend production build succeeds, while `npm audit` reports advisories in the Vite/esbuild and React Router dependency lines; the required migration and regression pass remains tracked in `TODO.md` rather than applying forced major upgrades during feature work.
+
+MQ2 measurement note: Winsen specifies a 300–10,000 ppm flammable-gas detection range under defined test conditions, a 5 V heater/circuit supply, and at least 48 hours of preheating. Its datasheet supplies characteristic curves rather than a universal module-level PPM equation. Therefore this project reports a reproducible ADC index and does not label an uncalibrated value as PPM. See the [official Winsen MQ-2 manual](https://www.winsen-sensor.com/d/files/manual/mq-2.pdf).

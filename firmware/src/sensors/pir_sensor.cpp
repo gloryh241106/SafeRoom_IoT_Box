@@ -1,47 +1,30 @@
 #include "pir_sensor.h"
-#include "../config/config.h"
 
-PIRSensor* PIRSensor::_instance = nullptr;
+PirSensor* PirSensor::_instance = nullptr;
 
-PIRSensor::PIRSensor(uint8_t pin)
-    : _pin(pin),
-      _motionDetected(false),
-      _motionLatched(false),
-      _motionLatchedAtMs(0) {}
+PirSensor::PirSensor(uint8_t pin, uint32_t latchMs)
+    : _pin(pin), _latchMs(latchMs) {}
 
-void PIRSensor::begin() {
-    pinMode(_pin, INPUT);
+void PirSensor::begin() {
     _instance = this;
-    attachInterrupt(digitalPinToInterrupt(_pin), onMotionRising, RISING);
+    pinMode(_pin, INPUT);
+    attachInterrupt(digitalPinToInterrupt(_pin), onRising, RISING);
 }
 
-bool PIRSensor::read() {
-    uint32_t nowMs = millis();
-
-    // Re-latch while the PIR output is still HIGH (extends the latch window).
-    if (digitalRead(_pin) == HIGH) {
-        _motionLatched = true;
-        _motionLatchedAtMs = nowMs;
+void PirSensor::update(uint32_t nowMs) {
+    if (_triggered || digitalRead(_pin) == HIGH) {
+        _triggered = false;
+        _lastMotionMs = nowMs;
+        _detected = true;
+    } else if (_detected && nowMs - _lastMotionMs >= _latchMs) {
+        _detected = false;
     }
-
-    // Clear only after the pin went LOW and the latch window expired.
-    if (_motionLatched && nowMs - _motionLatchedAtMs >= MOTION_LATCH_MS) {
-        _motionLatched = false;
-    }
-
-    _motionDetected = _motionLatched;
-    return _motionDetected;
 }
 
-bool PIRSensor::isMotionDetected() const {
-    return _motionDetected;
+bool PirSensor::detected() const {
+    return _detected;
 }
 
-void IRAM_ATTR PIRSensor::onMotionRising() {
-    if (_instance) _instance->latchMotion();
-}
-
-void PIRSensor::latchMotion() {
-    _motionLatched = true;
-    _motionLatchedAtMs = millis();
+void IRAM_ATTR PirSensor::onRising() {
+    if (_instance) _instance->_triggered = true;
 }

@@ -41,7 +41,7 @@ router.post('/query', async (req, res) => {
           reply = "System status: Device 'safebox-01' is initializing. No sensor readings recorded yet.";
         } else {
           const { metrics, actuatorStates } = latest;
-          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${metrics.gasLevel} PPM\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
+          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• MQ-2 Gas Index: ${metrics.gasValid === false ? 'warming up' : metrics.gasLevel}\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
           dataPayload = latest;
         }
         break;
@@ -52,9 +52,9 @@ router.post('/query', async (req, res) => {
         const lastGasAnomaly = await AnomalyLog.findOne({ deviceId, sensorType: 'gasLevel' }).sort({ timestamp: -1 });
         const gasVal = latest ? latest.metrics.gasLevel : 0;
         
-        reply = `💨 **Gas & Smoke Status**:\n• Current Gas Level: ${gasVal} PPM (Threshold limit: 600 PPM).\n` +
+        reply = `💨 **Gas & Smoke Status**:\n• Current MQ-2 gas index: ${latest?.metrics?.gasValid === false ? 'warming up' : gasVal} (ADC threshold: 600).\n` +
           (lastGasAnomaly 
-            ? `• Last Gas Alert: Observed ${lastGasAnomaly.observedValue} PPM on ${new Date(lastGasAnomaly.timestamp).toLocaleString()} (Severity: ${lastGasAnomaly.severity}).`
+            ? `• Last Gas Alert: Observed index ${lastGasAnomaly.observedValue} on ${new Date(lastGasAnomaly.timestamp).toLocaleString()} (Severity: ${lastGasAnomaly.severity}).`
             : `• No historical gas anomalies detected.`);
         dataPayload = { currentGasLevel: gasVal, lastAnomaly: lastGasAnomaly };
         break;
@@ -108,7 +108,7 @@ router.post('/query', async (req, res) => {
         if (intent === 'unknown') {
           reply = `🤖 I parsed your message, but I wasn't completely sure of your intent.\n\nHere are some questions you can ask me:\n• *"What is the current system status?"*\n• *"Is there any gas leak or smoke?"*\n• *"Has any motion been detected?"*\n• *"How hot is the temperature right now?"*\n• *"What is the humidity level?"*\n• *"Show me all unresolved anomalies."*`;
         } else {
-          reply = `💡 **Safebox Assistant Commands & Intent Guide**:\nYou can ask me full natural sentences! Supported topics:\n• **Status**: Ask about overall room condition, actuators, or system state.\n• **Gas / Smoke**: Inquire about gas PPM levels and smoke alarms.\n• **Motion**: Check PIR sensor motion triggers.\n• **Temperature / Humidity**: Inquire about environmental climate levels.\n• **Anomalies**: Ask for active security alarms or threshold breaches.`;
+          reply = `💡 **Safebox Assistant Commands & Intent Guide**:\nYou can ask me full natural sentences! Supported topics:\n• **Status**: Ask about overall room condition, actuators, or system state.\n• **Gas / Smoke**: Inquire about the MQ-2 ADC gas index and smoke alarms.\n• **Motion**: Check PIR sensor motion triggers.\n• **Temperature / Humidity**: Inquire about environmental climate levels.\n• **Anomalies**: Ask for active security alarms or threshold breaches.`;
         }
         break;
       }

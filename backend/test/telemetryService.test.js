@@ -32,6 +32,20 @@ test('normalizes a complete ESP32 telemetry payload', () => {
   assert.ok(normalized.timestamp instanceof Date);
 });
 
+test('preserves the MQ2 direct ADC index, raw value, and validity flag', () => {
+  const payload = validPayload();
+  payload.metrics.gasLevel = 642;
+  payload.metrics.gasRaw = 671;
+  payload.metrics.gasValid = true;
+  payload.metrics.gasUnit = 'adc_index';
+
+  const normalized = validateTelemetryPayload(payload, 'safebox-01');
+  assert.equal(normalized.metrics.gasLevel, 642);
+  assert.equal(normalized.metrics.gasRaw, 671);
+  assert.equal(normalized.metrics.gasValid, true);
+  assert.equal(normalized.metrics.gasUnit, 'adc_index');
+});
+
 test('rejects topic/payload device mismatches and missing actuator states', () => {
   assert.throws(
     () => validateTelemetryPayload(validPayload(), 'safebox-02'),

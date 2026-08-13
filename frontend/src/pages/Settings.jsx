@@ -196,7 +196,7 @@ export default function Settings({ user }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
           {/* MQ2 Gas Threshold (Always Active Safety Bound) */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
-            <label className="block text-xs text-slate-600 font-semibold uppercase">MQ2 Gas Max (PPM)</label>
+            <label className="block text-xs text-slate-600 font-semibold uppercase">MQ-2 Gas Index Max (ADC)</label>
             <input
               type="number"
               value={thresholds.gasMax}

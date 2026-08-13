@@ -9,6 +9,9 @@ const SensorReadingSchema = new Schema({
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
     gasLevel: { type: Number, required: true },
+    gasRaw: { type: Number, default: null },
+    gasValid: { type: Boolean, default: true },
+    gasUnit: { type: String, enum: ['adc_index'], default: 'adc_index' },
     lightIntensity: { type: Number, default: null },
     motionDetected: { type: Boolean, required: true }
   },

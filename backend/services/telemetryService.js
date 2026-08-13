@@ -45,8 +45,19 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
     temperature: requireFiniteNumber(metrics.temperature, 'metrics.temperature', { min: -40, max: 85 }),
     humidity: requireFiniteNumber(metrics.humidity, 'metrics.humidity', { min: 0, max: 100 }),
     gasLevel: requireFiniteNumber(metrics.gasLevel, 'metrics.gasLevel', { min: 0, max: 100000 }),
+    gasValid: metrics.gasValid === undefined
+      ? true
+      : requireBoolean(metrics.gasValid, 'metrics.gasValid'),
+    gasUnit: metrics.gasUnit === undefined ? 'adc_index' : metrics.gasUnit,
     motionDetected: requireBoolean(metrics.motionDetected, 'metrics.motionDetected')
   };
+
+  if (normalizedMetrics.gasUnit !== 'adc_index') {
+    throw new TypeError("metrics.gasUnit must be 'adc_index'");
+  }
+  if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
+    normalizedMetrics.gasRaw = requireFiniteNumber(metrics.gasRaw, 'metrics.gasRaw', { min: 0, max: 4095 });
+  }
 
   if (metrics.lightIntensity !== undefined && metrics.lightIntensity !== null) {
     normalizedMetrics.lightIntensity = requireFiniteNumber(

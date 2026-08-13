@@ -9,6 +9,12 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 1.1 Sensor Wiring & Reading
 
+- [x] Correct MQ2 ADC logic so normal ADC changes are not clamped to a constant 200 PPM; expose raw and relative gas indices honestly
+- [x] Simplify MQ2 firmware reading to one direct GPIO 34 ADC sample with no interpolation, median, EMA, or boot calibration
+- [x] Simplify the complete ESP32 firmware into one readable main flow with direct hardware I/O while preserving WiFiManager, MQTTS, telemetry, remote control, and offline edge safety
+- [x] Split DHT22, PIR, and MQ2 into three independent sensor components while keeping main.cpp as the system orchestrator
+- [x] Rename firmware components to sensors and extract OLED, buzzer, relay, LED, website control, MQTT, and WiFiManager into focused modules
+- [ ] Apply the report-oriented firmware architecture with app orchestration, shared DeviceState, connectivity modules, and separate edge-safety, remote-control, and telemetry features
 - [x] Wire **DHT22** to GPIO 4 (pull-up resistor), read temp + humidity every 2 000 ms `(CB-01)`
 - [x] Wire **PIR HC-SR501** to GPIO 13 (digital interrupt), detect LOW→HIGH state change `(CB-02)`
 - [x] Wire **MQ2 gas sensor** analog to GPIO 34 (ADC1_CH6), heater to 5V rail `(NC-02)`
@@ -37,7 +43,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 1.4 Edge-Local Safety Logic
 
-- [x] If `gasLevel > 600 PPM` → immediately activate Buzzer + Alert LED + OLED warning (< 200 ms, no network needed) `(NC-02, TC-03)`
+- [x] If valid MQ2 `gasLevel > 600` ADC index → immediately activate Buzzer + Alert LED + OLED warning (< 200 ms, no network needed) `(NC-02, TC-03)`
 - [x] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 1) on gas breach `(NC-02)`
 - [x] OLED sole mission: render the MQ2 gas WARNING screen on threshold breach; brief provisioning header (BOOT/CONNECTING/AP_MODE/CONNECTED) only `(NC-02)`
 
@@ -53,11 +59,11 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 1.6 Firmware Stability & Polish (Phase 5)
 
-- [x] Reconnect MQTT with exponential backoff; continue local safety alerts while disconnected
+- [x] Reconnect MQTT at a simple fixed interval; continue local safety alerts while disconnected
 - [x] Clean up debug `Serial.println` (guard behind debug flag)
 - [ ] Validate all 3 sensors (DHT22, PIR, MQ2) reading correctly
 - [ ] Validate all 5 actuators (Fan relay, Status LED, Alert LED, Buzzer, OLED) responding
-- [x] Fix `SensorSnapshot` struct (oled_display.h) to carry full telemetry state so `main.cpp` compiles
+- [x] Preserve the complete sensor and actuator telemetry state through firmware refactors
 
 ---
 
@@ -296,7 +302,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Create detailed code walkthrough, viva Q&A, and repeatable demo guides for Thai Kiet's scope
 - [x] Simplify non-obvious actuator-state and anomaly-engine code without changing system contracts
 - [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
-- [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
+- [x] Refresh Thai Kiet viva documentation for the simplified component-based firmware architecture
 
 ### 6.5 User-Managed Email Alerts
 

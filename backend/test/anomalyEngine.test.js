@@ -107,6 +107,22 @@ test('deduplicates rapid repeated anomalies for the same device, sensor, and tri
   }
 });
 
+test('does not trigger a gas anomaly while the MQ2 startup reading is invalid', async () => {
+  const telemetry = {
+    deviceId: 'device-mq2-startup',
+    timestamp: new Date('2026-08-13T00:00:00.000Z'),
+    metrics: {
+      temperature: 25,
+      humidity: 60,
+      gasLevel: 700,
+      gasValid: false,
+      motionDetected: false
+    }
+  };
+
+  assert.deepEqual(await processTelemetryForAnomalies(telemetry), []);
+});
+
 test('applies the hard-rule matrix for gas, armed motion, and humidity', async () => {
   const originalCreate = AnomalyLog.create;
   const createdDocuments = [];

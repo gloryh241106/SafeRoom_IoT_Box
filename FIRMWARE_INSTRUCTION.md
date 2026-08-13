@@ -162,9 +162,13 @@ Complete the steps in order; after each step reference the expected check.
                            20 kΩ → │GND
   ```
 
-- **Check**: serial shows a stable `gasLevel` PPM reading close to baseline
-  (~100–400 PPM in clean air for the calibration curve) and the OLED gas page
-  updates.
+- The firmware calls `analogRead(GPIO34)` once per sample and reports that
+  direct **ADC gas index (0–4095)** as both `gasLevel` and `gasRaw`.
+- There is no PPM interpolation, boot calibration, median filter, EMA, or
+  software warm-up delay. The manufacturer's initial preheat requirement of
+  at least 48 hours still applies to meaningful physical measurements.
+- **Check**: `gasValid=true` after the first sample and `gasLevel` equals
+  `gasRaw`; natural fluctuations are expected because the value is unfiltered.
 
 ### Step 6 — Active buzzer module → GPIO 19 (digital signal)
 
@@ -177,8 +181,8 @@ Complete the steps in order; after each step reference the expected check.
 - The active buzzer module contains its own oscillator. Firmware enables its
   signal pin digitally and keeps the existing 500 ms intermittent alarm
   pattern; it does not generate a 2 kHz LEDC tone.
-- `config.h` defaults to an active-HIGH input (`BUZZER_ACTIVE_LOW=0`). Set it
-  to `1` if the module is active-LOW. If using a 5 V module, verify that its
+- `config.h` defaults to an active-HIGH input (`BUZZER_ACTIVE_LOW=false`). Set it
+  to `true` if the module is active-LOW. If using a 5 V module, verify that its
   input accepts 3.3 V logic and never connect 5 V directly to GPIO 19.
 - **Check (TC-03)**: immediate buzzer + red LED + OLED "GAS!" scream within
   < 200 ms when the gas threshold is crossed even with WiFi off.
@@ -220,7 +224,7 @@ feed 5 V to VCC, the ESP32's 3.3 V HIGH may not fully cut off the optocoupler
 2. VCC → 3.3 V (logic/optocoupler side).
 3. JD-VCC → external 5 V (coil side, common the two grounds).
 
-The firmware defaults to **active-low** (`config.h` `RELAY_ACTIVE_LOW 1`), so
+The firmware defaults to **active-low** (`config.h` `RELAY_ACTIVE_LOW = true`), so
 `relay.on()` pulls GPIO 16 LOW and energizes the coil; boot writes HIGH, keeping
 the relay open (fan off).
 
@@ -454,7 +458,7 @@ DEVICE_ID=safebox-01
 | DHT reads NaN | Missing pull-up; wrong data pin | Add pull-up; verify GPIO 4 |
 | Gas always 0/empty | Sensor still heating (2 min warmup); AO divider wrong | Wait; rewire divider |
 | No WiFi portal | Config already saved; connect to your AP instead | To re-provision: connect to `Safebox-AP` during the 30 s connect window or wipe NVS via `pio run -t erase` |
-| Fan not switching | Relay module logic mismatch (HL-52S is active-low) | `config.h` `RELAY_ACTIVE_LOW 1`; check the JD-VCC jumper (see Step 8) |
+| Fan not switching | Relay module logic mismatch (HL-52S is active-low) | keep `config.h` `RELAY_ACTIVE_LOW = true`; check the JD-VCC jumper (see Step 8) |
 | Serial only shows boot | `SAFEBOX_DEBUG=0` | Build with `-DSAFEBOX_DEBUG=1` |
 | No `[MQTT] Connected.` | Wrong host/port/creds in `secrets.h` | Recheck §7 Step 2; test with MQTTX first |
 | MQTTS TLS handshake fail | Missing/wrong CA PEM; port not 8883 | Re-download CA from EMQX overview; paste full PEM incl. BEGIN/END |
@@ -472,7 +476,7 @@ DEVICE_ID=safebox-01
 |-----|----------|--------|-----------|
 | 4 | DHT22 Data | temperature/humidity | input (with 4.7–10 kΩ pull-up) |
 | 13 | PIR OUT | motion | input (RISING interrupt) |
-| 34 | MQ2 AO | gas PPM | analog input (ADC1_CH6) |
+| 34 | MQ2 AO | relative gas index (0–4095 ADC) | analog input (ADC1_CH6) |
 | 16 | Relay IN1 (HL-52S) | fan ON | output (active-low: LOW = ON; boots open) |
 | 17 | Green LED | status LED | output |
 | 18 | Red LED | alert LED | output |

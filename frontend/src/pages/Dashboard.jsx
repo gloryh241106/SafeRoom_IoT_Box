@@ -18,7 +18,7 @@ export default function Dashboard() {
           time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           temperature: item.metrics.temperature,
           humidity: item.metrics.humidity,
-          gasLevel: item.metrics.gasLevel,
+          gasLevel: item.metrics.gasValid === false ? null : item.metrics.gasLevel,
         }));
         setData(formatted);
       }
@@ -37,7 +37,7 @@ export default function Dashboard() {
   const handleExportCSV = () => {
     if (data.length === 0) return;
 
-    const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'Gas Level (PPM)'];
+    const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'MQ2 Gas Index (ADC)'];
     const csvRows = [
       headers.join(','),
       ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel].join(','))
@@ -134,7 +134,7 @@ export default function Dashboard() {
 
           {/* Gas Level Chart */}
           <div className="glass-card p-5 rounded-lg space-y-4">
-            <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wider">Gas / Smoke Level (PPM)</h3>
+            <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wider">MQ-2 Gas Index (ADC)</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>

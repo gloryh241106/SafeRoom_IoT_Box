@@ -1,22 +1,17 @@
 #include "led.h"
 
-Led::Led(uint8_t pin) : _pin(pin), _state(false) {}
+Led::Led(uint8_t pin) : _pin(pin) {}
 
 void Led::begin() {
-    pinMode(_pin, OUTPUT);
-    off();
-}
-
-void Led::on() {
-    digitalWrite(_pin, HIGH);
-    _state = true;
-}
-
-void Led::off() {
     digitalWrite(_pin, LOW);
-    _state = false;
+    pinMode(_pin, OUTPUT);
+}
+
+void Led::set(bool on) {
+    _on = on;
+    digitalWrite(_pin, on ? HIGH : LOW);
 }
 
 bool Led::isOn() const {
-    return _state;
+    return _on;
 }

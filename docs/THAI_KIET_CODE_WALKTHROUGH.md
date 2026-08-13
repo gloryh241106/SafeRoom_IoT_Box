@@ -18,9 +18,9 @@ Overview.jsx
   -> control.js
   -> mqttService.publishControlCommand()
   -> MQTT topic
-  -> MqttClient.handleMessage()
-  -> main.cpp onControlMessage()
-  -> Relay.on()/off()
+  -> MqttManager.handleMessage()
+  -> WebsiteControl.handleCommand()
+  -> Relay.set()
   -> digitalWrite(GPIO 16 theo RELAY_ACTIVE_LOW)
 ```
 
@@ -211,67 +211,41 @@ if (channel === 'telemetry') {
 
 ### 2.6 Firmware nhận MQTT
 
-File: [`firmware/src/mqtt/mqtt_client.cpp`](../firmware/src/mqtt/mqtt_client.cpp)
+File: [`firmware/src/mqtt/mqtt_manager.cpp`](../firmware/src/mqtt/mqtt_manager.cpp)
 
 ```cpp
-void MqttClient::handleMessage(byte* payload, unsigned int length) {
+void MqttManager::handleMessage(byte* payload, unsigned int length) {
   JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, payload, length);
-  if (error) return;
+  if (deserializeJson(doc, payload, length)) return;
 
   const char* actuator = doc["actuator"] | "";
-  bool state = false;
-  if (doc["state"].is<bool>()) {
-    state = doc["state"].as<bool>();
-  } else {
-    const char* stateStr = doc["state"] | "off";
-    state = (strcmp(stateStr, "on") == 0);
-  }
+  bool state = doc["state"].is<bool>()
+      ? doc["state"].as<bool>()
+      : strcmp(doc["state"] | "off", "on") == 0;
 
   if (_controlCallback) _controlCallback(actuator, state);
 }
 ```
 
-`MqttClient` chịu trách nhiệm subscribe topic control, parse JSON và đổi state sang boolean. JSON lỗi bị bỏ qua. Chuỗi khác `on` được xử lý theo hướng fail-off; actuator lạ không tạo tác động vì callback ở `main.cpp` không có nhánh tương ứng.
+`MqttManager` subscribe topic control, parse JSON và đổi state sang boolean. JSON lỗi bị bỏ qua và kết quả hợp lệ được chuyển sang module điều khiển website.
 
-File: [`firmware/src/main.cpp`](../firmware/src/main.cpp)
+File: [`firmware/src/control/website_control.cpp`](../firmware/src/control/website_control.cpp)
 
 ```cpp
-static void onControlMessage(const char* actuator, bool state) {
+void WebsiteControl::handleCommand(const char* actuator, bool state) {
   if (strcmp(actuator, "fan") == 0) {
-    if (state) fanRelay.on();
-    else fanRelay.off();
-    DBG("[Fan] Relay state: %s\n", fanRelay.isOn() ? "ON" : "OFF");
+    _fan.set(state);
   } else if (strcmp(actuator, "buzzer") == 0) {
-    edgeSafety.applyRemoteBuzzer(state);
+    _remoteBuzzer = state;
+    if (!_safetyOverride) _buzzer.set(state);
   } else if (strcmp(actuator, "alertLed") == 0) {
-    edgeSafety.applyRemoteAlertLed(state);
+    _remoteAlertLed = state;
+    if (!_safetyOverride) _alertLed.set(state);
   }
 }
 ```
 
-`main.cpp` chỉ định tuyến actuator. Buzzer và alert LED đi qua `EdgeSafety`, nhờ đó cảnh báo gas cục bộ có thể ưu tiên hơn lệnh remote.
-
-File: [`firmware/src/actuators/relay.cpp`](../firmware/src/actuators/relay.cpp)
-
-```cpp
-void Relay::begin() {
-  pinMode(_pin, OUTPUT);
-  off();
-}
-
-void Relay::on() {
-  digitalWrite(_pin, RELAY_ACTIVE_LOW ? LOW : HIGH);
-  _state = true;
-}
-
-void Relay::off() {
-  digitalWrite(_pin, RELAY_ACTIVE_LOW ? HIGH : LOW);
-  _state = false;
-}
-```
-
-Với module HL-52S mặc định `RELAY_ACTIVE_LOW=1`, GPIO 16 LOW là relay ON và HIGH là OFF. `begin()` gọi `off()`, nên fan vẫn tắt trong lúc boot.
+`WebsiteControl` giữ quạt ở phạm vi remote-only và không cho lệnh remote buzzer/LED ghi đè cảnh báo khí. `Relay` xử lý riêng polarity; với HL-52S mặc định `RELAY_ACTIVE_LOW=true`, GPIO 16 LOW là ON và HIGH là OFF.
 
 ## 3. NC-01 - Z-score và rule engine
 

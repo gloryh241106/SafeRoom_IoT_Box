@@ -334,7 +334,7 @@ Action được thực hiện trước khi `AnomalyLog.create()` để lưu đ�
 
 ### 80. Em sẽ mở file nào đầu tiên nếu được yêu cầu show code?
 
-- CB-03: `backend/routes/control.js`, sau đó `mqttService.js`, `firmware/src/mqtt/mqtt_client.cpp`, `main.cpp` và `actuators/relay.cpp`.
+- CB-03: `backend/routes/control.js`, sau đó `mqttService.js`, `firmware/src/mqtt/mqtt_manager.cpp`, `control/website_control.cpp` và `actuators/relay.cpp`.
 - NC-01: `backend/services/anomalyEngine.js` tại `evaluateZScore` và `processTelemetryForAnomalies`.
 - NC-03: `timeSeriesService.js`, `telemetryService.js`, rồi `routes/telemetry.js`.
 - NC-05: `emailService.js` tại `sendAlertEmail`.
