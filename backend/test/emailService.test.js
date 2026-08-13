@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const {
   THROTTLE_WINDOW_MS,
   buildAlertMessage,
+  formatVietnamTimestamp,
   resetEmailServiceForTests,
   sendAlertEmail,
   setEmailServiceTestOverrides
@@ -76,6 +77,38 @@ test('sends HIGH alerts and throttles the same device and sensor for 15 minutes'
   }
 });
 
+test('keeps throttle windows independent per device and sensor type', async () => {
+  const restoreEnvironment = withEmailEnvironment();
+  const sentMessages = [];
+  setEmailServiceTestOverrides({
+    transport: {
+      async sendMail(message) {
+        sentMessages.push(message);
+        return { messageId: `message-${sentMessages.length}` };
+      }
+    },
+    now: () => Date.parse('2026-08-06T00:00:00.000Z')
+  });
+
+  try {
+    const baseAlert = {
+      deviceId: 'safebox-01',
+      sensorType: 'temperature',
+      severity: 'HIGH',
+      observedValue: 48,
+      thresholdLimit: 45
+    };
+
+    assert.equal((await sendAlertEmail(baseAlert)).status, 'sent');
+    assert.equal((await sendAlertEmail({ ...baseAlert, sensorType: 'gasLevel' })).status, 'sent');
+    assert.equal((await sendAlertEmail({ ...baseAlert, deviceId: 'safebox-02' })).status, 'sent');
+    assert.equal((await sendAlertEmail(baseAlert)).status, 'throttled');
+    assert.equal(sentMessages.length, 3);
+  } finally {
+    restoreEnvironment();
+  }
+});
+
 test('ignores severities below HIGH without contacting SMTP', async () => {
   const restoreEnvironment = withEmailEnvironment();
   let calls = 0;
@@ -109,4 +142,74 @@ test('escapes dynamic values in the HTML alert template', () => {
   });
   assert.doesNotMatch(message.html, /<script>/);
   assert.match(message.html, /&lt;script&gt;/);
+});
+
+test('renders alert timestamps in Vietnam time (UTC+7)', () => {
+  const utcTime = new Date('2026-08-13T01:02:03.000Z');
+  assert.equal(formatVietnamTimestamp(utcTime), '2026-08-13 08:02:03 UTC+7');
+
+  const message = buildAlertMessage({
+    deviceId: 'safebox-01',
+    sensorType: 'temperature',
+    severity: 'HIGH',
+    observedValue: 48,
+    thresholdLimit: 45,
+    timestamp: utcTime
+  });
+  assert.match(message.text, /Timestamp: 2026-08-13 08:02:03 UTC\+7/);
+  assert.match(message.html, /Time \(UTC\+7\)/);
+});
+
+test('sends to recipients supplied by persisted user preferences', async () => {
+  const restoreEnvironment = withEmailEnvironment();
+  const sentMessages = [];
+  setEmailServiceTestOverrides({
+    transport: {
+      async sendMail(message) {
+        sentMessages.push(message);
+        return { messageId: 'profile-recipient-message' };
+      }
+    },
+    recipients: async () => ['profile-owner@example.test']
+  });
+
+  try {
+    const result = await sendAlertEmail({
+      deviceId: 'safebox-01',
+      sensorType: 'gasLevel',
+      severity: 'CRITICAL',
+      observedValue: 700,
+      thresholdLimit: 600
+    });
+
+    assert.equal(result.status, 'sent');
+    assert.equal(result.recipientCount, 1);
+    assert.equal(sentMessages[0].to, 'profile-owner@example.test');
+  } finally {
+    restoreEnvironment();
+  }
+});
+
+test('skips SMTP when every persisted user has disabled email alerts', async () => {
+  const restoreEnvironment = withEmailEnvironment();
+  let calls = 0;
+  setEmailServiceTestOverrides({
+    transport: { async sendMail() { calls += 1; } },
+    recipients: async () => []
+  });
+
+  try {
+    const result = await sendAlertEmail({
+      deviceId: 'safebox-01',
+      sensorType: 'temperature',
+      severity: 'HIGH',
+      observedValue: 48,
+      thresholdLimit: 45
+    });
+    assert.equal(result.status, 'skipped');
+    assert.equal(result.reason, 'no_recipients');
+    assert.equal(calls, 0);
+  } finally {
+    restoreEnvironment();
+  }
 });

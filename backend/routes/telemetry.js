@@ -61,7 +61,7 @@ router.get('/historical', async (req, res) => {
     }
 
     let databaseQuery = SensorReading.find(query)
-      .sort({ timestamp: 1 })
+      .sort({ timestamp: -1 })
       .limit(parsedLimit);
     if (sensor) {
       databaseQuery = databaseQuery.select({
@@ -71,6 +71,7 @@ router.get('/historical', async (req, res) => {
       });
     }
     const readings = await databaseQuery;
+    readings.reverse();
 
     res.json({
       success: true,

@@ -49,7 +49,7 @@ const AnomalyLogSchema = new Schema({
 // 3. User Schema
 const UserSchema = new Schema({
   username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true, trim: true, lowercase: true },
   passwordHash: { type: String, required: true },
   settings: {
     emailEnabled: { type: Boolean, default: true },

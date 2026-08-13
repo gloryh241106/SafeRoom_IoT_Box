@@ -2,7 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { validateTelemetryPayload } = require('../services/telemetryService');
-const { parseTopic, validateEdgeAlert } = require('../services/mqttService');
+const { SensorReading } = require('../models/Schemas');
+const { getCurrentActuatorStates, synchronizeActuatorStates } = require('../services/actuatorStateService');
+const { handleMqttMessage, parseTopic, validateEdgeAlert } = require('../services/mqttService');
 
 function validPayload() {
   return {
@@ -66,4 +68,31 @@ test('accepts only gas edge-safety alerts with finite values', () => {
     observedValue: 48,
     threshold: 45
   }, 'safebox-01'), /sensorType must be gasLevel/);
+});
+
+test('synchronizes actuator status from confirmed device telemetry', async () => {
+  const originalCreate = SensorReading.create;
+  const payload = validPayload();
+  payload.actuatorStates.fanOn = true;
+  payload.actuatorStates.alertLedActive = true;
+  SensorReading.create = async (document) => document;
+
+  try {
+    await handleMqttMessage(
+      'safebox/safebox-01/telemetry',
+      Buffer.from(JSON.stringify(payload))
+    );
+    assert.deepEqual(getCurrentActuatorStates(), {
+      fanOn: true,
+      buzzerActive: false,
+      alertLedActive: true
+    });
+  } finally {
+    SensorReading.create = originalCreate;
+    synchronizeActuatorStates({
+      fanOn: false,
+      buzzerActive: false,
+      alertLedActive: false
+    });
+  }
 });

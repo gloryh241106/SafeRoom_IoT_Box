@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models/Schemas');
+const { normalizeEmail } = require('../services/userNotificationService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'safebox_secret_key_2026_hcmus';
 
@@ -26,8 +27,14 @@ router.post('/register', async (req, res) => {
     if (!username || !email || !password) {
       return res.status(400).json({ success: false, error: 'Username, email, and password are required' });
     }
+    let normalizedEmail;
+    try {
+      normalizedEmail = normalizeEmail(email);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: error.message });
+    }
 
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
+    const existingUser = await User.findOne({ $or: [{ email: normalizedEmail }, { username }] });
     if (existingUser) {
       return res.status(400).json({ success: false, error: 'Username or Email already exists' });
     }
@@ -35,7 +42,7 @@ router.post('/register', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = await User.create({
       username,
-      email,
+      email: normalizedEmail,
       passwordHash,
       settings: { emailEnabled: true }
     });

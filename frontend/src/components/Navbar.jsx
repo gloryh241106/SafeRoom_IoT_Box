@@ -18,11 +18,12 @@ export default function Navbar({ user, onLogout }) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-        {/* Status indicator */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
-          <Wifi className="w-3.5 h-3.5" />
-          <span>safebox-01</span>
-        </div>
+        {user && (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
+            <Wifi className="w-3.5 h-3.5" />
+            <span>safebox-01</span>
+          </div>
+        )}
 
         {user ? (
           <div className="flex items-center gap-3 pl-4 border-l border-slate-200">

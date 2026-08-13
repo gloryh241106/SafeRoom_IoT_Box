@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Thermometer, Droplets, Flame, Activity, Fan, Bell, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react';
+import { apiFetch } from '../api';
+
+const ACTUATOR_STATE_FIELDS = {
+  fan: 'fanOn',
+  buzzer: 'buzzerActive',
+  alertLed: 'alertLedActive'
+};
 
 export default function Overview() {
   const [telemetry, setTelemetry] = useState(null);
@@ -14,16 +21,16 @@ export default function Overview() {
   // Fetch telemetry and anomalies
   const fetchData = async () => {
     try {
-      const telRes = await fetch('/api/v1/telemetry/latest');
+      const telRes = await apiFetch('/api/v1/telemetry/latest');
       const telJson = await telRes.json();
       if (!telRes.ok || !telJson.success) throw new Error(telJson.error || 'Telemetry request failed');
       setTelemetry(telJson.data);
 
-      const statusRes = await fetch(`/api/v1/control/status?deviceId=${encodeURIComponent(telJson.data.deviceId)}`);
+      const statusRes = await apiFetch(`/api/v1/control/status?deviceId=${encodeURIComponent(telJson.data.deviceId)}`);
       const statusJson = await statusRes.json();
       if (!statusRes.ok || !statusJson.success) throw new Error(statusJson.error || 'Device status request failed');
 
-      const anomRes = await fetch('/api/v1/anomalies?status=unresolved');
+      const anomRes = await apiFetch('/api/v1/anomalies?status=unresolved');
       const anomJson = await anomRes.json();
       if (anomJson.success) {
         setAnomalies(anomJson.data);
@@ -54,7 +61,7 @@ export default function Overview() {
     setControlFeedback(null);
     try {
       const targetState = !currentState;
-      const res = await fetch('/api/v1/control/actuator', {
+      const res = await apiFetch('/api/v1/control/actuator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,11 +76,13 @@ export default function Overview() {
       if (actuator === 'systemArmed') {
         setSystemArmed(targetState);
       } else {
+        const stateField = ACTUATOR_STATE_FIELDS[actuator];
+        if (!stateField) throw new Error(`Unsupported actuator '${actuator}'`);
         setTelemetry((prev) => ({
-          ...prev,
+          ...(prev || {}),
           actuatorStates: {
-            ...prev.actuatorStates,
-            [actuator === 'fan' ? 'fanOn' : actuator === 'buzzer' ? 'buzzerActive' : 'alertLedActive']: targetState
+            ...(prev?.actuatorStates || {}),
+            [stateField]: targetState
           }
         }));
       }
@@ -94,7 +103,7 @@ export default function Overview() {
   // Delete all unresolved anomalies from view and backend
   const handleDeleteAllAnomalies = async () => {
     try {
-      const res = await fetch('/api/v1/anomalies/clear-all', {
+      const res = await apiFetch('/api/v1/anomalies/clear-all', {
         method: 'DELETE'
       });
       const json = await res.json();

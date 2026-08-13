@@ -1,7 +1,7 @@
 const mqtt = require('mqtt');
 const { processEdgeAlert } = require('./anomalyEngine');
 const { ingestTelemetry, DEVICE_ID_PATTERN } = require('./telemetryService');
-const { updateActuatorState } = require('./mockTelemetryGenerator');
+const { synchronizeActuatorStates, updateActuatorState } = require('./actuatorStateService');
 
 const TOPIC_PATTERN = /^safebox\/([A-Za-z0-9_-]{1,64})\/(telemetry|alerts|status)$/;
 const ACTUATORS = new Set(['fan', 'buzzer', 'alertLed']);
@@ -63,7 +63,11 @@ async function handleMqttMessage(topic, message) {
   const { deviceId, channel } = parseTopic(topic);
   const payload = parseJsonMessage(message);
 
-  if (channel === 'telemetry') return ingestTelemetry(payload, deviceId);
+  if (channel === 'telemetry') {
+    const result = await ingestTelemetry(payload, deviceId);
+    synchronizeActuatorStates(result.reading.actuatorStates);
+    return result;
+  }
   if (channel === 'alerts') return processEdgeAlert(validateEdgeAlert(payload, deviceId));
 
   if (payload.status !== 'online' && payload.status !== 'offline') {
@@ -163,6 +167,7 @@ async function publishControlCommand(deviceId, actuator, state) {
       else resolve();
     });
   });
+  updateActuatorState(actuator, state);
   return { status: 'published', topic };
 }
 

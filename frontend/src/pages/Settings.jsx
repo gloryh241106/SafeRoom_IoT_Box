@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { User, Bell, Shield, Save, CheckCircle, Cpu } from 'lucide-react';
+import { apiFetch } from '../api';
 
 export default function Settings({ user }) {
-  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(user?.settings?.emailEnabled ?? true);
+  const [profileEmail, setProfileEmail] = useState(user?.email || '');
   const [password, setPassword] = useState('');
   const [savedMessage, setSavedMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
   
   // Editable Safety Thresholds State
   const [thresholds, setThresholds] = useState({
@@ -20,7 +25,7 @@ export default function Settings({ user }) {
 
   // Fetch initial thresholds from backend
   useEffect(() => {
-    fetch('/api/v1/control/thresholds')
+    apiFetch('/api/v1/control/thresholds')
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
@@ -30,11 +35,57 @@ export default function Settings({ user }) {
       .catch((err) => console.error('Error fetching safety thresholds:', err));
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    setProfileLoading(true);
+    apiFetch('/api/v1/users/profile')
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || 'Unable to load profile settings');
+        if (!active) return;
+        const profile = json.data;
+        setEmailEnabled(profile.settings?.emailEnabled ?? true);
+        setProfileEmail(profile.email || '');
+      })
+      .catch((error) => {
+        if (active) setSaveError(error.message);
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?.email]);
+
+  const saveProfileChanges = async (payload, successMessage) => {
+    setProfileSaving(true);
+    setSaveError('');
+    try {
+      const res = await apiFetch('/api/v1/users/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Unable to save profile settings');
+      setSavedMessage(successMessage);
+      setTimeout(() => setSavedMessage(''), 3000);
+      return json.data;
+    } catch (error) {
+      setSaveError(error.message);
+      return null;
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const handleSaveThresholds = async (e) => {
     e.preventDefault();
     setThresholdLoading(true);
     try {
-      const res = await fetch('/api/v1/control/thresholds', {
+      const res = await apiFetch('/api/v1/control/thresholds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(thresholds)
@@ -51,10 +102,26 @@ export default function Settings({ user }) {
     }
   };
 
+  const handleSaveNotifications = async (e) => {
+    e.preventDefault();
+    await saveProfileChanges({
+      settings: {
+        emailEnabled
+      }
+    }, 'Email alert settings updated successfully!');
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setSavedMessage('Profile settings updated successfully!');
-    setTimeout(() => setSavedMessage(''), 3000);
+    if (!password) {
+      setSaveError('Enter a new password before saving profile security settings.');
+      return;
+    }
+    const updated = await saveProfileChanges(
+      { newPassword: password },
+      'Password updated successfully!'
+    );
+    if (updated) setPassword('');
   };
 
   return (
@@ -68,6 +135,12 @@ export default function Settings({ user }) {
         <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4" />
           <span>{savedMessage}</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
+          {saveError}
         </div>
       )}
 
@@ -231,7 +304,7 @@ export default function Settings({ user }) {
       </form>
 
       {/* Notification Preferences */}
-      <div className="glass-card p-6 rounded-lg space-y-4">
+      <form onSubmit={handleSaveNotifications} className="glass-card p-6 rounded-lg space-y-4">
         <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
           <Bell className="w-5 h-5 text-blue-600" />
           <span>Transactional Alert Preferences</span>
@@ -243,10 +316,15 @@ export default function Settings({ user }) {
             <p className="text-xs text-slate-500">Sends emergency emails on HIGH & CRITICAL severity anomalies</p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={emailEnabled}
+            aria-label="Enable anomaly email alerts"
             onClick={() => setEmailEnabled(!emailEnabled)}
+            disabled={profileLoading || profileSaving}
             className={`w-12 h-6 rounded-full transition-colors relative p-1 ${
               emailEnabled ? 'bg-blue-600' : 'bg-slate-300'
-            }`}
+            } disabled:cursor-not-allowed disabled:opacity-60`}
           >
             <div
               className={`w-4 h-4 rounded-full bg-white transition-transform ${
@@ -255,7 +333,22 @@ export default function Settings({ user }) {
             ></div>
           </button>
         </div>
-      </div>
+
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-xs font-semibold text-blue-700 uppercase">Alert recipient</p>
+          <p className="text-sm font-semibold text-slate-950 mt-1 break-all">{profileEmail}</p>
+          <p className="text-xs text-slate-500 mt-1">This is the email address registered in the user profile.</p>
+        </div>
+
+        <button
+          type="submit"
+          disabled={profileLoading || profileSaving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <Save className="w-4 h-4" />
+          <span>{profileSaving ? 'Saving...' : 'Save Email Settings'}</span>
+        </button>
+      </form>
 
       {/* Profile & Security Form */}
       <form onSubmit={handleSaveProfile} className="glass-card p-6 rounded-lg space-y-4">
@@ -298,10 +391,11 @@ export default function Settings({ user }) {
 
         <button
           type="submit"
-          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md transition-colors"
+          disabled={profileSaving}
+          className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         >
           <Save className="w-4 h-4" />
-          <span>Save Profile</span>
+          <span>{profileSaving ? 'Saving...' : 'Update Password'}</span>
         </button>
       </form>
     </div>

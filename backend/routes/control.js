@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getCurrentActuatorStates } = require('../services/mockTelemetryGenerator');
+const { getCurrentActuatorStates } = require('../services/actuatorStateService');
 const { setSystemArmed, isSystemArmed, getThresholds, updateThresholds } = require('../services/anomalyEngine');
 const { getMqttStatus, publishControlCommand } = require('../services/mqttService');
 

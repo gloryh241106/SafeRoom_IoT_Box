@@ -54,7 +54,7 @@ An integrated IoT environment monitoring, safety management, and automated emerg
 | **GPIO 4** | DHT22 Temperature & Humidity | Input (Digital / OneWire) | Periodic temperature and humidity sampling |
 | **GPIO 13** | PIR HC-SR501 Motion | Input (Digital Interrupt) | Motion presence detection |
 | **GPIO 34** | MQ2 Gas / Smoke | Input (Analog ADC1_CH6) | Gas concentration read (PPM) |
-| **GPIO 16** | DC Fan Relay | Output (Digital Output) | Relay actuation (HIGH = ON) |
+| **GPIO 16** | DC Fan Relay | Output (Digital Output) | Polarity follows `RELAY_ACTIVE_LOW`; HL-52S uses LOW = ON |
 | **GPIO 17** | Status LED (Green) | Output (Digital Output) | Normal system health indicator |
 | **GPIO 18** | Alert LED (Red) | Output (Digital Output) | Visual emergency warning |
 | **GPIO 19** | 3-pin Active Buzzer module | Digital Output (configurable polarity) | Enables the module's built-in tone oscillator |
@@ -70,7 +70,7 @@ SafeRoom_IoT_Box/
 ├── backend/                  # Node.js / Express REST API Backend
 │   ├── models/               # Mongoose Schemas (SensorReading, AnomalyLog, User)
 │   ├── routes/               # API Routes (auth, telemetry, control, anomalies, chatbot, users)
-│   ├── services/             # MQTT, Time Series, anomaly, telemetry, email services
+│   ├── services/             # MQTT, actuator state, Time Series, anomaly, telemetry, email
 │   ├── test/                 # Node test runner coverage for core IoT logic
 │   ├── .env.example          # Safe backend configuration template
 │   ├── package.json          # Node dependencies
@@ -99,6 +99,7 @@ SafeRoom_IoT_Box/
 │   ├── package.json          # React dependencies
 │   └── vite.config.js        # Vite config & API proxy
 │
+├── docs/                     # Architecture, code walkthrough, viva Q&A, demo guide
 ├── .agents/skills/           # Agent domain skills (esp32, iot-backend, safebox-frontend)
 ├── TODO.md                   # Master task registry and integration checklist
 ├── AGENTS.md                 # Agent guidelines and project rules
@@ -136,7 +137,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=<smtp-user>
 SMTP_PASS=<smtp-app-password>
-ALERT_RECIPIENT_EMAIL=<recipient-email>
+ALERT_RECIPIENT_EMAIL=<optional-fallback-email>
 ```
 
 On startup, the backend creates `sensor_readings` as a MongoDB Time Series collection when it does not exist and verifies `timeField`, `metaField`, granularity, and 30-day expiry. Startup fails with a migration message if an existing collection has incompatible options.
@@ -146,6 +147,14 @@ Start the backend server:
 npm start
 ```
 The server will run on `http://localhost:5000`.
+
+All telemetry, control, anomaly, chatbot, and user endpoints require a valid JWT. To create or refresh a local demo account without committing its credentials, set `DEMO_USERNAME`, `DEMO_EMAIL`, and `DEMO_PASSWORD` in `backend/.env`, then run:
+
+```bash
+npm run seed:demo-user
+```
+
+HIGH and CRITICAL anomaly emails are sent to the profile email of every user whose email-alert preference is enabled in Settings. `ALERT_RECIPIENT_EMAIL` is used only as a development fallback when the database has no user accounts; SMTP sender credentials remain server-side secrets.
 
 ### 3. ESP32 Firmware
 
@@ -164,7 +173,7 @@ The firmware provides:
 - **Sensing**: DHT22 (temp/humidity, 2s), PIR (motion, interrupt-based latch), MQ2 (gas PPM).
 - **Edge-local safety autonomy**: when `gasLevel > 600 PPM`, the buzzer, red alert LED, and OLED WARNING fire locally in `< 200 ms` without waiting for the network, and an edge alert is published to `safebox/{deviceId}/alerts` (QoS 1). The OLED's sole mission is rendering this WARNING screen; no sensor pages are shown.
 - **MQTTS telemetry**: publishes the JSON telemetry payload (temperature, humidity, gasLevel, motionDetected, actuatorStates) to `safebox/{deviceId}/telemetry` every 2s (QoS 0), with retained `online`/`offline` LWT on `safebox/{deviceId}/status` (QoS 1).
-- **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay (GPIO 16, HIGH = ON) is remote-only; edge safety overrides remote buzzer/led commands while a gas breach is active.
+- **Remote actuator control**: subscribes to `safebox/{deviceId}/control` (QoS 1) and accepts `{"actuator": "fan|buzzer|alertLed", "state": "on|off"}`. The fan relay on GPIO 16 is remote-only and defaults to active-low for the HL-52S module; edge safety overrides remote buzzer/LED commands while a gas breach is active.
 - **Manual hardware recovery**: an optional external normally-open push button connects `EN/RST` to `GND`. It resets the ESP32 without relying on a GPIO or running firmware, so it remains usable if the application hangs. Hold it for about 100 ms and release; never connect EN/RST to 5 V or use a latching switch.
 
 #### Test CB-03 fan control
@@ -178,6 +187,8 @@ npm run test:cb03
 
 The command sends fan ON through the REST API, verifies the reported actuator state, sends fan OFF, and exits with `CB-03 PASS` when the control path works.
 
+After a real MQTT command is published successfully, the backend records the requested actuator state for immediate status polling. The next validated ESP32 telemetry payload reconciles that state with the device-reported `actuatorStates`, so the dashboard does not fall back to stale simulation values.
+
 For a physical relay and fan test:
 
 1. Connect the relay signal input to ESP32 GPIO 16, use a common ground, and power the relay/fan from a suitable external supply. Do not power the fan from an ESP32 GPIO pin.
@@ -186,7 +197,9 @@ For a physical relay and fan test:
 4. Flash the ESP32 with `pio run --target upload`, then open `pio device monitor`.
 5. Start backend and frontend, open Overview, and press the `CB-03 | DC Fan Relay` button.
 
-Expected result: the dashboard shows `MQTT live`, the serial monitor prints `[Fan] Relay state: ON` or `OFF`, GPIO 16 changes level, and the relay switches the fan. The ESP32 always initializes GPIO 16 LOW so the fan remains off during boot.
+Expected result: the dashboard shows `MQTT live`, the serial monitor prints `[Fan] Relay state: ON` or `OFF`, GPIO 16 changes level, and the relay switches the fan. With the default `RELAY_ACTIVE_LOW=1`, boot writes GPIO 16 HIGH so the relay remains open and the fan stays off.
+
+The backend keeps optimistic MQTT command state in `actuatorStateService.js`, then replaces it with the next validated device telemetry snapshot. This isolates actuator-state ownership from the mock telemetry generator and makes the requested-versus-confirmed state flow easier to explain and test.
 
 ### 4. Frontend Setup
 In a new terminal:
@@ -207,7 +220,7 @@ Open `http://localhost:3000` in your browser to access the **SafeboxManager** we
 | `POST` | `/api/v1/auth/login` | User authentication & JWT issuance |
 | `GET` | `/api/v1/auth/me` | Fetch authenticated user profile |
 | `GET` | `/api/v1/telemetry/latest` | Get latest live sensor reading |
-| `GET` | `/api/v1/telemetry/historical` | Query historical time-series sensor data |
+| `GET` | `/api/v1/telemetry/historical` | Query the newest bounded time-series samples, returned in chronological order |
 | `POST` | `/api/v1/control/actuator` | Actuate remote outputs (Fan, Buzzer, Alert LED, Armed) |
 | `GET` | `/api/v1/control/status` | Get MQTT/device connection and actuator status |
 | `GET` | `/api/v1/control/thresholds` | Fetch current system safety thresholds |
@@ -220,15 +233,29 @@ Open `http://localhost:3000` in your browser to access the **SafeboxManager** we
 
 ---
 
+## Thai Kiet Viva Guide
+
+The following documents map Thai Kiet's proposal responsibilities (`CB-03`, `NC-01`, `NC-03`, and `NC-05`) to the implemented code and verification evidence:
+
+- [Scope, architecture, and defense summary](docs/THAI_KIET_VIVA.md)
+- [Line-by-line code walkthrough](docs/THAI_KIET_CODE_WALKTHROUGH.md)
+- [Oral-defense questions and model answers](docs/THAI_KIET_QA.md)
+- [Repeatable software and hardware demo guide](docs/THAI_KIET_DEMO.md)
+
+---
+
 ## 🧪 Verification
 
 ```bash
 cd backend
 npm test
+npm run test:kiet
 npm audit
 
 cd ../frontend
 npm run build
 ```
 
-The automated suite covers the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, telemetry/edge-alert validation, Time Series creation, SMTP severity filtering, HTML escaping, and the 15-minute email throttle. Hardware, EMQX, Atlas and SMTP end-to-end checks remain tracked as `TC-02`, `TC-05`, and `TC-06` in [TODO.md](TODO.md).
+The full backend suite contains 33 tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, cold start, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation, telemetry/edge-alert validation, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs the focused tests for Thai Kiet's scope and then the isolated CB-03 simulation, which must exit with `CB-03 PASS`. Hardware, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md).
+
+Current dependency audit status: backend reports 0 vulnerabilities. Frontend production build succeeds, while `npm audit` reports advisories in the Vite/esbuild and React Router dependency lines; the required migration and regression pass remains tracked in `TODO.md` rather than applying forced major upgrades during feature work.

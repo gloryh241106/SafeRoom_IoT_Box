@@ -76,7 +76,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] `POST /api/v1/auth/register` — validate, hash password (bcrypt), create user `(NC-07)`
 - [x] `POST /api/v1/auth/login` — verify credentials, return JWT token `(NC-07)`
 - [x] `GET /api/v1/auth/me` — return current user from token `(NC-07)`
-- [ ] Auth middleware to protect API routes (`/telemetry/*`, `/control/*`, `/anomalies/*`) `(NC-07)`
+- [x] Auth middleware to protect API routes (`/telemetry/*`, `/control/*`, `/anomalies/*`) `(NC-07)`
+- [x] Add regression coverage for protected API prefixes and authenticated CB-03 access `(NC-07, CB-03)`
 
 ### 2.3 Telemetry Ingestion & API
 
@@ -85,11 +86,13 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] `GET /api/v1/telemetry/historical?from=&to=&sensor=` — historical query `(NC-03)`
 - [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
 - [x] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
+- [x] Return the newest bounded historical samples in chronological order and add route regression coverage `(NC-03)`
 
 ### 2.4 Remote Actuator Control
 
 - [x] `POST /api/v1/control/actuator` — accepts `{deviceId, actuator, state}` `(CB-03)`
 - [x] Publish real MQTT command to `safebox/{deviceId}/control` (QoS 1) `(CB-03)`
+- [x] Synchronize backend actuator status after successful MQTT commands and confirmed device telemetry `(CB-03)`
 
 ### 2.5 Anomaly Detection Engine (NC-01)
 
@@ -116,8 +119,9 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Email dispatch function with 15-minute sliding window throttle per `(deviceId, sensorType)` `(NC-05)`
 - [x] Triggered on `HIGH` or `CRITICAL` severity anomalies only `(NC-05)`
 - [x] Replace mock email with real Nodemailer SMTP transport (`nodemailer.createTransport()`) `(NC-05)`
-- [x] Configure `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `ALERT_RECIPIENT_EMAIL` `(NC-05)`
+- [x] Configure SMTP sender in `.env`; keep `ALERT_RECIPIENT_EMAIL` as an optional no-user fallback `(NC-05)`
 - [x] HTML email template with clear alert formatting `(NC-05)`
+- [x] Add integrated coverage for Z-score spike -> fan command -> anomaly log -> email throttle `(NC-01, NC-05)`
 
 ### 2.8 Chatbot Command Router (NC-06)
 
@@ -129,7 +133,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 2.9 User Profile API
 
 - [x] `GET /api/v1/users/profile` — return user profile `(Settings)`
-- [x] `PATCH /api/v1/users/profile` — update password, notification preferences `(Settings)`
+- [x] `POST /api/v1/users/profile` — update password and notification preferences `(Settings)`
 
 ### 2.10 Backend Hardening (Phase 5)
 
@@ -218,7 +222,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Editable safety threshold inputs (gasMax, tempMax, tempMin, humidityMax, humidityMin, zScoreLimit) `(Settings)`
 - [x] Automatic/Manual mode toggle (Z-Score vs. manual bounds) `(Settings)`
 - [x] Disable manual inputs when Automatic mode; disable Z-score input when Manual mode `(Settings)`
-- [x] Save thresholds → `PATCH /api/v1/users/profile` `(Settings)`
+- [x] Save thresholds → `POST /api/v1/control/thresholds` `(Settings)`
 
 ### 4.7 Internationalization (i18n)
 
@@ -236,6 +240,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Sensor cards: color-coded severity states (green/yellow/red)
 - [ ] Favicon and page title: "SafeboxManager"
 - [ ] Connection status indicator (handle API timeouts)
+- [ ] Upgrade Vite/esbuild and React Router to clear current `npm audit` advisories, with migration regression testing
 
 ---
 
@@ -284,6 +289,22 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Prepare a demo script covering all TC in sequence
 - [ ] Ensure hardware stable for 15–20 min live demo
 - [ ] Fallback: pre-recorded screen capture of each TC passing
+
+### 6.4 Thai Kiet Viva Preparation
+
+- [x] Create a responsibility and code map for CB-03, NC-01, NC-03, and NC-05
+- [x] Create detailed code walkthrough, viva Q&A, and repeatable demo guides for Thai Kiet's scope
+- [x] Simplify non-obvious actuator-state and anomaly-engine code without changing system contracts
+- [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
+- [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
+
+### 6.5 User-Managed Email Alerts
+
+- [x] Use each account's profile email for alerts and persist the email-enabled preference from Settings
+- [x] Resolve enabled user recipients from MongoDB when sending HIGH/CRITICAL anomaly emails
+- [x] Keep `ALERT_RECIPIENT_EMAIL` as an optional development fallback and test recipient selection
+- [x] Re-run backend tests and frontend production build after the email settings integration
+- [x] Display alert email timestamps in Vietnam time (UTC+7) while retaining UTC in storage
 
 ---
 

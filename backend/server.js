@@ -4,7 +4,8 @@ const cors = require('cors');
 require('dotenv').config();
 
 const { startMockTelemetryGenerator, stopMockTelemetryGenerator } = require('./services/mockTelemetryGenerator');
-const { initializeEmailService } = require('./services/emailService');
+const { initializeEmailService, setEmailRecipientProvider } = require('./services/emailService');
+const { getAlertRecipientResolution } = require('./services/userNotificationService');
 const { setControlPublisher } = require('./services/anomalyEngine');
 const {
   getMqttStatus,
@@ -15,7 +16,7 @@ const {
 } = require('./services/mqttService');
 const { ensureSensorReadingsTimeSeries } = require('./services/timeSeriesService');
 
-const { router: authRouter } = require('./routes/auth');
+const { router: authRouter, authenticateToken } = require('./routes/auth');
 const telemetryRouter = require('./routes/telemetry');
 const controlRouter = require('./routes/control');
 const anomaliesRouter = require('./routes/anomalies');
@@ -39,11 +40,11 @@ app.use((req, res, next) => {
 
 // Route Mounting
 app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/telemetry', telemetryRouter);
-app.use('/api/v1/control', controlRouter);
-app.use('/api/v1/anomalies', anomaliesRouter);
-app.use('/api/v1/chatbot', chatbotRouter);
-app.use('/api/v1/users', usersRouter);
+app.use('/api/v1/telemetry', authenticateToken, telemetryRouter);
+app.use('/api/v1/control', authenticateToken, controlRouter);
+app.use('/api/v1/anomalies', authenticateToken, anomaliesRouter);
+app.use('/api/v1/chatbot', authenticateToken, chatbotRouter);
+app.use('/api/v1/users', authenticateToken, usersRouter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -63,6 +64,11 @@ async function startServer() {
     `[MongoDB] ${collectionStatus.collection} verified as Time Series with ${collectionStatus.expireAfterSeconds}s retention.`
   );
 
+  setEmailRecipientProvider(async (config) => {
+    const resolution = await getAlertRecipientResolution();
+    if (resolution.hasUsers) return resolution.recipients;
+    return config.recipient ? [config.recipient] : [];
+  });
   const emailStatus = await initializeEmailService({
     verify: String(process.env.SMTP_VERIFY_ON_STARTUP).toLowerCase() === 'true'
   });

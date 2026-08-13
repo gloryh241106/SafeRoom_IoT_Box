@@ -2,10 +2,13 @@ const nodemailer = require('nodemailer');
 
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000;
 const ALERT_SEVERITIES = new Set(['HIGH', 'CRITICAL']);
+const EMAIL_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const emailThrottleMap = new Map();
 
 let transporter = null;
 let nowProvider = () => Date.now();
+const defaultRecipientProvider = async (config) => (config.recipient ? [config.recipient] : []);
+let recipientProvider = defaultRecipientProvider;
 
 function parseBoolean(value, defaultValue = false) {
   if (value === undefined) return defaultValue;
@@ -13,13 +16,13 @@ function parseBoolean(value, defaultValue = false) {
 }
 
 function getEmailConfig(env = process.env) {
-  const requiredValues = [env.SMTP_HOST, env.SMTP_USER, env.SMTP_PASS, env.ALERT_RECIPIENT_EMAIL];
+  const requiredValues = [env.SMTP_HOST, env.SMTP_USER, env.SMTP_PASS];
   const credentialsComplete = requiredValues.every(Boolean);
   const enabled = parseBoolean(env.EMAIL_ENABLED, credentialsComplete);
 
   if (enabled && !credentialsComplete) {
     throw new Error(
-      'Email alerts are enabled but SMTP_HOST, SMTP_USER, SMTP_PASS, or ALERT_RECIPIENT_EMAIL is missing.'
+      'Email alerts are enabled but SMTP_HOST, SMTP_USER, or SMTP_PASS is missing.'
     );
   }
 
@@ -35,7 +38,7 @@ function getEmailConfig(env = process.env) {
     secure: parseBoolean(env.SMTP_SECURE, port === 465),
     user: env.SMTP_USER,
     password: env.SMTP_PASS,
-    recipient: env.ALERT_RECIPIENT_EMAIL,
+    recipient: env.ALERT_RECIPIENT_EMAIL || null,
     from: env.SMTP_FROM || `SafeRoom IoT Box <${env.SMTP_USER || 'alerts@safebox.local'}>`
   };
 }
@@ -65,16 +68,32 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function formatVietnamTimestamp(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: EMAIL_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day} ${values.hour}:${values.minute}:${values.second} UTC+7`;
+}
+
 function buildAlertMessage({ deviceId, sensorType, severity, observedValue, thresholdLimit, timestamp }) {
   const eventTime = new Date(timestamp || nowProvider());
   const safeTime = Number.isNaN(eventTime.getTime()) ? new Date(nowProvider()) : eventTime;
+  const displayTime = formatVietnamTimestamp(safeTime);
   const fields = {
     deviceId: escapeHtml(deviceId),
     sensorType: escapeHtml(sensorType),
     severity: escapeHtml(severity),
     observedValue: escapeHtml(observedValue),
     thresholdLimit: escapeHtml(thresholdLimit),
-    timestamp: escapeHtml(safeTime.toISOString())
+    timestamp: escapeHtml(displayTime)
   };
 
   return {
@@ -86,7 +105,7 @@ function buildAlertMessage({ deviceId, sensorType, severity, observedValue, thre
       `Severity: ${severity}`,
       `Observed value: ${observedValue}`,
       `Threshold: ${thresholdLimit}`,
-      `Timestamp: ${safeTime.toISOString()}`
+      `Timestamp: ${displayTime}`
     ].join('\n'),
     html: `
       <div style="font-family:Arial,sans-serif;max-width:640px;margin:auto;border:1px solid #d1d5db">
@@ -100,7 +119,7 @@ function buildAlertMessage({ deviceId, sensorType, severity, observedValue, thre
             <tr><td style="padding:7px 0;color:#6b7280">Sensor</td><td>${fields.sensorType}</td></tr>
             <tr><td style="padding:7px 0;color:#6b7280">Observed</td><td>${fields.observedValue}</td></tr>
             <tr><td style="padding:7px 0;color:#6b7280">Threshold</td><td>${fields.thresholdLimit}</td></tr>
-            <tr><td style="padding:7px 0;color:#6b7280">Time (UTC)</td><td>${fields.timestamp}</td></tr>
+            <tr><td style="padding:7px 0;color:#6b7280">Time (UTC+7)</td><td>${fields.timestamp}</td></tr>
           </table>
         </div>
       </div>`
@@ -123,6 +142,11 @@ async function sendAlertEmail(alert) {
   const activeTransporter = getTransporter(config);
   if (!activeTransporter) return { status: 'disabled' };
 
+  const providedRecipients = await recipientProvider(config);
+  if (!Array.isArray(providedRecipients)) throw new TypeError('Email recipient provider must return an array');
+  const recipients = [...new Set(providedRecipients.map((value) => String(value).trim()).filter(Boolean))];
+  if (recipients.length === 0) return { status: 'skipped', reason: 'no_recipients' };
+
   const throttleKey = `${alert.deviceId}:${alert.sensorType}`;
   const now = nowProvider();
   const lastSent = emailThrottleMap.get(throttleKey);
@@ -131,33 +155,51 @@ async function sendAlertEmail(alert) {
   }
 
   const message = buildAlertMessage({ ...alert, severity });
+  const recipientHeaders = recipients.length === 1
+    ? { to: recipients[0] }
+    : { to: config.user, bcc: recipients };
   const result = await activeTransporter.sendMail({
     from: config.from,
-    to: config.recipient,
+    ...recipientHeaders,
     ...message
   });
 
+  // A failed SMTP attempt must not suppress the next retry.
   emailThrottleMap.set(throttleKey, now);
-  return { status: 'sent', sentAt: new Date(now), messageId: result.messageId };
+  return {
+    status: 'sent',
+    sentAt: new Date(now),
+    messageId: result.messageId,
+    recipientCount: recipients.length
+  };
+}
+
+function setEmailRecipientProvider(provider) {
+  if (typeof provider !== 'function') throw new TypeError('Email recipient provider must be a function');
+  recipientProvider = provider;
 }
 
 function resetEmailServiceForTests() {
   transporter = null;
   nowProvider = () => Date.now();
+  recipientProvider = defaultRecipientProvider;
   emailThrottleMap.clear();
 }
 
-function setEmailServiceTestOverrides({ transport, now }) {
+function setEmailServiceTestOverrides({ transport, now, recipients }) {
   transporter = transport;
   if (now) nowProvider = now;
+  if (recipients) setEmailRecipientProvider(recipients);
 }
 
 module.exports = {
   THROTTLE_WINDOW_MS,
   buildAlertMessage,
+  formatVietnamTimestamp,
   getEmailConfig,
   initializeEmailService,
   resetEmailServiceForTests,
   sendAlertEmail,
+  setEmailRecipientProvider,
   setEmailServiceTestOverrides
 };

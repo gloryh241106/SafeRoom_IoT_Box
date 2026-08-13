@@ -7,20 +7,9 @@
  */
 
 const { ingestTelemetry } = require('./telemetryService');
+const { getCurrentActuatorStates } = require('./actuatorStateService');
 
 let mockIntervalId = null;
-let currentActuatorStates = {
-  fanOn: false,
-  buzzerActive: false,
-  alertLedActive: false
-};
-
-function updateActuatorState(actuator, state) {
-  if (actuator === 'fan') currentActuatorStates.fanOn = Boolean(state);
-  if (actuator === 'buzzer') currentActuatorStates.buzzerActive = Boolean(state);
-  if (actuator === 'alertLed') currentActuatorStates.alertLedActive = Boolean(state);
-  return currentActuatorStates;
-}
 
 function startMockTelemetryGenerator(deviceId = 'safebox-01') {
   if (mockIntervalId) return;
@@ -53,7 +42,7 @@ function startMockTelemetryGenerator(deviceId = 'safebox-01') {
           gasLevel,
           motionDetected
         },
-        actuatorStates: { ...currentActuatorStates }
+        actuatorStates: getCurrentActuatorStates()
       }, deviceId);
 
     } catch (err) {
@@ -70,7 +59,5 @@ function stopMockTelemetryGenerator() {
 
 module.exports = {
   startMockTelemetryGenerator,
-  stopMockTelemetryGenerator,
-  updateActuatorState,
-  getCurrentActuatorStates: () => ({ ...currentActuatorStates })
+  stopMockTelemetryGenerator
 };

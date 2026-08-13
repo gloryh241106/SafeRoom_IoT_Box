@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
+import { apiFetch } from '../api';
 
 export default function Chatbot() {
   const [messages, setMessages] = useState([
@@ -32,7 +33,7 @@ export default function Chatbot() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/v1/chatbot/query', {
+      const res = await apiFetch('/api/v1/chatbot/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text })

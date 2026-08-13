@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, RefreshCw } from 'lucide-react';
+import { apiFetch } from '../api';
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
@@ -10,7 +11,7 @@ export default function Dashboard() {
   const fetchHistoricalData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/telemetry/historical?limit=50`);
+      const res = await apiFetch(`/api/v1/telemetry/historical?limit=50`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const formatted = json.data.map((item) => ({

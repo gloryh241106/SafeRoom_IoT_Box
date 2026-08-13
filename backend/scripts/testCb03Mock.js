@@ -1,7 +1,9 @@
 const assert = require('node:assert/strict');
+const jwt = require('jsonwebtoken');
 
 process.env.MOCK_HARDWARE = 'true';
 process.env.DEVICE_ID = process.env.DEVICE_ID || 'safebox-01';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'cb03-test-secret';
 
 const { app } = require('../server');
 const { initializeMqttService, stopMqttService } = require('../services/mqttService');
@@ -11,11 +13,16 @@ const quietLogger = {
   warn() {},
   error() {}
 };
+const authToken = jwt.sign({ id: 'cb03-test-user', username: 'cb03-test' }, process.env.JWT_SECRET);
+const authHeaders = {
+  Authorization: `Bearer ${authToken}`,
+  'Content-Type': 'application/json'
+};
 
 async function sendFanCommand(baseUrl, state) {
   const response = await fetch(`${baseUrl}/api/v1/control/actuator`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: authHeaders,
     body: JSON.stringify({
       deviceId: process.env.DEVICE_ID,
       actuator: 'fan',
@@ -37,10 +44,14 @@ async function run() {
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
   try {
+    const unauthorizedResponse = await fetch(`${baseUrl}/api/v1/control/status`);
+    assert.equal(unauthorizedResponse.status, 401);
+
     await sendFanCommand(baseUrl, true);
 
     const statusResponse = await fetch(
-      `${baseUrl}/api/v1/control/status?deviceId=${encodeURIComponent(process.env.DEVICE_ID)}`
+      `${baseUrl}/api/v1/control/status?deviceId=${encodeURIComponent(process.env.DEVICE_ID)}`,
+      { headers: { Authorization: `Bearer ${authToken}` } }
     );
     const status = await statusResponse.json();
     assert.equal(statusResponse.status, 200);
@@ -49,7 +60,7 @@ async function run() {
     assert.equal(status.actuators.fanOn, true);
 
     await sendFanCommand(baseUrl, false);
-    console.log('CB-03 PASS: REST fan ON, status confirmation, and fan OFF all succeeded in simulation mode.');
+    console.log('CB-03 PASS: unauthorized access blocked; authenticated fan ON, status, and fan OFF succeeded.');
   } finally {
     await new Promise((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));

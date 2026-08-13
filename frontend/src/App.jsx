@@ -9,25 +9,45 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
+function ProtectedRoute({ authenticated, children }) {
+  return authenticated ? children : <Navigate to="/login" replace />;
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('safebox_token') || null);
+  const [authChecking, setAuthChecking] = useState(Boolean(token));
 
   useEffect(() => {
-    if (token) {
-      fetch('/api/v1/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setUser(data.user);
-          } else {
-            handleLogout();
-          }
-        })
-        .catch(() => handleLogout());
+    if (!token) {
+      setUser(null);
+      setAuthChecking(false);
+      return undefined;
     }
+
+    const controller = new AbortController();
+    setAuthChecking(true);
+
+    fetch('/api/v1/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || 'Session validation failed');
+        setUser(data.user);
+      })
+      .catch((error) => {
+        if (error.name === 'AbortError') return;
+        localStorage.removeItem('safebox_token');
+        setToken(null);
+        setUser(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setAuthChecking(false);
+      });
+
+    return () => controller.abort();
   }, [token]);
 
   const handleLoginSuccess = (newToken, userData) => {
@@ -42,30 +62,48 @@ export default function App() {
     setUser(null);
   };
 
+  if (authChecking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50" aria-label="Checking session">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 border-t-blue-600" />
+      </div>
+    );
+  }
+
+  const authenticated = Boolean(token && user);
+
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
         <Navbar user={user} onLogout={handleLogout} />
 
         <div className="flex-1 flex">
-          <Sidebar />
+          {authenticated && <Sidebar />}
 
-          <main className="flex-1 w-full p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8 overflow-y-auto max-w-7xl">
+          <main className={authenticated
+            ? 'flex-1 w-full p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8 overflow-y-auto max-w-7xl'
+            : 'flex-1 w-full overflow-y-auto'}>
             <Routes>
-              <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
-              <Route path="/register" element={<Register onLoginSuccess={handleLoginSuccess} />} />
-              {token ? (
-                <>
-                  <Route path="/" element={<Navigate to="/overview" replace />} />
-                  <Route path="/overview" element={<Overview />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/chatbot" element={<Chatbot />} />
-                  <Route path="/settings" element={<Settings user={user} />} />
-                  <Route path="*" element={<Navigate to="/overview" replace />} />
-                </>
-              ) : (
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              )}
+              <Route path="/" element={<Navigate to={authenticated ? '/overview' : '/login'} replace />} />
+              <Route path="/overview" element={
+                <ProtectedRoute authenticated={authenticated}><Overview /></ProtectedRoute>
+              } />
+              <Route path="/dashboard" element={
+                <ProtectedRoute authenticated={authenticated}><Dashboard /></ProtectedRoute>
+              } />
+              <Route path="/chatbot" element={
+                <ProtectedRoute authenticated={authenticated}><Chatbot /></ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute authenticated={authenticated}><Settings user={user} /></ProtectedRoute>
+              } />
+              <Route path="/login" element={authenticated
+                ? <Navigate to="/overview" replace />
+                : <Login onLoginSuccess={handleLoginSuccess} />} />
+              <Route path="/register" element={authenticated
+                ? <Navigate to="/overview" replace />
+                : <Register onLoginSuccess={handleLoginSuccess} />} />
+              <Route path="*" element={<Navigate to={authenticated ? '/overview' : '/login'} replace />} />
             </Routes>
           </main>
         </div>
