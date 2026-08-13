@@ -52,14 +52,20 @@ export default function App() {
 
           <main className="flex-1 w-full p-4 pb-24 sm:p-6 sm:pb-24 md:p-8 md:pb-8 overflow-y-auto max-w-7xl">
             <Routes>
-              <Route path="/" element={<Navigate to="/overview" replace />} />
-              <Route path="/overview" element={<Overview />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/chatbot" element={<Chatbot />} />
-              <Route path="/settings" element={<Settings user={user} />} />
               <Route path="/login" element={<Login onLoginSuccess={handleLoginSuccess} />} />
               <Route path="/register" element={<Register onLoginSuccess={handleLoginSuccess} />} />
-              <Route path="*" element={<Navigate to="/overview" replace />} />
+              {token ? (
+                <>
+                  <Route path="/" element={<Navigate to="/overview" replace />} />
+                  <Route path="/overview" element={<Overview />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/chatbot" element={<Chatbot />} />
+                  <Route path="/settings" element={<Settings user={user} />} />
+                  <Route path="*" element={<Navigate to="/overview" replace />} />
+                </>
+              ) : (
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              )}
             </Routes>
           </main>
         </div>
