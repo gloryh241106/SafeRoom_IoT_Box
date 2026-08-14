@@ -64,6 +64,7 @@ void Telemetry::writeSensors(JsonObject metrics, const SensorState& sensors) {
     metrics["humidity"] = sensors.humidity;
     metrics["gasLevel"] = gasValue;
     metrics["gasRaw"] = gasValue;
+    metrics["gasAlarmThreshold"] = sensors.gasAlarmThreshold;
     metrics["gasValid"] = sensors.gasValid;
     metrics["gasUnit"] = "adc_index";
     metrics["motionDetected"] = sensors.motionDetected;

@@ -17,10 +17,9 @@ from `firmware/src/config.h`.
 | 5 | SSD1306 128×64 OLED (I²C) | 1 | I²C address 0x3C |
 | 6 | Active buzzer module (3-pin: SIG/VCC/GND) | 1 | Built-in oscillator; digital ON/OFF control |
 | 7 | Red 5 mm LED | 1 | Alert LED |
-| 8 | Green 5 mm LED | 1 | Status LED |
-| 9 | Relay module (HL-52S) | 1 | Drives the DC fan; active-low input (IN LOW = ON) |
-| 10 | 5 V DC fan (< 2 A) | 1 | Powered externally, NOT from GPIO |
-| 11 | 220–330 Ω resistors | 2 | LED current limiters |
+| 8 | Relay module (HL-52S) | 1 | Drives the DC fan; active-low input (IN LOW = ON) |
+| 9 | 5 V DC fan (< 2 A) | 1 | Powered externally, NOT from GPIO |
+| 10 | 220–330 Ω resistors | 1 | LED current limiter |
 | 12 | 4.7–10 kΩ resistor | 1 | DHT22 DATA pull-up |
 | 13 | Breadboard + jumper wires (male/male, male/female) | — | |
 | 14 | Micro-USB cable + PC with PlatformIO | 1 | For flashing & serial monitor |
@@ -92,7 +91,7 @@ Complete the steps in order; after each step reference the expected check.
 | OLED SCL | 22 | right column, 12th pin |
 | Hardware reset | EN/RST ↔ GND | pins labeled `EN` (or `RST`) and `GND`; location varies by DevKit revision |
 | 3.3 V rail | 3V3 | right column, 1st & 15th pins |
-| GND | GND | right column, 2nd & 14th; left column 14th |
+| GND | GND | right column, 2nd & 14th; left column 14th |  
 | 5 V input | VIN | left column, 15th pin (bottom) |
 
 ### Step 1 — Power rails
@@ -213,17 +212,15 @@ Complete the steps in order; after each step reference the expected check.
   network calls are outside the time-critical path; a successful build is not a
   substitute for the oscilloscope/video timing measurement.
 
-### Step 7 — LEDs → GPIO 17 & 18
+### Step 7 — LEDs → GPIO 18
 
 | LED | Anode | Cathode | ESP32 signal |
 |-----|-------|---------|--------------|
-| Green (status) | via 220–330 Ω → GPIO 17 | GND | `STATUS_LED_PIN` |
 | Red (alert) | via 220–330 Ω → GPIO 18 | GND | `ALERT_LED_PIN` |
 
-- Wire like: `GPIO17 → Resistor → LED an → LED cath → GND`. HIGH = on.
-- **Check**: green LED is on when WiFi connected; red LED (and buzzer) turn on
-  only while the local gas alarm is active — they are edge-only outputs with no
-  remote web control.
+- Wire like: `GPIO18 → Resistor → LED an → LED cath → GND`. HIGH = on.
+- **Check**: red LED (and buzzer) turn on only while the local gas alarm is
+  active — they are edge-only outputs with no remote web control.
 
 ### Step 8 — DC Fan / HL-52S Relay → GPIO 16
 
@@ -526,7 +523,6 @@ TC-03 must still measure this exact scenario on hardware.
 | 13 | PIR OUT | raw motion HIGH/LOW | digital input (no software latch) |
 | 34 | MQ2 AO | raw 12-bit ADC count (0–4095) | analog input (ADC1_CH6) |
 | 16 | Relay IN1 (HL-52S) | fan ON | output (active-low: LOW = ON; boots open) |
-| 17 | Green LED | status LED | output |
 | 18 | Red LED | alert LED | output |
 | 19 | Active Buzzer module `SIG/IN` | alarm enable | Digital output (polarity via `BUZZER_ACTIVE_LOW`) |
 | 21 | I²C SDA | OLED | I²C data |

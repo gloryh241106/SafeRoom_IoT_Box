@@ -6,11 +6,25 @@
  */
 const express = require('express');
 const router = express.Router();
+const { SensorReading } = require('../models/Schemas');
 const { getCurrentActuatorStates } = require('../services/actuatorStateService');
 const { setSystemArmed, isSystemArmed, getThresholds, loadUserThresholds, updateThresholds } = require('../services/anomalyEngine');
-const { getMqttStatus, publishControlCommand } = require('../services/mqttService');
+const { getMqttStatus, publishControlCommand, publishThresholdConfig } = require('../services/mqttService');
+const { getFirmwareGasThresholds, setFirmwareGasThreshold } = require('../services/firmwareConfigService');
 
 const ALLOWED_ACTUATORS = new Set(['fan']);
+
+/**
+ * Resolves the target device for MQTT pushes. Telemetry identity is
+ * authoritative: config/control must reach the device that actually reports,
+ * so an env DEVICE_ID mismatch cannot silently drop messages.
+ */
+async function resolveDeviceId(explicitDeviceId) {
+  if (explicitDeviceId) return explicitDeviceId;
+  const latestReading = await SensorReading.findOne({}).sort({ timestamp: -1 });
+  if (latestReading?.deviceId) return latestReading.deviceId;
+  return process.env.DEVICE_ID || 'safebox-01';
+}
 
 function parseActuatorState(value) {
   if (typeof value === 'boolean') return value;
@@ -22,22 +36,45 @@ function parseActuatorState(value) {
 router.get('/thresholds', async (req, res) => {
   try {
     const data = await loadUserThresholds(req.user?.id);
+    // Report the edge value currently compiled into the ESP32 so the UI can
+    // show what the firmware will actually act on after a rebuild.
+    const firmware = getFirmwareGasThresholds();
     res.json({
       success: true,
-      data
+      data: {
+        ...data,
+        firmwareGasEdgeThreshold: firmware?.alarm ?? data.gasMax
+      }
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-router.post('/thresholds', (req, res) => {
+router.post('/thresholds', async (req, res) => {
   try {
     const updated = updateThresholds(req.body, req.user?.id);
+    // The saved value becomes the ESP32 edge threshold in config.h (reboot /
+    // reflash default) and is also pushed live over MQTT so the device applies
+    // it without a reflash. Both steps are best-effort and never fail the save.
+    const firmware = setFirmwareGasThreshold(updated.gasMax);
+    const alarm = firmware?.alarm ?? updated.gasMax;
+    const clear = firmware?.clear ?? Math.max(0, updated.gasMax - 100);
+    const deviceId = await resolveDeviceId(req.body.deviceId);
+    let configDelivery = 'unavailable';
+    try {
+      configDelivery = (await publishThresholdConfig(deviceId, alarm, clear)).status;
+    } catch (err) {
+      configDelivery = `failed: ${err.message}`;
+    }
     res.json({
       success: true,
       message: 'Safety thresholds updated successfully',
-      data: updated
+      data: {
+        ...updated,
+        firmwareGasEdgeThreshold: alarm,
+        configDelivery
+      }
     });
   } catch (err) {
     const status = err instanceof TypeError || err instanceof RangeError ? 400 : 500;

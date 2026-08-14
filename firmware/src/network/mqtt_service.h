@@ -10,13 +10,16 @@ public:
     /** Callback used by main.cpp to apply an actuator command. */
     using ControlHandler = void (*)(const char* actuator, bool state);
 
+    /** Callback used by main.cpp to apply a runtime gas threshold config. */
+    using ConfigHandler = void (*)(uint16_t alarmThreshold, uint16_t clearThreshold);
+
     /** Attaches PubSubClient to its TLS transport. */
     MqttService();
 
     /** Stores EMQX settings and configures TLS and callbacks. */
     void begin(const char* deviceId, const char* host, uint16_t port,
                const char* username, const char* password, const char* caCert,
-               ControlHandler controlHandler);
+               ControlHandler controlHandler, ConfigHandler configHandler = nullptr);
 
     /** Maintains MQTT after WiFi and certificate-validation time are ready. */
     void update(bool networkReady);
@@ -37,6 +40,9 @@ private:
     /** Parses control JSON and invokes the application callback. */
     void handleControl(byte* payload, unsigned int length);
 
+    /** Parses threshold config JSON and invokes the application callback. */
+    void handleConfig(byte* payload, unsigned int length);
+
     /** Retries connection, sets LWT, publishes online, and subscribes. */
     void connectIfDue();
 
@@ -53,4 +59,5 @@ private:
     uint16_t _port = 8883;
     uint32_t _lastConnectAttemptMs = 0;
     ControlHandler _controlHandler = nullptr;
+    ConfigHandler _configHandler = nullptr;
 };

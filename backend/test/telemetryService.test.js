@@ -59,6 +59,33 @@ test('keeps legacy documents without gasRaw valid at the Mongoose boundary', () 
   assert.equal(document.validateSync(), undefined);
 });
 
+test('accepts a device-reported gas alarm threshold within the ADC range', () => {
+  const payload = validPayload();
+  payload.metrics.gasAlarmThreshold = 1200;
+  const normalized = validateTelemetryPayload(payload, 'safebox-01');
+  const document = new SensorReading(normalized);
+
+  assert.equal(normalized.metrics.gasAlarmThreshold, 1200);
+  assert.equal(document.metrics.gasAlarmThreshold, 1200);
+  assert.equal(document.validateSync(), undefined);
+});
+
+test('rejects a device-reported gas alarm threshold outside the ADC range', () => {
+  const payload = validPayload();
+  payload.metrics.gasAlarmThreshold = 4095;
+  assert.throws(
+    () => validateTelemetryPayload(payload, 'safebox-01'),
+    /gasAlarmThreshold must be an integer between 1 and 4094/
+  );
+
+  const fractional = validPayload();
+  fractional.metrics.gasAlarmThreshold = 1200.5;
+  assert.throws(
+    () => validateTelemetryPayload(fractional, 'safebox-01'),
+    /gasAlarmThreshold must be an integer/
+  );
+});
+
 test('rejects conflicting MQ2 alias values in one telemetry snapshot', () => {
   const payload = validPayload();
   payload.metrics.gasLevel = 642;

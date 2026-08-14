@@ -39,6 +39,17 @@ const SensorReadingSchema = new Schema({
         message: 'gasRaw must be an integer ADC index'
       }
     },
+    // Device-reported live edge alarm threshold; null on legacy firmware/documents.
+    gasAlarmThreshold: {
+      type: Number,
+      default: null,
+      min: 1,
+      max: MAX_GAS_ALERT_THRESHOLD,
+      validate: {
+        validator: (value) => value == null || Number.isInteger(value),
+        message: 'gasAlarmThreshold must be an integer ADC index'
+      }
+    },
     gasValid: { type: Boolean, default: true },
     gasUnit: { type: String, enum: [MQ2_UNIT], default: MQ2_UNIT },
     motionDetected: { type: Boolean, required: true }

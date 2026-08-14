@@ -12,7 +12,8 @@ MqttService::MqttService() : _client(_tls) {}
 // Stores broker settings and configures TLS, callbacks, and limits.
 void MqttService::begin(const char* deviceId, const char* host, uint16_t port,
                         const char* username, const char* password,
-                        const char* caCert, ControlHandler controlHandler) {
+                        const char* caCert, ControlHandler controlHandler,
+                        ConfigHandler configHandler) {
     _instance = this;
     _deviceId = deviceId;
     _host = host;
@@ -20,6 +21,7 @@ void MqttService::begin(const char* deviceId, const char* host, uint16_t port,
     _username = username;
     _password = password;
     _controlHandler = controlHandler;
+    _configHandler = configHandler;
 
     _tls.setCACert(caCert);
     _tls.setTimeout(MQTT_SOCKET_TIMEOUT_SECONDS);
@@ -58,9 +60,16 @@ bool MqttService::publishAlert(const char* payload) {
     return connected() && _client.publish(topic("alerts").c_str(), payload, false);
 }
 
-// Forwards the static MQTT callback to the active service instance.
-void MqttService::mqttCallback(char*, byte* payload, unsigned int length) {
-    if (_instance) _instance->handleControl(payload, length);
+// Forwards the static MQTT callback to the active service instance, routing
+// retained config messages to the threshold handler and everything else to
+// the actuator handler.
+void MqttService::mqttCallback(char* topic, byte* payload, unsigned int length) {
+    if (!_instance) return;
+    if (topic && strstr(topic, "/config") != nullptr) {
+        _instance->handleConfig(payload, length);
+    } else {
+        _instance->handleControl(payload, length);
+    }
 }
 
 // Accepts a boolean or an "on"/"off" state from the backend.
@@ -80,6 +89,25 @@ void MqttService::handleControl(byte* payload, unsigned int length) {
     }
 
     if (_controlHandler) _controlHandler(actuator, state);
+}
+
+// Applies a runtime gas threshold config pushed by the backend.
+void MqttService::handleConfig(byte* payload, unsigned int length) {
+    JsonDocument document;
+    if (deserializeJson(document, payload, length)) {
+        SAFEBOX_LOG_LN("[MQTT] Ignored invalid config JSON");
+        return;
+    }
+
+    const uint16_t alarm = document["gasAlarmThreshold"] | 0;
+    const uint16_t clear = document["gasClearThreshold"] | 0;
+    if (alarm < 1 || clear > alarm) {
+        SAFEBOX_LOGF("[MQTT] Ignored invalid threshold config alarm=%u clear=%u\n",
+                     alarm, clear);
+        return;
+    }
+
+    if (_configHandler) _configHandler(alarm, clear);
 }
 
 // Retries at a fixed interval and configures retained online/offline status.
@@ -104,7 +132,9 @@ void MqttService::connectIfDue() {
 
     _client.publish(statusTopic.c_str(), "{\"status\":\"online\"}", true);
     _client.subscribe(topic("control").c_str(), 1);
-    SAFEBOX_LOG_LN("[MQTT] Connected");
+    _client.subscribe(topic("config").c_str(), 1);
+    SAFEBOX_LOGF("[MQTT] Connected, subscribed to control + config (%s)\n",
+                 topic("config").c_str());
 }
 
 // Builds every MQTT topic with the same device ID.

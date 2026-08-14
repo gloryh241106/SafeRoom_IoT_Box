@@ -8,8 +8,10 @@
 
 /**
  * Runs MQ2 safety independently from WiFi and MQTT every 50 ms.
- * Three consecutive unsafe samples activate the buzzer within 150 ms; it
- * clears after three samples below 500 or after 5 s sustained below 600.
+ * Three consecutive unsafe samples activate the buzzer within 150 ms; the alarm
+ * clears after three samples below the clear threshold or after 5 s sustained
+ * below the alarm threshold. Both thresholds default to config.h and can be
+ * updated at runtime over MQTT (safebox/{deviceId}/config).
  */
 class GasSafety {
 public:
@@ -18,6 +20,12 @@ public:
 
     /** Starts the priority-4 gas task and fails safe if creation fails. */
     bool begin();
+
+    /** Updates the edge alarm/clear thresholds from a runtime config message. */
+    void updateThresholds(uint16_t alarmThreshold, uint16_t clearThreshold);
+
+    /** Returns the current edge gas alarm threshold used for alerts. */
+    uint16_t alarmThreshold() const;
 
     /** Returns the latest MQ2 sample through a protected mailbox. */
     uint16_t gasRaw() const;
@@ -55,11 +63,13 @@ private:
     mutable portMUX_TYPE _mux = portMUX_INITIALIZER_UNLOCKED; // Protects task-to-loop data.
     uint16_t _gasRaw = 0;        // Latest ADC sample.
     uint16_t _alertRaw = 0;      // First sample above the alarm limit.
+    uint16_t _alarmThreshold = 0; // Runtime alarm threshold (config.h default).
+    uint16_t _clearThreshold = 0; // Runtime clear threshold (config.h default).
     bool _sampled = false;       // True after the first real sample.
     bool _alarm = false;         // Current hysteresis state.
     bool _newAlert = false;      // Event waiting for main.cpp.
-    uint8_t _highSamples = 0;    // Consecutive samples above 600.
-    uint8_t _clearSamples = 0;   // Consecutive samples below 500.
-    uint8_t _subAlarmSamples = 0; // Consecutive samples below 600 while alarming.
+    uint8_t _highSamples = 0;    // Consecutive samples above the alarm threshold.
+    uint8_t _clearSamples = 0;   // Consecutive samples below the clear threshold.
+    uint8_t _subAlarmSamples = 0; // Consecutive samples below the alarm threshold while alarming.
     uint32_t _startedAtMs = 0;   // Start of the ADC stabilization window.
 };

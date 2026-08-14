@@ -5,13 +5,13 @@
 #include "../device_state.h"
 
 /**
- * Controls the fan relay, status LED, alert LED, and buzzer GPIOs.
+ * Controls the fan relay, alert LED, and buzzer GPIOs.
  * The buzzer and alert LED follow only the local gas safety alarm.
  */
 class Actuators {
 public:
     /** Stores GPIO pins and active-low settings from config.h. */
-    Actuators(uint8_t fanPin, uint8_t statusLedPin, uint8_t alertLedPin,
+    Actuators(uint8_t fanPin, uint8_t alertLedPin,
               uint8_t buzzerPin, bool fanActiveLow, bool buzzerActiveLow);
 
     /** Configures output pins and immediately applies safe OFF states. */
@@ -19,9 +19,6 @@ public:
 
     /** Applies a remote fan command with the correct relay polarity. */
     void setFan(bool on);
-
-    /** Sets the green WiFi status LED. */
-    void setStatusLed(bool on);
 
     /** Enables or clears the local gas alarm override. */
     void setGasAlarm(bool active);
@@ -37,7 +34,6 @@ private:
     void applyLocked();
 
     uint8_t _fanPin;
-    uint8_t _statusLedPin;
     uint8_t _alertLedPin;
     uint8_t _buzzerPin;
     bool _fanActiveLow;

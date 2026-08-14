@@ -208,6 +208,39 @@ async function publishControlCommand(deviceId, actuator, state) {
   return { status: 'published', topic };
 }
 
+/**
+ * Publishes the gas edge thresholds to the device over MQTT so the ESP32 can
+ * apply them live (no reflash). The message is retained so a device that
+ * reconnects later receives the latest configuration. Best-effort: an offline
+ * broker reports status 'offline' instead of failing the caller.
+ */
+async function publishThresholdConfig(deviceId, alarmThreshold, clearThreshold) {
+  if (!DEVICE_ID_PATTERN.test(deviceId)) throw new TypeError('Invalid deviceId');
+  if (!Number.isInteger(alarmThreshold) || alarmThreshold < 1 || alarmThreshold > MAX_GAS_ALERT_THRESHOLD) {
+    throw new TypeError(`gasAlarmThreshold must be an integer from 1 to ${MAX_GAS_ALERT_THRESHOLD}`);
+  }
+  if (!Number.isInteger(clearThreshold) || clearThreshold < 0 || clearThreshold > alarmThreshold) {
+    throw new TypeError('gasClearThreshold must be an integer from 0 to gasAlarmThreshold');
+  }
+
+  const topic = `safebox/${deviceId}/config`;
+  if (isMockHardware()) return { status: 'mocked', topic: null };
+  if (!mqttClient || !mqttClient.connected) return { status: 'offline', topic };
+
+  const payload = JSON.stringify({
+    gasAlarmThreshold: alarmThreshold,
+    gasClearThreshold: clearThreshold
+  });
+  await new Promise((resolve, reject) => {
+    mqttClient.publish(topic, payload, { qos: 1, retain: true }, (error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+  console.log(`[MQTT] Published retained config to ${topic}: alarm=${alarmThreshold} clear=${clearThreshold}`);
+  return { status: 'published', topic };
+}
+
 function getMqttStatus(deviceId) {
   return {
     mode: mqttMode,
@@ -232,6 +265,7 @@ module.exports = {
   isMockHardware,
   parseTopic,
   publishControlCommand,
+  publishThresholdConfig,
   requireMqttConfig,
   stopMqttService,
   validateEdgeAlert

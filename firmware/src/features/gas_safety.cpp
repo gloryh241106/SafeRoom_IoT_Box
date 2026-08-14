@@ -14,7 +14,35 @@ constexpr uint32_t GAS_TASK_STACK_BYTES = 4096;
 
 // Stores shared module references without owning them.
 GasSafety::GasSafety(Mq2Sensor& sensor, Actuators& actuators, OledDisplay& oled)
-    : _sensor(sensor), _actuators(actuators), _oled(oled) {}
+    : _sensor(sensor),
+      _actuators(actuators),
+      _oled(oled),
+      _alarmThreshold(GAS_ALARM_THRESHOLD_RAW),
+      _clearThreshold(GAS_CLEAR_THRESHOLD_RAW) {}
+
+// Applies a runtime threshold config from the backend. The edge decision stays
+// fully local; only the numbers change. Invalid ranges are ignored.
+void GasSafety::updateThresholds(uint16_t alarmThreshold, uint16_t clearThreshold) {
+    if (alarmThreshold < 1 || clearThreshold > alarmThreshold) {
+        SAFEBOX_LOGF("[Safety] Ignored invalid threshold config alarm=%u clear=%u\n",
+                     alarmThreshold, clearThreshold);
+        return;
+    }
+    portENTER_CRITICAL(&_mux);
+    _alarmThreshold = alarmThreshold;
+    _clearThreshold = clearThreshold;
+    portEXIT_CRITICAL(&_mux);
+    SAFEBOX_LOGF("[Safety] Gas thresholds updated: alarm=%u clear=%u\n",
+                 alarmThreshold, clearThreshold);
+}
+
+// Returns the alarm threshold currently in force (used for alert payloads).
+uint16_t GasSafety::alarmThreshold() const {
+    portENTER_CRITICAL(&_mux);
+    const uint16_t value = _alarmThreshold;
+    portEXIT_CRITICAL(&_mux);
+    return value;
+}
 
 // Starts the safety task and forces the alarm on if creation fails.
 bool GasSafety::begin() {
@@ -102,6 +130,11 @@ void GasSafety::sampleOnce() {
     _gasRaw = raw;
     _sampled = true;
 
+    // Read the runtime thresholds once so a mid-cycle config change cannot
+    // produce a mixed alarm/clear comparison.
+    const uint16_t alarmThreshold = _alarmThreshold;
+    const uint16_t clearThreshold = _clearThreshold;
+
     // Suppress alarm decisions while the cold MQ2 heater settles after boot.
     // Normal gas confirmation begins only after this window has elapsed.
     if (millis() - _startedAtMs < GAS_STARTUP_STABILIZE_MS) {
@@ -115,7 +148,7 @@ void GasSafety::sampleOnce() {
     if (!_alarm) {
         _clearSamples = 0;
         _subAlarmSamples = 0;
-        _highSamples = raw > GAS_ALARM_THRESHOLD_RAW
+        _highSamples = raw > alarmThreshold
             ? static_cast<uint8_t>(_highSamples + 1)
             : 0;
 
@@ -127,10 +160,10 @@ void GasSafety::sampleOnce() {
         }
     } else {
         _highSamples = 0;
-        _clearSamples = raw < GAS_CLEAR_THRESHOLD_RAW
+        _clearSamples = raw < clearThreshold
             ? static_cast<uint8_t>(_clearSamples + 1)
             : 0;
-        _subAlarmSamples = raw < GAS_ALARM_THRESHOLD_RAW
+        _subAlarmSamples = raw < alarmThreshold
             ? static_cast<uint8_t>(_subAlarmSamples + 1)
             : 0;
 
@@ -149,8 +182,8 @@ void GasSafety::sampleOnce() {
     // Physical outputs are applied before display/cloud work.
     _actuators.setGasAlarm(newAlarm);
     if (newAlarm) {
-        _oled.showGasWarning(raw, GAS_ALARM_THRESHOLD_RAW);
-        SAFEBOX_LOGF("[Safety] GAS ALARM raw=%u\n", raw);
+        _oled.showGasWarning(raw, alarmThreshold);
+        SAFEBOX_LOGF("[Safety] GAS ALARM raw=%u threshold=%u\n", raw, alarmThreshold);
     } else {
         _oled.clearGasWarning();
         SAFEBOX_LOGF("[Safety] Gas cleared raw=%u\n", raw);

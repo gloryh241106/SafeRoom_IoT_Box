@@ -33,6 +33,7 @@ export default function Overview() {
   const [controlFeedback, setControlFeedback] = useState(null);
   const [hardwareMode, setHardwareMode] = useState('unknown');
   const [gasThreshold, setGasThreshold] = useState(DEFAULT_GAS_ALERT_THRESHOLD);
+  const [firmwareGasThreshold, setFirmwareGasThreshold] = useState(FIRMWARE_EDGE_GAS_THRESHOLD);
 
   // A successful telemetry read alone does not prove that the MQTT device is
   // online, so the control status/LWT response participates in connection state.
@@ -74,9 +75,12 @@ export default function Overview() {
     const fetchBackendGasThreshold = async () => {
       try {
         const res = await apiFetch('/api/v1/control/thresholds');
-        const json = await res.json();
+const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.error || 'Threshold request failed');
         if (active && Number.isFinite(json.data?.gasMax)) setGasThreshold(json.data.gasMax);
+        if (active && Number.isFinite(json.data?.firmwareGasEdgeThreshold)) {
+          setFirmwareGasThreshold(json.data.firmwareGasEdgeThreshold);
+        }
       } catch (error) {
         console.warn('Using fallback gas threshold:', error.message);
       }
@@ -198,19 +202,14 @@ const metrics = telemetry.metrics;
   const actuators = telemetry.actuatorStates;
   const rawGasValue = getRawGasValue(metrics);
   const gasValid = hasValidRawGasValue(metrics);
-  const gasAlarm = gasValid && rawGasValue > gasThreshold;
-  const connectionLabel = connectionState === 'connecting'
-    ? 'Connecting'
-    : connectionState === 'online'
-      ? 'Live'
-      : connectionState === 'degraded'
-        ? 'Device offline'
-        : 'Disconnected';
-  const connectionColor = connectionState === 'online'
-    ? 'bg-emerald-400'
-    : connectionState === 'connecting'
-      ? 'bg-amber-400'
-      : 'bg-red-400';
+const gasAlarm = gasValid && rawGasValue > gasThreshold;
+  // The device reports the threshold actually in force; fall back to config.h
+  // when telemetry predates this field (e.g. legacy firmware still flashed).
+  const deviceGasAlarmThreshold = Number.isFinite(metrics.gasAlarmThreshold) && metrics.gasAlarmThreshold > 0
+    ? metrics.gasAlarmThreshold
+    : null;
+  const edgeThreshold = deviceGasAlarmThreshold ?? firmwareGasThreshold;
+  const edgeSourceLabel = deviceGasAlarmThreshold ? 'device live' : 'config.h (not reported)';
   const hardwareModeLabel = hardwareMode === 'mock'
     ? 'Simulation'
     : hardwareMode === 'connected'
@@ -226,10 +225,6 @@ const metrics = telemetry.metrics;
           <p className="text-sm text-slate-500">Live environmental telemetry and remote actuator command center</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700" aria-live="polite">
-            <span className={`h-2.5 w-2.5 rounded-full ${connectionColor}`} />
-            {connectionLabel}
-          </div>
           <button
             disabled={pendingActuator !== null}
             onClick={() => handleActuatorToggle('systemArmed', systemArmed)}
@@ -297,9 +292,9 @@ const metrics = telemetry.metrics;
             )}
             <p className="text-xs text-slate-500 mt-1">
               MQ-2 12-bit range {MQ2_ADC_MIN}–{MQ2_ADC_MAX}
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1">
-              Backend alarm &gt; {gasThreshold} · ESP32 edge &gt; {FIRMWARE_EDGE_GAS_THRESHOLD} (compile-time)
+</p>
+<p className="text-[11px] text-slate-500 mt-1">
+              Backend alarm &gt; {gasThreshold} · ESP32 edge &gt; {edgeThreshold} ({edgeSourceLabel})
             </p>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">

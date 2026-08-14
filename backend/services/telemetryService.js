@@ -4,7 +4,12 @@
  */
 const { SensorReading } = require('../models/Schemas');
 const { processTelemetryForAnomalies } = require('./anomalyEngine');
-const { MQ2_ADC_MAX, MQ2_ADC_MIN, MQ2_UNIT } = require('../config/sensorContract');
+const {
+  MAX_GAS_ALERT_THRESHOLD,
+  MQ2_ADC_MAX,
+  MQ2_ADC_MIN,
+  MQ2_UNIT
+} = require('../config/sensorContract');
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -72,21 +77,30 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
     motionDetected: requireBoolean(metrics.motionDetected, 'metrics.motionDetected')
   };
 
-  if (normalizedMetrics.gasUnit !== MQ2_UNIT) {
-    throw new TypeError(`metrics.gasUnit must be '${MQ2_UNIT}'`);
-  }
-  if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
-    normalizedMetrics.gasRaw = requireInteger(metrics.gasRaw, 'metrics.gasRaw', {
-      min: MQ2_ADC_MIN,
-      max: MQ2_ADC_MAX
-    });
-    // New firmware publishes gasLevel only as a compatibility alias. Reject a
-    // split-brain frame: anomaly rules read gasLevel while dashboards prefer
-    // gasRaw, so differing values could display and alert on different facts.
-    if (normalizedMetrics.gasRaw !== normalizedMetrics.gasLevel) {
-      throw new TypeError('metrics.gasRaw must equal metrics.gasLevel');
+if (normalizedMetrics.gasUnit !== MQ2_UNIT) {
+      throw new TypeError(`metrics.gasUnit must be '${MQ2_UNIT}'`);
     }
-  }
+    if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
+      normalizedMetrics.gasRaw = requireInteger(metrics.gasRaw, 'metrics.gasRaw', {
+        min: MQ2_ADC_MIN,
+        max: MQ2_ADC_MAX
+      });
+      // New firmware publishes gasLevel only as a compatibility alias. Reject a
+      // split-brain frame: anomaly rules read gasLevel while dashboards prefer
+      // gasRaw, so differing values could display and alert on different facts.
+      if (normalizedMetrics.gasRaw !== normalizedMetrics.gasLevel) {
+        throw new TypeError('metrics.gasRaw must equal metrics.gasLevel');
+      }
+    }
+    // Device-reported live edge alarm threshold. Absent on legacy firmware and
+    // legacy documents, so the field stays optional.
+    if (metrics.gasAlarmThreshold !== undefined && metrics.gasAlarmThreshold !== null) {
+      normalizedMetrics.gasAlarmThreshold = requireInteger(
+        metrics.gasAlarmThreshold,
+        'metrics.gasAlarmThreshold',
+        { min: 1, max: MAX_GAS_ALERT_THRESHOLD }
+      );
+    }
 
   return {
     timestamp: normalizeTimestamp(payload.timestamp),

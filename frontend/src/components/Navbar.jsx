@@ -25,8 +25,8 @@ export default function Navbar({ user, onLogout }) {
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {/* `safebox-01` is the coursework's configured device, not live LWT state. */}
         {user && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
-            <Wifi className="w-3.5 h-3.5" />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium">
+            <Wifi className="w-3.5 h-3.5 text-blue-600" />
             <span>{user?.deviceId || 'safebox-01'}</span>
           </div>
         )}

@@ -7,7 +7,6 @@ constexpr uint8_t PIN_DHT22 = 4;
 constexpr uint8_t PIN_PIR = 13;
 constexpr uint8_t PIN_MQ2 = 34;
 constexpr uint8_t PIN_FAN_RELAY = 16;
-constexpr uint8_t PIN_STATUS_LED = 17;
 constexpr uint8_t PIN_ALERT_LED = 18;
 constexpr uint8_t PIN_BUZZER = 19;
 constexpr uint8_t PIN_OLED_SDA = 21;
@@ -38,8 +37,12 @@ constexpr uint32_t GAS_STARTUP_STABILIZE_MS = 30000;
 constexpr uint32_t EDGE_ALERT_RETRY_MS = 3000;
 
 // Raw 12-bit MQ2 project thresholds; these values are not PPM.
-constexpr uint16_t GAS_ALARM_THRESHOLD_RAW = 600;
-constexpr uint16_t GAS_CLEAR_THRESHOLD_RAW = 500;
+// The backend rewrites GAS_ALARM_THRESHOLD_RAW (and keeps GAS_CLEAR_THRESHOLD_RAW
+// 100 counts below it) from the Settings "BACKEND MQ-2 Raw ADC Max" field when
+// thresholds are saved. The defaults below are the initial value; a firmware
+// rebuild + reflash is required for a changed threshold to take effect.
+constexpr uint16_t GAS_ALARM_THRESHOLD_RAW = 1200;
+constexpr uint16_t GAS_CLEAR_THRESHOLD_RAW = 1100;
 constexpr uint8_t GAS_CONFIRM_SAMPLES = 3;
 // While the alarm is active, this many consecutive samples below the alarm
 // threshold (100 x 50 ms = 5 s) also clear it. A clean-air baseline that

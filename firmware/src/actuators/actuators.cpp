@@ -3,10 +3,9 @@
 #include "../config.h"
 
 // Stores output pins and module polarity settings.
-Actuators::Actuators(uint8_t fanPin, uint8_t statusLedPin, uint8_t alertLedPin,
+Actuators::Actuators(uint8_t fanPin, uint8_t alertLedPin,
                      uint8_t buzzerPin, bool fanActiveLow, bool buzzerActiveLow)
     : _fanPin(fanPin),
-      _statusLedPin(statusLedPin),
       _alertLedPin(alertLedPin),
       _buzzerPin(buzzerPin),
       _fanActiveLow(fanActiveLow),
@@ -17,12 +16,10 @@ void Actuators::begin() {
     // Preload safe levels before enabling output mode to avoid a LOW startup
     // pulse on the active-low relay and buzzer.
     writeOutput(_fanPin, false, _fanActiveLow);
-    writeOutput(_statusLedPin, false, false);
     writeOutput(_alertLedPin, false, false);
     writeOutput(_buzzerPin, false, _buzzerActiveLow);
 
     pinMode(_fanPin, OUTPUT);
-    pinMode(_statusLedPin, OUTPUT);
     pinMode(_alertLedPin, OUTPUT);
     pinMode(_buzzerPin, OUTPUT);
 
@@ -30,7 +27,6 @@ void Actuators::begin() {
     // turning on merely because the ESP32 has just booted.
     portENTER_CRITICAL(&_mux);
     applyLocked();
-    writeOutput(_statusLedPin, false, false);
     portEXIT_CRITICAL(&_mux);
 }
 
@@ -40,11 +36,6 @@ void Actuators::setFan(bool on) {
     _fanOn = on;
     applyLocked();
     portEXIT_CRITICAL(&_mux);
-}
-
-// Sets the green WiFi status LED.
-void Actuators::setStatusLed(bool on) {
-    writeOutput(_statusLedPin, on, false);
 }
 
 // Enables or clears the local buzzer and red LED override.

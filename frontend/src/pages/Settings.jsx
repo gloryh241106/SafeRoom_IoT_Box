@@ -1,8 +1,10 @@
 /**
  * User preferences plus backend anomaly-engine configuration.
  *
- * Thresholds returned by `/control/thresholds` are backend runtime settings;
- * they do not rewrite the ESP32's compile-time edge-safety constants.
+ * Thresholds returned by `/control/thresholds` are backend runtime settings.
+ * Saving the MQ-2 raw ADC max also rewrites the ESP32 edge-safety constant in
+ * firmware/src/config.h and pushes it live to the device over MQTT
+ * (safebox/{deviceId}/config), so the buzzer uses the new level immediately.
  */
 import React, { useState, useEffect } from 'react';
 import { User, Bell, Shield, Save, CheckCircle, Cpu } from 'lucide-react';
@@ -34,6 +36,9 @@ export default function Settings({ user }) {
     isAutomatic: false
   });
   const [thresholdLoading, setThresholdLoading] = useState(false);
+  // The edge value compiled into the ESP32 config.h; displayed and refreshed
+  // from the backend so the caption never hardcodes 600.
+  const [firmwareGasEdgeThreshold, setFirmwareGasEdgeThreshold] = useState(FIRMWARE_EDGE_GAS_THRESHOLD);
 
   // Load runtime values instead of assuming that frontend defaults still match
   // a backend process that may already have been configured by another client.
@@ -43,6 +48,9 @@ export default function Settings({ user }) {
       .then((json) => {
         if (json.success && json.data) {
           setThresholds((prev) => ({ ...prev, ...json.data }));
+          if (Number.isFinite(json.data.firmwareGasEdgeThreshold)) {
+            setFirmwareGasEdgeThreshold(json.data.firmwareGasEdgeThreshold);
+          }
         }
       })
       .catch((err) => console.error('Error fetching safety thresholds:', err));
@@ -107,8 +115,18 @@ export default function Settings({ user }) {
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || 'Unable to update safety thresholds');
       setThresholds((prev) => ({ ...prev, ...json.data }));
-      setSavedMessage('Backend thresholds & anomaly mode updated successfully!');
-      setTimeout(() => setSavedMessage(''), 3000);
+      if (Number.isFinite(json.data?.firmwareGasEdgeThreshold)) {
+        setFirmwareGasEdgeThreshold(json.data.firmwareGasEdgeThreshold);
+      }
+      const delivery = json.data?.configDelivery;
+      setSavedMessage(
+        delivery === 'published'
+          ? 'Thresholds saved & pushed live to the ESP32 over MQTT!'
+          : delivery === 'offline'
+            ? 'Thresholds saved, but the ESP32 is offline — it will apply them automatically on reconnect (retained config).'
+            : `Thresholds saved (config delivery: ${delivery})`
+      );
+      setTimeout(() => setSavedMessage(''), 5000);
     } catch (err) {
       console.error('Error saving safety thresholds:', err);
       setSaveError(err.message);
@@ -226,7 +244,7 @@ export default function Settings({ user }) {
               className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-red-600 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
             />
             <p className="text-[11px] text-slate-500">
-              Integer 1 to {MAX_GAS_ALERT_THRESHOLD}; 4095 must remain able to breach it. ESP32 edge alarm stays &gt; {FIRMWARE_EDGE_GAS_THRESHOLD} until firmware is rebuilt.
+              Integer 1 to {MAX_GAS_ALERT_THRESHOLD}; 4095 must remain able to breach it. Saving writes this value to firmware/src/config.h (reboot default) and pushes it live to the ESP32 over MQTT — the buzzer auto-clears once gas drops below it. Current firmware value: {firmwareGasEdgeThreshold}.
             </p>
           </div>
 

@@ -22,8 +22,8 @@
 Dht22Sensor dht22(PIN_DHT22);
 Mq2Sensor mq2(PIN_MQ2);
 PirSensor pir(PIN_PIR);
-Actuators actuators(PIN_FAN_RELAY, PIN_STATUS_LED, PIN_ALERT_LED,
-                    PIN_BUZZER, FAN_RELAY_ACTIVE_LOW, BUZZER_ACTIVE_LOW);
+Actuators actuators(PIN_FAN_RELAY, PIN_ALERT_LED, PIN_BUZZER,
+                    FAN_RELAY_ACTIVE_LOW, BUZZER_ACTIVE_LOW);
 OledDisplay oled;
 WifiSetup wifi;
 MqttService mqtt;
@@ -108,6 +108,15 @@ void handleControl(const char* actuator, bool state) {
 }
 
 /**
+ * Applies a runtime gas threshold config received over MQTT. The edge safety
+ * decision stays local; raising the alarm threshold lets the existing auto-clear
+ * logic turn the buzzer/LED/OLED off once the gas drops below the new value.
+ */
+void handleGasConfig(uint16_t alarmThreshold, uint16_t clearThreshold) {
+    gasSafety.updateThresholds(alarmThreshold, clearThreshold);
+}
+
+/**
  * Reads sensors and publishes a complete snapshot every two seconds.
  * Invalid DHT22 data is not published as fake zero values.
  */
@@ -124,16 +133,18 @@ void readSensorsAndPublish(uint32_t nowMs) {
     }
 
     deviceState.sensors.gasRaw = gasSafety.gasRaw();
+    deviceState.sensors.gasAlarmThreshold = gasSafety.alarmThreshold();
     deviceState.sensors.gasValid = gasSafety.stabilized();
     deviceState.sensors.motionDetected = pir.motionDetected();
     deviceState.actuators = actuators.snapshot();
 
     const bool published = telemetry.publish(deviceState);
     SAFEBOX_LOGF(
-        "[Telemetry] temp=%.1f humidity=%.1f gasRaw=%u motion=%s buzzer=%s gasAlarm=%s mqtt=%s publish=%s\n",
+        "[Telemetry] temp=%.1f humidity=%.1f gasRaw=%u threshold=%u motion=%s buzzer=%s gasAlarm=%s mqtt=%s publish=%s\n",
         deviceState.sensors.temperature,
         deviceState.sensors.humidity,
         deviceState.sensors.gasRaw,
+        deviceState.sensors.gasAlarmThreshold,
         deviceState.sensors.motionDetected ? "ON" : "OFF",
         deviceState.actuators.buzzerActive ? "ON" : "OFF",
         deviceState.actuators.gasAlarmActive ? "ON" : "OFF",
@@ -157,7 +168,7 @@ void publishPendingGasAlert(uint32_t nowMs) {
         && nowMs - lastAlertAttemptMs < EDGE_ALERT_RETRY_MS) return;
 
     lastAlertAttemptMs = nowMs;
-    if (telemetry.publishGasAlert(pendingAlertRaw, GAS_ALARM_THRESHOLD_RAW)) {
+    if (telemetry.publishGasAlert(pendingAlertRaw, gasSafety.alarmThreshold())) {
         alertPending = false;
         SAFEBOX_LOG_LN("[Safety] Gas alert published");
     }
@@ -185,7 +196,8 @@ void setup() {
     showNetworkStatus();
 
     mqtt.begin(DEVICE_ID, MQTT_BROKER_HOST, MQTT_BROKER_PORT,
-               MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT, handleControl);
+               MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT,
+               handleControl, handleGasConfig);
 }
 
 /**
@@ -204,7 +216,6 @@ void loop() {
 
     wifi.update();
     if (wifi.takeConnectionChanged()) {
-        actuators.setStatusLed(wifi.connected());
         showNetworkStatus();
     }
 

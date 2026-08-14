@@ -31,11 +31,12 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 - [x] Wire **DC Fan relay** to GPIO 16 (HL-52S active-low: LOW = ON) `(CB-03)`
 - [x] Wire **Alert LED (Red)** to GPIO 18 (digital output) `(NC-02)`
-- [x] Wire **Status LED (Green)** to GPIO 17 (digital output) `(NC-02)`
+- [x] Remove **Status LED (Green, GPIO 17)** — not needed, pin freed `(NC-02)`
 - [x] Wire **Active Buzzer module** signal pin to GPIO 19 `(NC-02)`
 - [x] Convert Active Buzzer module driver from LEDC tone generation to configurable digital ON/OFF, update wiring docs, and verify the firmware build `(NC-02, TC-03)`
 - [x] Wire **SSD1306 OLED** to GPIO 21 (SDA) / GPIO 22 (SCL) via I2C `(NC-02)`
 - [ ] Wire a **normally-open hardware reset push button** between EN/RST and GND (no GPIO or firmware dependency)
+- [x] Allow the ESP32 edge gas threshold to be configured: backend rewrites `GAS_ALARM_THRESHOLD_RAW` / `GAS_CLEAR_THRESHOLD_RAW` in `firmware/src/config.h` from the Settings "BACKEND MQ-2 Raw ADC Max" field instead of a fixed 600 `(Settings, edge safety)`
 
 ### 1.3 MQTT Communication
 
@@ -63,6 +64,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Verify captive redirect, permanent AP reachability, and runtime router switching on Android/iOS/Windows hardware `(TC-01)`
 - [ ] Make per-sensor telemetry validity independent so a DHT checksum failure does not hide healthy MQ2, PIR, or actuator state
 - [x] OLED renders the full raw MQ2 GAS warning (>600) and basic provisioning/connection status without presentation-time sensor conversion `(NC-02)`
+- [x] Push the saved gas edge threshold live to the ESP32 over MQTT (`safebox/{deviceId}/config`, retained QoS 1): firmware keeps runtime alarm/clear thresholds in `GasSafety` (defaults from config.h), the buzzer/LED/OLED auto-clear against the new level, and edge alerts report the runtime threshold `(Settings)`
 
 ### 1.5 WiFiManager Provisioning
 
@@ -81,7 +83,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Reconnect MQTT at a simple fixed interval; continue local safety alerts while disconnected
 - [x] Clean up debug `Serial.println` (guard behind debug flag)
 - [ ] Validate all 3 sensors (DHT22, PIR, MQ2) reading correctly
-- [ ] Validate all 5 actuators (Fan relay, Status LED, Alert LED, Buzzer, OLED) responding
+- [ ] Validate all 4 actuators (Fan relay, Alert LED, Buzzer, OLED) responding
 - [x] Preserve the complete sensor and actuator telemetry state through firmware refactors
 
 ---
@@ -278,6 +280,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Upgrade Vite/esbuild and React Router to clear current `npm audit` advisories, with migration regression testing
 - [x] Replace fake placeholder fallbacks (`'admin'`, `'admin@safebox.io'`) with empty strings in Settings profile fields
 - [x] Derive Navbar device badge from user context instead of hardcoding `safebox-01`
+- [x] Style the Navbar device badge (Wifi icon + device id) with the blue accent theme `(Settings)`
+- [x] Remove the green status dot beside the "Live" indicator on the Overview page `(Settings)`
 
 ---
 
@@ -300,7 +304,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 | `safebox/{deviceId}/status` | ESP32 → Backend | online QoS 0 retained; offline LWT QoS 1 retained |
 | `safebox/{deviceId}/control` | Backend → ESP32 | 1 |
 | `safebox/{deviceId}/alerts` | ESP32 → Backend | 0 |
-| `safebox/{deviceId}/config` | Backend → ESP32 (stretch) | 1 |
+| `safebox/{deviceId}/config` | Backend → ESP32 (gas alarm/clear thresholds, retained) | 1 |
 
 ---
 
@@ -364,4 +368,4 @@ Use `[x]` for completed items, `[ ]` for pending.
 | 2 | LLM chatbot | Wrap command router with thin LLM layer |
 | 3 | Local fan auto-trigger | ESP32 locally triggers fan on temp/gas threshold |
 | 4 | Anomaly resolution workflow | Full resolve/acknowledge flow with user attribution |
-| 5 | Remote threshold config | `POST /api/v1/config/thresholds` → MQTT `safebox/{deviceId}/config` |
+| 5 | Remote threshold config | `POST /api/v1/config/thresholds` → MQTT `safebox/{deviceId}/config` — **DONE**: backend publishes `{gasAlarmThreshold, gasClearThreshold}` (retained) from `POST /api/v1/control/thresholds`; firmware applies it at runtime |
