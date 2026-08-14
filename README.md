@@ -257,12 +257,13 @@ When no ESP32 telemetry exists, Overview and the chatbot report an explicit no-d
 | `GET` | `/api/v1/auth/me` | Fetch authenticated user profile |
 | `GET` | `/api/v1/telemetry/latest` | Get latest live sensor reading |
 | `GET` | `/api/v1/telemetry/historical` | Query the newest bounded time-series samples, returned in chronological order |
-| `POST` | `/api/v1/control/actuator` | Actuate remote outputs (Fan, Buzzer, Alert LED, Armed) |
+| `POST` | `/api/v1/control/actuator` | Actuate the remote `fan` or toggle the backend `systemArmed` switch (buzzer/alert LED are edge-only, not remotely controllable) |
 | `GET` | `/api/v1/control/status` | Get MQTT/device connection and actuator status |
 | `GET` | `/api/v1/control/thresholds` | Fetch current system safety thresholds |
-| `POST` | `/api/v1/control/thresholds` | Update in-memory backend anomaly thresholds (does not change the firmware edge threshold) |
+| `POST` | `/api/v1/control/thresholds` | Update backend anomaly thresholds and persist to user profile (does not rewrite firmware edge threshold) |
 | `GET` | `/api/v1/anomalies` | Query active or historical anomaly logs |
-| `PATCH` | `/api/v1/anomalies/:id/resolve` | Mark an anomaly as resolved |
+| `PATCH` | `/api/v1/anomalies/:id/resolve` | Mark a single anomaly as resolved |
+| `DELETE` | `/api/v1/anomalies/clear-all` | Resolve all active anomaly logs (marks `resolved: true`, retains audit records) |
 | `POST` | `/api/v1/chatbot/query` | Sentence natural language intent query assistant |
 | `GET` | `/api/v1/users/profile` | Get user account settings |
 | `POST` | `/api/v1/users/profile` | Update user password or notification options |
@@ -293,7 +294,7 @@ npm test
 npm run build
 ```
 
-The full backend suite currently contains 44 passing tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation, explicit chatbot no-data responses, the integer MQ2 ADC telemetry contract, malformed edge-alert rejection, invalid-sample false-alert suppression, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs 41 focused backend tests and then the isolated CB-03 actuator simulation, which must exit with `CB-03 PASS`; the frontend contract suite contains 2 tests. Hardware timing, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md). The rubric-oriented gap analysis is maintained in [EVALUATE.md](EVALUATE.md).
+The full backend suite currently contains 45 passing tests covering JWT route protection, authenticated CB-03 control, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation (including rejection of non-remote actuators), explicit chatbot no-data responses, the integer MQ2 ADC telemetry contract, malformed edge-alert rejection, invalid-sample false-alert suppression, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs 42 focused backend tests and then the isolated CB-03 actuator simulation, which must exit with `CB-03 PASS`; the frontend contract suite contains 2 tests. Hardware timing, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md). The rubric-oriented gap analysis is maintained in [EVALUATE.md](EVALUATE.md).
 
 Current dependency audit status: backend reports 0 vulnerabilities. Frontend production build succeeds, while `npm audit` reports advisories in the Vite/esbuild and React Router dependency lines; the required migration and regression pass remains tracked in `TODO.md` rather than applying forced major upgrades during feature work.
 

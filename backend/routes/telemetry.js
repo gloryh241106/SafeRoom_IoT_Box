@@ -11,7 +11,6 @@ const SENSOR_FIELDS = new Map([
   ['humidity', 'metrics.humidity'],
   ['gasLevel', 'metrics.gasLevel'],
   ['gasRaw', 'metrics.gasRaw'],
-  ['lightIntensity', 'metrics.lightIntensity'],
   ['motionDetected', 'metrics.motionDetected']
 ]);
 

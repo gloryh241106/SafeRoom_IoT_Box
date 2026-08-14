@@ -41,7 +41,6 @@ const SensorReadingSchema = new Schema({
     },
     gasValid: { type: Boolean, default: true },
     gasUnit: { type: String, enum: [MQ2_UNIT], default: MQ2_UNIT },
-    lightIntensity: { type: Number, default: null },
     motionDetected: { type: Boolean, required: true }
   },
   actuatorStates: {

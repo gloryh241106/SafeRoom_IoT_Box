@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { User } = require('../models/Schemas');
+const { updateThresholds } = require('../services/anomalyEngine');
 const { authenticateToken } = require('./auth');
 
 router.get('/profile', authenticateToken, async (req, res) => {
@@ -38,6 +39,12 @@ router.post('/profile', authenticateToken, async (req, res) => {
         }
         updates['settings.emailEnabled'] = settings.emailEnabled;
       }
+      if (settings.thresholds !== undefined) {
+        // No userId here: updateThresholds() would fire an extra async DB write.
+        // The route's findByIdAndUpdate below is the single persistence point.
+        const updatedThresholds = updateThresholds(settings.thresholds);
+        updates['settings.thresholds'] = updatedThresholds;
+      }
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -48,7 +55,7 @@ router.post('/profile', authenticateToken, async (req, res) => {
     if (!updatedUser) return res.status(404).json({ success: false, error: 'User profile not found' });
     res.json({ success: true, data: updatedUser });
   } catch (err) {
-    const status = err instanceof TypeError ? 400 : 500;
+    const status = err instanceof TypeError || err instanceof RangeError ? 400 : 500;
     res.status(status).json({ success: false, error: err.message });
   }
 });

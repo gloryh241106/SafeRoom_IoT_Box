@@ -3,7 +3,7 @@
  * automatic mode additionally evaluates temperature and humidity Z-scores.
  * Rolling baselines and dedupe reservations are process-local by design.
  */
-const { AnomalyLog } = require('../models/Schemas');
+const { AnomalyLog, User } = require('../models/Schemas');
 const { sendAlertEmail } = require('./emailService');
 const {
   DEFAULT_GAS_ALERT_THRESHOLD,
@@ -93,8 +93,35 @@ function getThresholds() {
   return { ...systemThresholds };
 }
 
-// Apply a partial update atomically: validate the complete candidate before replacing live state.
-function updateThresholds(updates = {}) {
+async function loadUserThresholds(userId = null) {
+  try {
+    const user = userId ? await User.findById(userId) : await User.findOne({});
+    if (user && user.settings && user.settings.thresholds) {
+      const userThresholds = user.settings.thresholds.toObject ? user.settings.thresholds.toObject() : user.settings.thresholds;
+      delete userThresholds._id;
+      systemThresholds = { ...DEFAULT_THRESHOLDS, ...userThresholds };
+    }
+  } catch (err) {
+    // Graceful fallback to default/cached thresholds if DB is unavailable
+  }
+  return getThresholds();
+}
+
+async function syncUserThresholds(userId, nextThresholds) {
+  if (!userId) return;
+  try {
+    await User.findByIdAndUpdate(
+      userId,
+      { 'settings.thresholds': nextThresholds },
+      { runValidators: true }
+    );
+  } catch (err) {
+    // Non-blocking catch for threshold persistence
+  }
+}
+
+// Apply a partial update atomically: validate the complete candidate before replacing live state and persisting to user profile.
+function updateThresholds(updates = {}, userId = null) {
   const next = { ...systemThresholds };
 
   for (const key of NUMERIC_THRESHOLD_KEYS) {
@@ -117,6 +144,9 @@ function updateThresholds(updates = {}) {
   if (next.zScoreLimit <= 0) throw new RangeError('zScoreLimit must be positive');
 
   systemThresholds = next;
+  if (userId) {
+    syncUserThresholds(userId, next);
+  }
   return getThresholds();
 }
 
@@ -338,6 +368,7 @@ module.exports = {
   evaluateZScore,
   getThresholds,
   isSystemArmed,
+  loadUserThresholds,
   processEdgeAlert,
   processTelemetryForAnomalies,
   resetAnomalyEngineForTests,

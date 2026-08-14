@@ -19,7 +19,6 @@ function validPayload() {
       gasRaw: 180,
       gasValid: true,
       gasUnit: MQ2_UNIT,
-      lightIntensity: 450,
       motionDetected: false
     },
     actuatorStates: {
@@ -33,7 +32,6 @@ function validPayload() {
 test('normalizes a complete ESP32 telemetry payload', () => {
   const normalized = validateTelemetryPayload(validPayload(), 'safebox-01');
   assert.equal(normalized.deviceId, 'safebox-01');
-  assert.equal(normalized.metrics.lightIntensity, 450);
   assert.ok(normalized.timestamp instanceof Date);
 });
 

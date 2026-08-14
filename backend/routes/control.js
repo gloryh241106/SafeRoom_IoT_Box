@@ -7,7 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const { getCurrentActuatorStates } = require('../services/actuatorStateService');
-const { setSystemArmed, isSystemArmed, getThresholds, updateThresholds } = require('../services/anomalyEngine');
+const { setSystemArmed, isSystemArmed, getThresholds, loadUserThresholds, updateThresholds } = require('../services/anomalyEngine');
 const { getMqttStatus, publishControlCommand } = require('../services/mqttService');
 
 const ALLOWED_ACTUATORS = new Set(['fan']);
@@ -19,23 +19,29 @@ function parseActuatorState(value) {
   throw new TypeError("state must be a boolean or the string 'on'/'off'");
 }
 
-router.get('/thresholds', (req, res) => {
-  res.json({
-    success: true,
-    data: getThresholds()
-  });
+router.get('/thresholds', async (req, res) => {
+  try {
+    const data = await loadUserThresholds(req.user?.id);
+    res.json({
+      success: true,
+      data
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 router.post('/thresholds', (req, res) => {
   try {
-    const updated = updateThresholds(req.body);
+    const updated = updateThresholds(req.body, req.user?.id);
     res.json({
       success: true,
       message: 'Safety thresholds updated successfully',
       data: updated
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err instanceof TypeError || err instanceof RangeError ? 400 : 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 

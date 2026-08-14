@@ -88,14 +88,6 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
     }
   }
 
-  if (metrics.lightIntensity !== undefined && metrics.lightIntensity !== null) {
-    normalizedMetrics.lightIntensity = requireFiniteNumber(
-      metrics.lightIntensity,
-      'metrics.lightIntensity',
-      { min: 0, max: 100000 }
-    );
-  }
-
   return {
     timestamp: normalizeTimestamp(payload.timestamp),
     deviceId,

@@ -9,10 +9,10 @@ const DEFAULT_ACTUATOR_STATES = Object.freeze({
   alertLedActive: false
 });
 
+// Only the fan is remotely controllable; the buzzer and alert LED are edge-only
+// outputs and arrive here as device-reported telemetry via synchronizeActuatorStates().
 const ACTUATOR_STATE_FIELDS = Object.freeze({
-  fan: 'fanOn',
-  buzzer: 'buzzerActive',
-  alertLed: 'alertLedActive'
+  fan: 'fanOn'
 });
 
 let currentActuatorStates = { ...DEFAULT_ACTUATOR_STATES };

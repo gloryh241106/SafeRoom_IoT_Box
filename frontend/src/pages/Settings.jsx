@@ -359,7 +359,7 @@ export default function Settings({ user }) {
             <input
               type="text"
               readOnly
-              value={user?.username || 'admin'}
+              value={user?.username || ''}
               className="w-full bg-slate-100 border border-slate-200 rounded-md px-4 py-2.5 text-sm text-slate-600 cursor-not-allowed"
             />
           </div>
@@ -368,7 +368,7 @@ export default function Settings({ user }) {
             <input
               type="email"
               readOnly
-              value={user?.email || 'admin@safebox.io'}
+              value={user?.email || ''}
               className="w-full bg-slate-100 border border-slate-200 rounded-md px-4 py-2.5 text-sm text-slate-600 cursor-not-allowed"
             />
           </div>

@@ -137,7 +137,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 2.6 Anomaly Logs API
 
 - [x] `GET /api/v1/anomalies?status=unresolved` — return active anomaly logs `(NC-01)`
-- [x] `DELETE /api/v1/anomalies` — delete all anomaly logs `(NC-01)`
+- [x] `DELETE /api/v1/anomalies/clear-all` — resolve all unresolved anomaly logs (marks `resolved: true`, retains records) `(NC-01)`
 
 ### 2.7 Email Notifications (NC-05)
 
@@ -168,6 +168,14 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Environment variable validation on startup (fail fast if required vars missing)
 - [ ] API response consistency: standard envelope format
 - [x] Handle MQTT broker disconnect/reconnect gracefully
+- [x] Remove vestigial `lightIntensity` schema field, telemetry route entry, and validation block (LDR hardware removed)
+- [x] Delete stray root `package.json`/`package-lock.json` (unused `mongodb ^7.5.0`, no scripts)
+- [x] Remove duplicate `.agents/AGENTS.md` (root `AGENTS.md` is authoritative)
+- [x] Map client validation errors (TypeError / RangeError) to HTTP 400 status in POST /api/v1/control/thresholds (M1)
+- [x] Connect UserSchema.settings.thresholds subdocument with anomalyEngine threshold persistence and load (M3)
+- [x] Map client validation errors (TypeError / RangeError) to HTTP 400 status in POST /api/v1/users/profile to match the control thresholds route (N1)
+- [x] Persist settings.thresholds exactly once on POST /api/v1/users/profile (N5)
+- [x] Trim ACTUATOR_STATE_FIELDS to the remotely controllable fan actuator only (N6)
 
 ---
 
@@ -216,7 +224,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Motion status indicator card (active/idle) `(CB-02)` — the card highlights green while motion is detected (display-only; it does NOT drive any physical LED)
 - [x] Gas Level card `(NC-02)`
 - [x] Fan toggle switch (POST to `/control/actuator`) `(CB-03)`
-- [x] Buzzer toggle, Alert LED toggle (remote actuator controls) `(CB-03)`
+- [x] Buzzer toggle, Alert LED toggle (remote actuator controls) (superseded: remote buzzer/alert-LED control removed end-to-end; buzzer and LED are edge-only) `(CB-03)`
 - [x] Anomaly list panel with severity color coding `(NC-01)`
 - [x] "Resolve All" anomalies button that preserves the anomaly audit trail `(NC-01)`
 - [x] Replace zero-valued telemetry fallbacks with an explicit no-data state `(CB-01)`
@@ -268,6 +276,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [ ] Favicon and page title: "SafeboxManager"
 - [ ] Connection status indicator (handle API timeouts)
 - [ ] Upgrade Vite/esbuild and React Router to clear current `npm audit` advisories, with migration regression testing
+- [x] Replace fake placeholder fallbacks (`'admin'`, `'admin@safebox.io'`) with empty strings in Settings profile fields
+- [x] Derive Navbar device badge from user context instead of hardcoding `safebox-01`
 
 ---
 
@@ -305,6 +315,9 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Remove obsolete LDR hardware and wiring references from `FIRMWARE_INSTRUCTION.md`
 - [x] Document the external EN/RST hardware reset button in `FIRMWARE_INSTRUCTION.md` and `README.md`
 - [x] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
+- [x] Update AUDIT.md to reflect current codebase findings and resolved items
+- [x] Fix the stale actuator list on the POST /api/v1/control/actuator row in the README.md REST API table (N2)
+- [x] Mark the TODO §4.3 buzzer/LED web toggle item as superseded to match the fan-only UI (N3)
 
 ### 6.2 Integration Tests (TC-01 to TC-06)
 
