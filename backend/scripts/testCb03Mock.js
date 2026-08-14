@@ -1,3 +1,8 @@
+/**
+ * Standalone CB-03 smoke test. It opens only an ephemeral local HTTP port and
+ * forces mock hardware, proving JWT protection and the fan command contract
+ * without MongoDB, EMQX, SMTP, or an ESP32.
+ */
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 

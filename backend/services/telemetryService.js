@@ -1,8 +1,12 @@
+/**
+ * Boundary service for untrusted MQTT telemetry. It validates and normalizes a
+ * complete device snapshot before any database write or anomaly side effect.
+ */
 const { SensorReading } = require('../models/Schemas');
 const { processTelemetryForAnomalies } = require('./anomalyEngine');
+const { MQ2_ADC_MAX, MQ2_ADC_MIN, MQ2_UNIT } = require('../config/sensorContract');
 
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
-const GAS_SENSOR_STATES = new Set(['burn_in', 'warming_up', 'calibrating', 'ready', 'fault']);
 
 function requireObject(value, fieldName) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -23,66 +27,24 @@ function requireBoolean(value, fieldName) {
   return value;
 }
 
-function optionalFiniteNumber(value, fieldName, options) {
-  if (value === undefined || value === null) return null;
-  return requireFiniteNumber(value, fieldName, options);
-}
-
-function normalizeGasSensorStatus(payloadStatus, gasLevel) {
-  // Legacy firmware/mock payloads predate sensorStatus and always provide PPM.
-  if (payloadStatus === undefined || payloadStatus === null) {
-    if (!Number.isFinite(gasLevel)) {
-      throw new TypeError('metrics.gasLevel must be a finite number for legacy telemetry');
-    }
-    return { state: 'ready', ready: true };
-  }
-
-  const status = requireObject(payloadStatus, 'sensorStatus');
-  const gas = requireObject(status.gas, 'sensorStatus.gas');
-  if (!GAS_SENSOR_STATES.has(gas.state)) {
-    throw new TypeError(`sensorStatus.gas.state must be one of ${[...GAS_SENSOR_STATES].join(', ')}`);
-  }
-  const ready = requireBoolean(gas.ready, 'sensorStatus.gas.ready');
-  if (ready !== (gas.state === 'ready')) {
-    throw new TypeError('sensorStatus.gas.ready must match state=ready');
-  }
-  if (ready && !Number.isFinite(gasLevel)) {
-    throw new TypeError('metrics.gasLevel must be a finite number when the gas sensor is ready');
-  }
-  if (!ready && gasLevel !== null && gasLevel !== undefined) {
-    throw new TypeError('metrics.gasLevel must be null while the gas sensor is not ready');
-  }
-
-  return {
-    state: gas.state,
-    ready,
-    adcRaw: optionalFiniteNumber(gas.adcRaw, 'sensorStatus.gas.adcRaw', { min: 0, max: 4095 }),
-    adcMillivolts: optionalFiniteNumber(
-      gas.adcMillivolts,
-      'sensorStatus.gas.adcMillivolts',
-      { min: 0, max: 3300 }
-    ),
-    sourceMillivolts: optionalFiniteNumber(
-      gas.sourceMillivolts,
-      'sensorStatus.gas.sourceMillivolts',
-      { min: 0, max: 5500 }
-    ),
-    burnInRemainingSeconds: optionalFiniteNumber(
-      gas.burnInRemainingSeconds,
-      'sensorStatus.gas.burnInRemainingSeconds',
-      { min: 0, max: 7 * 24 * 60 * 60 }
-    ) ?? 0,
-    roOhms: optionalFiniteNumber(gas.roOhms, 'sensorStatus.gas.roOhms', { min: 0, max: 1_000_000 }),
-    rsRoRatio: optionalFiniteNumber(gas.rsRoRatio, 'sensorStatus.gas.rsRoRatio', { min: 0, max: 1000 })
-  };
-}
-
 function normalizeTimestamp(value) {
   const timestamp = value === undefined || value === null ? new Date() : new Date(value);
   if (Number.isNaN(timestamp.getTime())) throw new TypeError('timestamp must be a valid date');
   return timestamp;
 }
 
+function requireInteger(value, fieldName, { min = -Infinity, max = Infinity } = {}) {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new TypeError(`${fieldName} must be an integer between ${min} and ${max}`);
+  }
+  return value;
+}
+
+/**
+ * Converts a decoded MQTT object into the exact MongoDB document shape.
+ * expectedDeviceId comes from the topic and prevents a payload from claiming
+ * another device identity while being published on an authorized topic.
+ */
 function validateTelemetryPayload(payload, expectedDeviceId) {
   requireObject(payload, 'telemetry payload');
   const deviceId = payload.deviceId || expectedDeviceId;
@@ -96,16 +58,35 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
 
   const metrics = requireObject(payload.metrics, 'metrics');
   const actuatorStates = requireObject(payload.actuatorStates, 'actuatorStates');
-  const gasLevel = metrics.gasLevel === null || metrics.gasLevel === undefined
-    ? null
-    : requireFiniteNumber(metrics.gasLevel, 'metrics.gasLevel', { min: 0, max: 100000 });
-  const gasSensorStatus = normalizeGasSensorStatus(payload.sensorStatus, gasLevel);
   const normalizedMetrics = {
     temperature: requireFiniteNumber(metrics.temperature, 'metrics.temperature', { min: -40, max: 85 }),
     humidity: requireFiniteNumber(metrics.humidity, 'metrics.humidity', { min: 0, max: 100 }),
-    gasLevel,
+    gasLevel: requireInteger(metrics.gasLevel, 'metrics.gasLevel', {
+      min: MQ2_ADC_MIN,
+      max: MQ2_ADC_MAX
+    }),
+    gasValid: metrics.gasValid === undefined
+      ? true
+      : requireBoolean(metrics.gasValid, 'metrics.gasValid'),
+    gasUnit: metrics.gasUnit === undefined ? MQ2_UNIT : metrics.gasUnit,
     motionDetected: requireBoolean(metrics.motionDetected, 'metrics.motionDetected')
   };
+
+  if (normalizedMetrics.gasUnit !== MQ2_UNIT) {
+    throw new TypeError(`metrics.gasUnit must be '${MQ2_UNIT}'`);
+  }
+  if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
+    normalizedMetrics.gasRaw = requireInteger(metrics.gasRaw, 'metrics.gasRaw', {
+      min: MQ2_ADC_MIN,
+      max: MQ2_ADC_MAX
+    });
+    // New firmware publishes gasLevel only as a compatibility alias. Reject a
+    // split-brain frame: anomaly rules read gasLevel while dashboards prefer
+    // gasRaw, so differing values could display and alert on different facts.
+    if (normalizedMetrics.gasRaw !== normalizedMetrics.gasLevel) {
+      throw new TypeError('metrics.gasRaw must equal metrics.gasLevel');
+    }
+  }
 
   if (metrics.lightIntensity !== undefined && metrics.lightIntensity !== null) {
     normalizedMetrics.lightIntensity = requireFiniteNumber(
@@ -122,14 +103,18 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
     actuatorStates: {
       fanOn: requireBoolean(actuatorStates.fanOn, 'actuatorStates.fanOn'),
       buzzerActive: requireBoolean(actuatorStates.buzzerActive, 'actuatorStates.buzzerActive'),
-      alertLedActive: requireBoolean(actuatorStates.alertLedActive, 'actuatorStates.alertLedActive')
-    },
-    sensorStatus: { gas: gasSensorStatus }
+      alertLedActive: requireBoolean(actuatorStates.alertLedActive, 'actuatorStates.alertLedActive'),
+      // Legacy documents predate the field; the absence means no local override.
+      gasAlarmActive: actuatorStates.gasAlarmActive === undefined
+        ? false
+        : requireBoolean(actuatorStates.gasAlarmActive, 'actuatorStates.gasAlarmActive')
+    }
   };
 }
 
 async function ingestTelemetry(payload, expectedDeviceId) {
   const normalized = validateTelemetryPayload(payload, expectedDeviceId);
+  // Persist first: downstream anomaly decisions should always point to a stored snapshot.
   const reading = await SensorReading.create(normalized);
   const anomalies = await processTelemetryForAnomalies(reading);
   return { reading, anomalies };
@@ -137,7 +122,6 @@ async function ingestTelemetry(payload, expectedDeviceId) {
 
 module.exports = {
   DEVICE_ID_PATTERN,
-  GAS_SENSOR_STATES,
   ingestTelemetry,
   validateTelemetryPayload
 };

@@ -1,8 +1,10 @@
+/** Responsive route navigation shared by desktop and mobile layouts. */
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, LineChart, MessageSquareCode, Settings } from 'lucide-react';
 
 export default function Sidebar() {
+  // One route registry feeds both renderings so labels and permissions cannot drift.
   const navItems = [
     { path: '/overview', label: 'Overview', icon: LayoutDashboard },
     { path: '/dashboard', label: 'Dashboard & Charts', icon: LineChart },
@@ -38,6 +40,7 @@ export default function Sidebar() {
           })}
         </div>
 
+        {/* Static hardware inventory; connection state is displayed on Overview. */}
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
           <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Device Matrix</h4>
           <p className="text-xs text-slate-500">ESP32 DevKit V1</p>

@@ -80,15 +80,15 @@ State này được dùng cả simulation và MQTT thật. Đặt nó trong file
 
 ### 19. Firmware chống payload sai thế nào?
 
-ArduinoJson parse theo buffer và length; JSON lỗi bị bỏ qua. `main.cpp` chỉ định tuyến `fan`, `buzzer`, `alertLed`, nên actuator lạ không tạo tác động. Backend đã validate và chỉ publish state hợp lệ; phía firmware xử lý chuỗi khác `on` theo hướng fail-off.
+ArduinoJson parse theo buffer và length; JSON lỗi bị bỏ qua. `RemoteControl` chỉ định tuyến `fan`, `buzzer`, `alertLed`, nên actuator lạ không tạo tác động. Backend đã validate và chỉ publish state hợp lệ; phía firmware xử lý chuỗi khác `on` theo hướng fail-off.
 
 ### 20. Fan ở trạng thái nào khi ESP32 boot?
 
-OFF. `Relay::begin()` cấu hình pin OUTPUT rồi gọi `off()`. Với HL-52S mặc định active-low, OFF tương ứng GPIO 16 HIGH; polarity có thể đổi bằng `RELAY_ACTIVE_LOW`.
+OFF. `FanRelay::begin()` đặt mức OFF trước khi cấu hình pin OUTPUT. Với HL-52S mặc định active-low, OFF tương ứng GPIO 16 HIGH; polarity có thể đổi bằng `RELAY_ACTIVE_LOW`.
 
 ### 21. Nếu QoS 1 giao cùng lệnh hai lần thì sao?
 
-Không sao vì command mang trạng thái đích, không phải lệnh toggle. Gọi `Relay::on()` hai lần vẫn cho fan ON.
+Không sao vì command mang trạng thái đích, không phải lệnh toggle. Gọi `FanRelay::set(true)` hai lần vẫn cho fan ON.
 
 ### 22. Hệ thống có hỗ trợ nhiều device hoàn chỉnh chưa?
 
@@ -122,7 +122,7 @@ Chỉ temperature và humidity. `MIN_DELTA` cũng đóng vai trò allowlist; sen
 
 ### 29. Vì sao gas không dùng Z-score?
 
-Gas là thông số an toàn có ngưỡng cứng. Gas vượt 600 PPM phải cảnh báo ngay, không thể chờ 30 mẫu hoặc phụ thuộc phân phối thống kê.
+Gas là thông số an toàn có ngưỡng cứng. Chỉ số ADC vượt 600 phải cảnh báo ngay, không thể chờ 30 mẫu hoặc phụ thuộc phân phối thống kê.
 
 ### 30. Vì sao motion không dùng Z-score?
 
@@ -334,41 +334,39 @@ Action được thực hiện trước khi `AnomalyLog.create()` để lưu đ�
 
 ### 80. Em sẽ mở file nào đầu tiên nếu được yêu cầu show code?
 
-- CB-03: `backend/routes/control.js`, sau đó `mqttService.js`, `firmware/src/mqtt/mqtt_client.cpp`, `main.cpp` và `actuators/relay.cpp`.
+- CB-03: `backend/routes/control.js`, sau đó `mqttService.js`, `firmware/src/connectivity/mqtt_client.cpp`, `features/remote_control.cpp` và `actuators/fan_relay.cpp`.
 - NC-01: `backend/services/anomalyEngine.js` tại `evaluateZScore` và `processTelemetryForAnomalies`.
 - NC-03: `timeSeriesService.js`, `telemetryService.js`, rồi `routes/telemetry.js`.
 - NC-05: `emailService.js` tại `sendAlertEmail`.
 
-## Câu hỏi bổ sung về MQ2 sau hiệu chỉnh
+## Câu hỏi bổ sung về MQ2
 
-### 81. Tại sao `gasLevel` có thể là null?
+### 81. `gasLevel` đại diện cho gì?
 
-Vì MQ2 chưa ở trạng thái `ready`. `null` biểu diễn đúng việc PPM chưa có giá trị,
-khác với `0` vốn là một phép đo. Backend vẫn lưu `sensorStatus.gas` nhưng không
-tạo gas anomaly hoặc email từ dữ liệu chưa hiệu chuẩn.
+Đó là chỉ số ADC tương đối 0–4095 đọc trực tiếp từ GPIO 34, không phải PPM.
+`gasRaw` mang cùng phép đọc và `gasUnit` là `adc_index` để tránh diễn giải sai.
 
-### 82. Vì sao cần burn-in 48 giờ và lưu `Ro` trong NVS?
+### 82. Tại sao không đổi chỉ số ADC thành PPM?
 
-Datasheet MQ2 yêu cầu preheat ban đầu trên 48 giờ. `Ro` là điện trở cảm biến
-trong không khí sạch; hiệu chuẩn ngay khi bật nguồn sẽ học một baseline sai.
-NVS giữ `Ro` qua reset, nên các lần sau chỉ warm-up 5 phút và không hiệu chuẩn
-sai lại từ đầu.
+Module chưa có khí chuẩn, đường đặc tính mục tiêu và phép hiệu chuẩn đủ điều kiện.
+Vì vậy báo cáo chỉ số ADC trung thực hơn một giá trị PPM nội suy không kiểm chứng.
 
-### 83. Trong 48 giờ burn-in có mất an toàn local không?
+### 83. `gasValid` có phải chẩn đoán sensor hỏng không?
 
-Không hoàn toàn. Firmware chưa được phép gọi điện áp raw là PPM hoặc gửi email,
-nhưng vẫn có ngưỡng ADC gần bão hòa để bật còi, LED và OLED tại chỗ. Đây là lớp
-dự phòng bảo thủ, không thay cho cảnh báo 600 PPM sau hiệu chuẩn.
+Không. Firmware hiện dùng cờ này để nói task MQ2 đã lấy được mẫu; nó không tự
+phát hiện AO đứt/chập. Backend vẫn hỗ trợ payload producer-declared
+`gasValid=false` và bỏ qua luật gas cho payload đó, nhưng kiểm tra phần cứng phải
+dựa vào wiring, đồng hồ đo và tính hợp lý của chuỗi ADC.
 
-### 84. Tại sao phải dùng FreeRTOS task riêng cho gas?
+### 84. Đường an toàn local hoạt động thế nào?
 
-WiFi và bắt tay TLS có thể chặn Arduino `loop()` lâu hơn 200 ms. Task gas ưu
-tiên cao chạy mỗi 100 ms, chỉ đọc ADC và điều khiển local; task mạng publish bản
-ghi đã xếp hàng sau. Vì vậy đường an toàn không chờ cloud.
+Một FreeRTOS task priority 4 là nơi duy nhất đọc MQ2 mỗi 100 ms; nó trực tiếp cập
+nhật còi, LED đỏ và OLED qua lock, không chờ loop WiFi/MQTT. TC-03 vẫn phải đo
+phản hồi thật cả offline lẫn lúc Save WiFi/TLS vì build pass chưa chứng minh mốc
+dưới 200 ms.
 
 ### 85. MQ2 có đo PPM chính xác cho mọi loại khí không?
 
-Không. MQ2 phản ứng chéo với propane, methane, cồn và khói. Hệ thống nội suy
-đường propane trong datasheet nên phải gọi là LPG-equivalent PPM estimate.
-Muốn PPM chuẩn cần khí chuẩn, điều kiện nhiệt độ/độ ẩm kiểm soát và cảm biến chọn
-lọc phù hợp.
+Không. MQ2 phản ứng với nhiều loại khí/khói và đặc tính phụ thuộc điều kiện thử.
+Dự án vì thế chỉ hiển thị chỉ số ADC; muốn quy đổi nồng độ cần quy trình hiệu
+chuẩn phù hợp với khí mục tiêu và điều kiện đo.

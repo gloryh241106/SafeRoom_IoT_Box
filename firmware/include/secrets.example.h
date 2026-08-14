@@ -5,9 +5,10 @@
 | Copy this file to `firmware/include/secrets.h` and fill in your values.
 | `secrets.h` is ignored by git - never commit real credentials.
 |
-|   1. WiFi credentials are provisioned at runtime via the WiFiManager
-|      captive portal (`Safebox-AP`, http://192.168.4.1) and persisted to
-|      NVS. No WiFi SSID/password is required here.
+|   1. Router credentials are provisioned at runtime via the WiFiManager
+|      captive portal (`Safebox-AP`, password `12345678`) and persisted to
+|      NVS. The setup password lives in `src/config/settings.h`; it is not the
+|      password of the router that the ESP32 will join.
 |   2. MQTT connection uses MQTTS (TLS, port 8883) with username/password
 |      auth and a CA certificate for broker verification.
 |   3. DEVICE_ID must match the backend `.env` DEVICE_ID so the backend
@@ -37,9 +38,5 @@
     "REPLACE_WITH_YOUR_BROKER_CA_CERTIFICATE_PEM\n" \
     "-----END CERTIFICATE-----\n"
 
-// ---------------------------------------------------------------------------
-// Optional: pre-provision a WiFi network for first boot.
-// Leave commented out to rely on the WiFiManager captive portal only.
-// ---------------------------------------------------------------------------
-// #define WIFI_SSID "MyNetwork"
-// #define WIFI_PASSWORD "MyPassword"
+// Router SSID/password are intentionally absent: the captive portal writes
+// them to ESP32 NVS and can replace them later without reflashing or rebooting.

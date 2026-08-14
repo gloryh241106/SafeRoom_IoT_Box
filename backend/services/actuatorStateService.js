@@ -1,3 +1,8 @@
+/**
+ * Process-local actuator snapshot used by REST responses and mock hardware.
+ * Command publication updates it optimistically; the next validated telemetry
+ * snapshot replaces it with the device-confirmed state.
+ */
 const DEFAULT_ACTUATOR_STATES = Object.freeze({
   fanOn: false,
   buzzerActive: false,
@@ -27,7 +32,7 @@ function updateActuatorState(actuator, state) {
   return getCurrentActuatorStates();
 }
 
-// Device telemetry is authoritative and replaces the optimistic requested state.
+// Never merge here: omitted fields must not leave stale optimistic state behind.
 function synchronizeActuatorStates(actuatorStates) {
   currentActuatorStates = {
     fanOn: Boolean(actuatorStates.fanOn),

@@ -1,3 +1,8 @@
+/**
+ * Nodemailer adapter for HIGH/CRITICAL anomaly notifications. Recipient selection
+ * is injected by server.js, while a process-local throttle limits each
+ * (deviceId, sensorType) pair to one successfully sent email per 15 minutes.
+ */
 const nodemailer = require('nodemailer');
 
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000;
@@ -60,6 +65,7 @@ function getTransporter(config = getEmailConfig()) {
 }
 
 function escapeHtml(value) {
+  // Alert values ultimately originate from device/user input and must not become email markup.
   return String(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -134,6 +140,11 @@ async function initializeEmailService({ verify = false } = {}) {
   return { enabled: true, recipient: config.recipient };
 }
 
+/**
+ * Sends an eligible alert after resolving current user preferences and checking
+ * the per-sensor throttle. Any thrown SMTP error is left to the anomaly engine,
+ * which records it in actionsTaken without suppressing future retries.
+ */
 async function sendAlertEmail(alert) {
   const severity = String(alert.severity || '').toUpperCase();
   if (!ALERT_SEVERITIES.has(severity)) return { status: 'ignored', reason: 'severity' };
@@ -157,6 +168,7 @@ async function sendAlertEmail(alert) {
   const message = buildAlertMessage({ ...alert, severity });
   const recipientHeaders = recipients.length === 1
     ? { to: recipients[0] }
+    // Keep subscriber addresses private when the alert is delivered to multiple accounts.
     : { to: config.user, bcc: recipients };
   const result = await activeTransporter.sendMail({
     from: config.from,
@@ -164,7 +176,7 @@ async function sendAlertEmail(alert) {
     ...message
   });
 
-  // A failed SMTP attempt must not suppress the next retry.
+  // Set the window only after SMTP success; a failed attempt must remain retryable.
   emailThrottleMap.set(throttleKey, now);
   return {
     status: 'sent',

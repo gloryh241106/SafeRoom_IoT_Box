@@ -1,3 +1,4 @@
+/** Public account creation page; successful registration also starts a session. */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Lock, User, Mail, ArrowRight } from 'lucide-react';
@@ -10,12 +11,14 @@ export default function Register({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  /** Create the account and reuse App's normal login-success transition. */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      // Registration cannot attach a JWT because no session exists yet.
       const res = await fetch('/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

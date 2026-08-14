@@ -1,363 +1,186 @@
-/*
-|--------------------------------------------------------------------------
-| SafeRoom IoT Box - ESP32 Firmware Entry Point
-|--------------------------------------------------------------------------
-| Responsibilities:
-|   1. Boot sensors, actuators, OLED, WiFi provisioning, MQTT, and clock sync.
-|   2. Run gas/edge safety in an independent high-priority FreeRTOS task;
-|      the Arduino loop owns WiFi, MQTT, 2s telemetry, and OLED rendering.
-|
-| Modules (see each header for details):
-|   - wifi/    WiFiManager provisioning (SoftAP `Safebox-AP` + captive portal)
-|   - mqtt/    MQTTS client (telemetry, status, alerts, control)
-|   - safety/  edge-local gas safety autonomy (< 200 ms, offline-capable)
-|   - utils/   NTP-backed clock for timestamps
-|   - sensors/ DHT22, PIR (interrupt latch), MQ2
-|   - actuators/ Fan relay, LEDs, active buzzer module (digital ON/OFF)
-|   - display/ SSD1306 OLED
-|
-| Architecture directives (see AGENTS.md):
-|   - Fan control is REMOTE-only (no local auto-trigger).
-|   - Edge safety never waits for backend/network responses.
-|--------------------------------------------------------------------------
-*/
-
 #include <Arduino.h>
-#include <ArduinoJson.h>
+#include <cstring>
+#include <time.h>
 
 #include "secrets.h"
-#include "config/config.h"
-#include "config/pins.h"
-#include "sensors/dht_sensor.h"
-#include "sensors/pir_sensor.h"
+#include "actuators/actuators.h"
+#include "config.h"
+#include "device_state.h"
+#include "display/oled.h"
+#include "features/gas_safety.h"
+#include "features/telemetry.h"
+#include "network/mqtt_service.h"
+#include "network/wifi_setup.h"
+#include "sensors/dht22_sensor.h"
 #include "sensors/mq2_sensor.h"
-#include "actuators/relay.h"
-#include "actuators/led.h"
-#include "actuators/buzzer.h"
-#include "display/oled_display.h"
-#include "utils/time_utils.h"
-#include "wifi/wifi_manager.h"
-#include "mqtt/mqtt_client.h"
-#include "safety/edge_safety.h"
+#include "sensors/pir_sensor.h"
 
-// =========================
-// Hardware Instances
-// =========================
-DHTSensor dht(DHT22_PIN);
-PIRSensor pir(PIR_PIN);
-MQ2Sensor mq2(MQ2_PIN);
-
-Relay fanRelay(FAN_RELAY_PIN);
-Led statusLed(STATUS_LED_PIN);
-Led alertLed(ALERT_LED_PIN);
-Buzzer buzzer(BUZZER_PIN, BUZZER_ACTIVE_LOW != 0);
-
+// ---------------------------------------------------------------------------
+// Shared hardware and network modules used for the device lifetime.
+// Pins come from config.h so modules do not hard-code the wiring.
+// ---------------------------------------------------------------------------
+Dht22Sensor dht22(PIN_DHT22);
+Mq2Sensor mq2(PIN_MQ2);
+PirSensor pir(PIN_PIR);
+Actuators actuators(PIN_FAN_RELAY, PIN_STATUS_LED, PIN_ALERT_LED,
+                    PIN_BUZZER, FAN_RELAY_ACTIVE_LOW, BUZZER_ACTIVE_LOW);
 OledDisplay oled;
-MqttClient mqtt;
-SafeboxWifi wifi;
-SystemClock systemClock;
-EdgeSafety edgeSafety(buzzer, alertLed, mqtt);
-// =========================
-// Runtime State
-// =========================
-SensorSnapshot snapshot;   // shared with the OLED renderer
-uint32_t lastSensorReadMs = 0;
-bool mqttStarted = false;
-SemaphoreHandle_t gasMutex = nullptr;
-SemaphoreHandle_t edgeMutex = nullptr;
-SemaphoreHandle_t oledMutex = nullptr;
+WifiSetup wifi;
+MqttService mqtt;
+GasSafety gasSafety(mq2, actuators, oled);
+Telemetry telemetry(mqtt, DEVICE_ID);
+DeviceState deviceState;
 
-// =========================
-// SoftAP Status (WiFiManager callback)
-// =========================
-static void showApMode() {
-    if (oledMutex && xSemaphoreTake(oledMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        oled.setMode(DisplayMode::AP_MODE);
-        oled.update();
-        xSemaphoreGive(oledMutex);
+// ---------------------------------------------------------------------------
+// Main-loop state uses millis() instead of long blocking delays.
+// alertPending retains a gas event until MQTT accepts it.
+// ---------------------------------------------------------------------------
+uint32_t lastTelemetryMs = 0;
+uint32_t lastAlertAttemptMs = 0;
+uint16_t pendingAlertRaw = 0;
+bool alertPending = false;
+bool timeConfigured = false;
+bool gasAlarmObserved = false;
+bool previousGasAlarm = false;
+
+/**
+ * Selects OLED content for the current network state.
+ * OledDisplay ignores this screen while a gas warning has priority.
+ */
+void showNetworkStatus() {
+    if (wifi.connected()) {
+        oled.showStatus("WiFi connected", wifi.ssid(), wifi.ipAddress());
+    } else if (wifi.portalActive()) {
+        oled.showStatus("Safebox-AP", "PW: 12345678", "192.168.4.1");
+    } else {
+        oled.showStatus("WiFi offline", "Waiting...", "");
     }
 }
 
-// =========================
-// Remote Actuator Control (Backend -> ESP32)
-// =========================
-static void onControlMessage(const char* actuator, bool state) {
+/**
+ * Applies a command already parsed by MqttService.
+ * Only the fan is remotely controllable; the buzzer and alert LED are driven
+ * exclusively by the local edge gas alarm. Unknown actuators are ignored.
+ */
+void handleControl(const char* actuator, bool state) {
     if (strcmp(actuator, "fan") == 0) {
-        if (state) fanRelay.on();
-        else fanRelay.off();
-        DBG("[Fan] Relay state: %s\n", fanRelay.isOn() ? "ON" : "OFF");
-    } else if (strcmp(actuator, "buzzer") == 0) {
-        if (xSemaphoreTake(edgeMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            edgeSafety.applyRemoteBuzzer(state); // edge safety may override
-            xSemaphoreGive(edgeMutex);
-        }
-    } else if (strcmp(actuator, "alertLed") == 0) {
-        if (xSemaphoreTake(edgeMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-            edgeSafety.applyRemoteAlertLed(state); // edge safety may override
-            xSemaphoreGive(edgeMutex);
-        }
-    }
-}
-
-// =========================
-// Sensor Sampling & Telemetry
-// =========================
-static void readAllSensors() {
-    dht.read();    // keep last valid readings on transient failure
-    pir.read();
-
-    bool buzzerActive = false;
-    bool alertLedActive = false;
-    if (xSemaphoreTake(edgeMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        buzzerActive = buzzer.isAlarming();
-        alertLedActive = alertLed.isOn();
-        xSemaphoreGive(edgeMutex);
-    }
-
-    if (xSemaphoreTake(gasMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        snapshot.temperature = dht.getTemperature();
-        snapshot.humidity = dht.getHumidity();
-        snapshot.motionDetected = pir.isMotionDetected();
-        snapshot.fanOn = fanRelay.isOn();
-        snapshot.buzzerActive = buzzerActive;
-        snapshot.alertLedActive = alertLedActive;
-        xSemaphoreGive(gasMutex);
-    }
-}
-
-static void publishTelemetry() {
-    SensorSnapshot telemetrySnapshot;
-    float gasRaw = 0.0f;
-    float gasSourceMillivolts = 0.0f;
-    float gasRo = 0.0f;
-    float gasRatio = 0.0f;
-    uint32_t gasBurnInRemainingSeconds = 0;
-    const char* gasState = "fault";
-
-    if (xSemaphoreTake(gasMutex, pdMS_TO_TICKS(20)) != pdTRUE) {
-        DBGLN("[MQTT] Telemetry deferred: MQ2 snapshot busy.");
+        actuators.setFan(state);
+    } else {
+        SAFEBOX_LOGF("[Control] Unknown actuator: %s\n", actuator);
         return;
     }
-    telemetrySnapshot = snapshot;
-    gasRaw = mq2.getRaw();
-    gasSourceMillivolts = mq2.getSourceMillivolts();
-    gasRo = mq2.getRo();
-    gasRatio = mq2.getResistanceRatio();
-    gasBurnInRemainingSeconds = mq2.getBurnInRemainingSeconds();
-    gasState = mq2.getStateName();
-    xSemaphoreGive(gasMutex);
 
-    JsonDocument doc;
-    if (systemClock.synced()) doc["timestamp"] = systemClock.epochMs();
-    doc["deviceId"] = DEVICE_ID;
+    SAFEBOX_LOGF("[Control] %s=%s\n", actuator, state ? "ON" : "OFF");
+}
 
-    JsonObject metrics = doc["metrics"].to<JsonObject>();
-    metrics["temperature"] = static_cast<double>(roundf(telemetrySnapshot.temperature * 10.0f) / 10.0f);
-    metrics["humidity"] = static_cast<double>(roundf(telemetrySnapshot.humidity * 10.0f) / 10.0f);
-    if (telemetrySnapshot.gasReady) {
-        metrics["gasLevel"] = static_cast<long>(roundf(telemetrySnapshot.gasPpm));
-    } else {
-        metrics["gasLevel"] = nullptr;
-    }
-    metrics["motionDetected"] = telemetrySnapshot.motionDetected;
+/**
+ * Reads sensors and publishes a complete snapshot every two seconds.
+ * Invalid DHT22 data is not published as fake zero values.
+ */
+void readSensorsAndPublish(uint32_t nowMs) {
+    if (nowMs - lastTelemetryMs < SENSOR_TELEMETRY_INTERVAL_MS) return;
+    lastTelemetryMs = nowMs;
 
-    JsonObject gasSensor = doc["sensorStatus"]["gas"].to<JsonObject>();
-    gasSensor["state"] = gasState;
-    gasSensor["ready"] = telemetrySnapshot.gasReady;
-    gasSensor["adcRaw"] = static_cast<long>(roundf(gasRaw));
-    gasSensor["adcMillivolts"] = telemetrySnapshot.gasAdcMillivolts;
-    gasSensor["sourceMillivolts"] = static_cast<long>(roundf(gasSourceMillivolts));
-    gasSensor["burnInRemainingSeconds"] = gasBurnInRemainingSeconds;
-    if (telemetrySnapshot.gasReady) {
-        gasSensor["roOhms"] = static_cast<double>(gasRo);
-        gasSensor["rsRoRatio"] = static_cast<double>(gasRatio);
+    float temperature = NAN;
+    float humidity = NAN;
+    deviceState.sensors.dhtValid = dht22.read(temperature, humidity);
+    if (deviceState.sensors.dhtValid) {
+        deviceState.sensors.temperature = temperature;
+        deviceState.sensors.humidity = humidity;
     }
 
-    JsonObject actuatorStates = doc["actuatorStates"].to<JsonObject>();
-    actuatorStates["fanOn"] = telemetrySnapshot.fanOn;
-    actuatorStates["buzzerActive"] = telemetrySnapshot.buzzerActive;
-    actuatorStates["alertLedActive"] = telemetrySnapshot.alertLedActive;
+    deviceState.sensors.gasRaw = gasSafety.gasRaw();
+    deviceState.sensors.gasValid = gasSafety.stabilized();
+    deviceState.sensors.motionDetected = pir.motionDetected();
+    deviceState.actuators = actuators.snapshot();
 
-    char buffer[768];
-    const size_t requiredBytes = measureJson(doc) + 1;
-    if (requiredBytes > sizeof(buffer)) {
-        DBG("[MQTT] Telemetry dropped: JSON requires %u bytes.\n",
-            static_cast<unsigned int>(requiredBytes));
-        return;
+    const bool published = telemetry.publish(deviceState);
+    SAFEBOX_LOGF(
+        "[Telemetry] temp=%.1f humidity=%.1f gasRaw=%u motion=%s buzzer=%s gasAlarm=%s mqtt=%s publish=%s\n",
+        deviceState.sensors.temperature,
+        deviceState.sensors.humidity,
+        deviceState.sensors.gasRaw,
+        deviceState.sensors.motionDetected ? "ON" : "OFF",
+        deviceState.actuators.buzzerActive ? "ON" : "OFF",
+        deviceState.actuators.gasAlarmActive ? "ON" : "OFF",
+        mqtt.connected() ? "connected" : "offline",
+        published ? "ok" : "failed");
+}
+
+/**
+ * Takes gas events from the safety task and retries MQTT delivery.
+ * MQTT failure cannot disable the already active local outputs.
+ */
+void publishPendingGasAlert(uint32_t nowMs) {
+    uint16_t newAlertRaw = 0;
+    if (gasSafety.takeNewAlert(newAlertRaw)) {
+        pendingAlertRaw = newAlertRaw;
+        alertPending = true;
     }
-    serializeJson(doc, buffer, sizeof(buffer));
-    if (mqtt.publishTelemetry(buffer)) {
-        DBGLN("[MQTT] Telemetry published (QoS 0).");
-    } else {
-        DBGLN("[MQTT] Telemetry dropped: not connected.");
+
+    if (!alertPending) return;
+    if (lastAlertAttemptMs
+        && nowMs - lastAlertAttemptMs < EDGE_ALERT_RETRY_MS) return;
+
+    lastAlertAttemptMs = nowMs;
+    if (telemetry.publishGasAlert(pendingAlertRaw, GAS_ALARM_THRESHOLD_RAW)) {
+        alertPending = false;
+        SAFEBOX_LOG_LN("[Safety] Gas alert published");
     }
 }
 
-static void gasSafetyTask(void* parameter) {
-    (void)parameter;
-    TickType_t lastWakeTick = xTaskGetTickCount();
-
-    for (;;) {
-        bool edgeActive = false;
-        if (xSemaphoreTake(gasMutex, portMAX_DELAY) == pdTRUE) {
-            mq2.read();
-            snapshot.gasPpm = mq2.getPpm();
-            snapshot.gasAdcMillivolts = mq2.getAdcMillivolts();
-            snapshot.gasReady = mq2.isReady();
-            if (xSemaphoreTake(edgeMutex, portMAX_DELAY) == pdTRUE) {
-                edgeSafety.update(
-                    snapshot.gasPpm,
-                    snapshot.gasReady,
-                    snapshot.gasAdcMillivolts,
-                    0ULL
-                );
-                edgeActive = edgeSafety.isActive();
-                xSemaphoreGive(edgeMutex);
-            }
-            SensorSnapshot displaySnapshot = snapshot;
-            xSemaphoreGive(gasMutex);
-
-            if (xSemaphoreTake(oledMutex, portMAX_DELAY) == pdTRUE) {
-                oled.setSensorSnapshot(displaySnapshot);
-                oled.setWarningActive(edgeActive);
-                oled.update();
-                xSemaphoreGive(oledMutex);
-            }
-        }
-        vTaskDelayUntil(&lastWakeTick, pdMS_TO_TICKS(GAS_POLL_INTERVAL_MS));
-    }
-}
-
-// =========================
-// Setup
-// =========================
+/**
+ * Initializes safe outputs, sensors, local safety, WiFi, and MQTT.
+ * Local safety starts before potentially slow network operations.
+ */
 void setup() {
     Serial.begin(115200);
-    delay(200);
 
-    DBGLN("================================");
-    DBGLN(" SafeRoom IoT Box");
-    DBGLN(" ESP32 Firmware v1.0");
-    DBGLN("================================");
-
-    // --- Sensors ---
-    dht.begin();
-    pir.begin();
+    // Outputs are initialized first so the active-low relay and buzzer are OFF.
+    actuators.begin();
+    dht22.begin();
     mq2.begin();
-    gasMutex = xSemaphoreCreateMutex();
-    edgeMutex = xSemaphoreCreateMutex();
-    oledMutex = xSemaphoreCreateMutex();
-    if (gasMutex == nullptr || edgeMutex == nullptr || oledMutex == nullptr) {
-        DBGLN("[Boot] FATAL: could not create safety synchronization locks.");
-        ESP.restart();
-    }
+    pir.begin();
+    oled.begin(PIN_OLED_SDA, PIN_OLED_SCL, OLED_ADDRESS);
 
-    // --- Actuators (fan relay boots open = off; HL-52S is active-low) ---
-    fanRelay.begin();
-    statusLed.begin();
-    alertLed.begin();
-    buzzer.begin();
+    // Local safety starts before any potentially slow WiFi/TLS operation.
+    gasSafety.begin();
 
-    // --- OLED ---
-    oled.begin(OLED_SDA_PIN, OLED_SCL_PIN);
-    oled.setMode(DisplayMode::BOOT);
-    oled.setSensorSnapshot(snapshot);
-    oled.update();
+    wifi.begin(WIFI_AP_NAME, WIFI_AP_PASSWORD,
+               WIFI_CONNECT_TIMEOUT_SECONDS);
+    showNetworkStatus();
 
-    // --- WiFiManager provisioning ---
-    wifi.begin(WIFI_AP_NAME, showApMode,
-               WIFI_CONNECT_TIMEOUT_S,
-               WIFI_PORTAL_TIMEOUT_S,
-               WIFI_LOST_FALLBACK_MS);
-
-    DBGLN("[WiFi] Trying saved credentials...");
-    oled.setMode(DisplayMode::CONNECTING);
-    oled.setTextInfo("WiFiManager", String(WIFI_AP_NAME));
-    oled.update();
-
-    if (wifi.provision()) {
-        DBG("[WiFi] Connected. IP: %s\n", wifi.ipString().c_str());
-    } else {
-        DBGLN("[WiFi] Saved credential connection started asynchronously.");
-    }
-
-    // --- Clock sync (for telemetry timestamps) ---
-    systemClock.begin();
-
-    // --- MQTT configuration; network connection starts from loop() ---
     mqtt.begin(DEVICE_ID, MQTT_BROKER_HOST, MQTT_BROKER_PORT,
-               MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT);
-    mqtt.onControl(onControlMessage);
-    if (wifi.isConnected()) {
-        mqttStarted = true;
-        oled.setMode(DisplayMode::CONNECTED);
-        oled.setTextInfo(wifi.ipString(), String(DEVICE_ID));
-    }
-    oled.setSensorSnapshot(snapshot);
-    oled.update();
-
-    BaseType_t taskCreated = xTaskCreatePinnedToCore(
-        gasSafetyTask,
-        "gas-safety",
-        4096,
-        nullptr,
-        3,
-        nullptr,
-        ARDUINO_RUNNING_CORE
-    );
-    if (taskCreated != pdPASS) {
-        DBGLN("[Boot] FATAL: could not start MQ2 safety task.");
-        ESP.restart();
-    }
-
-    if (wifi.isConnected()) statusLed.on();
-    DBGLN("[Boot] Setup complete.");
+               MQTT_USERNAME, MQTT_PASSWORD, MQTT_CA_CERT, handleControl);
 }
 
-// =========================
-// Main Loop
-// =========================
+/**
+ * Updates OLED state, WiFi, MQTT, alerts, and telemetry.
+ * GasSafety is the only module that reads the MQ2 ADC.
+ */
 void loop() {
-    uint32_t now = millis();
+    const uint32_t now = millis();
 
-    // Network/TLS may block this task; gas safety runs independently above it.
-    wifi.process();
-    if (wifi.isConnected()) {
-        if (!mqttStarted) mqttStarted = true;
-        mqtt.loop();
-        edgeSafety.serviceCloudAlert();
-        systemClock.poll();
-        statusLed.on();
-    } else {
-        statusLed.off();
+    const bool currentGasAlarm = gasSafety.alarmActive();
+    if (!gasAlarmObserved || currentGasAlarm != previousGasAlarm) {
+        gasAlarmObserved = true;
+        previousGasAlarm = currentGasAlarm;
+        if (!currentGasAlarm) showNetworkStatus();
     }
 
-    // --- Periodic full sensor read + telemetry (2 s) ---
-    if (now - lastSensorReadMs >= SENSOR_INTERVAL_MS) {
-        lastSensorReadMs = now;
-        readAllSensors();
-        publishTelemetry();
-    }
-
-    SensorSnapshot displaySnapshot;
-    if (xSemaphoreTake(gasMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        displaySnapshot = snapshot;
-        xSemaphoreGive(gasMutex);
-    }
-    if (xSemaphoreTake(oledMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
-        oled.setSensorSnapshot(displaySnapshot);
-        if (!edgeSafety.isActive()) {
-            if (wifi.isConnected()) {
-                oled.setMode(DisplayMode::CONNECTED);
-                oled.setTextInfo(wifi.ipString(), String(DEVICE_ID));
-            } else if (wifi.isPortalActive()) {
-                oled.setMode(DisplayMode::AP_MODE);
-            } else {
-                oled.setMode(DisplayMode::CONNECTING);
-                oled.setTextInfo("WiFiManager", String(WIFI_AP_NAME));
-            }
+    wifi.update();
+    if (wifi.takeConnectionChanged()) {
+        actuators.setStatusLed(wifi.connected());
+        showNetworkStatus();
+        if (wifi.connected() && !timeConfigured) {
+            configTime(0, 0, "pool.ntp.org");
+            timeConfigured = true;
         }
-        oled.update();
-        xSemaphoreGive(oledMutex);
     }
+
+    mqtt.update(wifi.connected());
+    publishPendingGasAlert(now);
+    readSensorsAndPublish(now);
+
+    delay(2);
 }

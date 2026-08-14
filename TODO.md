@@ -7,15 +7,29 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ## 1. Hardware / ESP32 Firmware
 
+- [x] Correct the 5 V active-buzzer module polarity, preload its safe OFF level at boot, and verify `buzzer=OFF` below the MQ2 threshold on hardware
+- [x] Add beginner-friendly comments for every firmware module and function without changing runtime behavior
+- [x] Implement the approved basic firmware layout with explicit `main.cpp` orchestration, separate sensors, combined actuators, OLED, WiFi, MQTT, gas safety, and telemetry modules
+- [x] Reset `firmware/src` to an empty state before collaboratively redesigning the firmware architecture
+- [x] Set the protected `Safebox-AP` password to `12345678`, simplify the WiFiManager implementation for coursework readability, and diagnose live device/MQ2 telemetry connectivity end to end
+
 ### 1.1 Sensor Wiring & Reading
 
+- [x] Standardize every firmware sensor reading as an uncalibrated raw snapshot and pass the snapshot object unchanged into telemetry packaging
+- [x] Keep the MQ2 raw ADC contract at 12-bit 0–4095, alarm above 600, and hysteresis clear below 500 without presenting the value as calibrated PPM
+- [x] Correct MQ2 ADC logic so normal ADC changes are not clamped to a constant 200 PPM; expose raw and relative gas indices honestly
+- [x] Simplify MQ2 firmware reading to one direct GPIO 34 ADC sample with no interpolation, median, EMA, or boot calibration
+- [x] Simplify the complete ESP32 firmware into one readable main flow with direct hardware I/O while preserving WiFiManager, MQTTS, telemetry, remote control, and offline edge safety
+- [x] Split DHT22, PIR, and MQ2 into three independent sensor components while keeping main.cpp as the system orchestrator
+- [x] Rename firmware components to sensors and extract OLED, buzzer, relay, LED, website control, MQTT, and WiFiManager into focused modules
+- [x] Apply the report-oriented firmware architecture with app orchestration, shared DeviceState, connectivity modules, and separate edge-safety, remote-control, and telemetry features
 - [x] Wire **DHT22** to GPIO 4 (pull-up resistor), read temp + humidity every 2 000 ms `(CB-01)`
-- [x] Wire **PIR HC-SR501** to GPIO 13 (digital interrupt), detect LOW→HIGH state change `(CB-02)`
+- [x] Wire **PIR HC-SR501** to GPIO 13 and publish the direct HIGH/LOW digital level without a firmware latch `(CB-02)`
 - [x] Wire **MQ2 gas sensor** analog to GPIO 34 (ADC1_CH6), heater to 5V rail `(NC-02)`
 
 ### 1.2 Actuator Wiring & Control
 
-- [x] Wire **DC Fan relay** to GPIO 16 (HIGH = ON) `(CB-03)`
+- [x] Wire **DC Fan relay** to GPIO 16 (HL-52S active-low: LOW = ON) `(CB-03)`
 - [x] Wire **Alert LED (Red)** to GPIO 18 (digital output) `(NC-02)`
 - [x] Wire **Status LED (Green)** to GPIO 17 (digital output) `(NC-02)`
 - [x] Wire **Active Buzzer module** signal pin to GPIO 19 `(NC-02)`
@@ -28,39 +42,47 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Connect to EMQX via MQTTS (port 8883, TLS, username/password auth) `(CB-01)`
 - [x] Publish JSON telemetry to `safebox/{deviceId}/telemetry` (QoS 0) every 2s `(CB-01)`
 - [x] Configure **LWT** on `safebox/{deviceId}/status` with `{"status":"offline"}` (QoS 1, retained) `(CB-01)`
-- [x] On connect, publish `{"status":"online"}` to status topic (QoS 1, retained) `(CB-01)`
+- [x] On connect, publish `{"status":"online"}` to status topic (QoS 0, retained; PubSubClient publish limitation) `(CB-01)`
 - [x] Subscribe to `safebox/{deviceId}/control` (QoS 1) for fan commands `(CB-03)`
-- [x] On message `{"actuator":"fan","state":"on"}` → GPIO 16 HIGH; `"off"` → LOW `(CB-03)`
+- [x] On fan control messages, map logical ON/OFF through relay polarity (HL-52S default: ON → GPIO 16 LOW, OFF → HIGH) `(CB-03)`
 - [x] Include `actuatorStates.fanOn`, `.buzzerActive`, `.alertLedActive` in telemetry `(CB-03, NC-02)`
 - [x] Include `gasLevel` in periodic telemetry payloads `(NC-02)`
 - [x] Include `motionDetected` from PIR state in periodic telemetry `(CB-02)`
 
 ### 1.4 Edge-Local Safety Logic
 
-- [x] If `gasLevel > 600 PPM` → immediately activate Buzzer + Alert LED + OLED warning (< 200 ms, no network needed) `(NC-02, TC-03)`
-- [x] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 1) on gas breach `(NC-02)`
-- [x] OLED sole mission: render the MQ2 gas WARNING screen on threshold breach; brief provisioning header (BOOT/CONNECTING/AP_MODE/CONNECTED) only `(NC-02)`
+- [x] If sampled MQ2 `gasLevel > 600` ADC index → activate Buzzer + Alert LED + OLED warning from the independent high-priority safety task `(NC-02)`
+- [x] Report the local gas safety override separately as `gasAlarmActive` in telemetry `(superseded: buzzer/alert-LED web toggles removed; buzzer and LED are edge-only)`
+- [x] Auto-turn-off remote buzzer and alert LED after 30 s when no local gas alarm is active, so a lost web OFF command cannot leave them running indefinitely `(superseded: all remote buzzer/LED control removed)`
+- [x] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 0; PubSubClient publish limitation) on gas breach `(NC-02)`
+- [x] Keep the code-level edge-safety path active during WiFi credential-save and MQTT/TLS calls by isolating MQ2 sampling, buzzer/LED arbitration, and OLED transitions in a priority-4 FreeRTOS task `(TC-03; physical timing still pending)`
+- [x] Fix the buzzer module: extend the MQ2 warm-up window to 30 s so the cold-heater ADC spike cannot fire the alarm at boot, publish warm-up gas as `gasValid=false` so no cloud alert fires, and add a 5 s below-600 auto-clear so a baseline inside the 500–600 band cannot leave the buzzer stuck on
+- [x] Settle the buzzer driver: the low-trigger module powered at 3.3 V turns fully OFF at the GPIO's 3.3 V HIGH, so wire SIG → GPIO 19 directly, VCC → 3.3 V, GND → GND, and keep `BUZZER_ACTIVE_LOW=true` (5 V supply would need an NPN driver stage with `false`)
+- [x] Remove remote buzzer/alert-LED control end to end (web buttons, control API, MQTT control, firmware remote state, backend motion auto-alert LED): buzzer and LED are driven only by the local edge gas alarm (gas > 600), with the OLED warning as the sole local display
+- [x] Protect the coursework captive portal with the fixed 8-character WPA2 password `12345678`
+- [ ] Verify captive redirect, permanent AP reachability, and runtime router switching on Android/iOS/Windows hardware `(TC-01)`
+- [ ] Make per-sensor telemetry validity independent so a DHT checksum failure does not hide healthy MQ2, PIR, or actuator state
+- [x] OLED renders the full raw MQ2 GAS warning (>600) and basic provisioning/connection status without presentation-time sensor conversion `(NC-02)`
 
 ### 1.5 WiFiManager Provisioning
 
+- [x] Use the standard non-blocking WiFiManager flow: try saved router credentials, then open `Safebox-AP` if connection fails
+- [x] Save and apply newly submitted WiFi credentials at runtime, reset the stale MQTT socket, and reconnect transport through the new station network
 - [x] Integrate **WiFiManager** Arduino library `(NC-09)`
-- [x] On boot: attempt saved WiFi from NVS; if fail after 30s → SoftAP `Safebox-AP` `(NC-09)`
-- [x] Captive portal at `192.168.4.1` for credential input `(NC-09)`
-- [x] Save credentials to NVS, reboot into Station mode `(NC-09)`
+- [x] On boot: try the saved-NVS station credential, then fall back to `Safebox-AP` `(NC-09)`
+- [x] Keep the captive portal at `192.168.4.1` available while router credentials are needed `(NC-09)`
+- [x] Save credentials to NVS and switch Station networks without rebooting `(NC-09)`
 - [x] Display assigned IP on OLED after WiFi connection `(NC-09)`
-- [x] Polish: timeout, retry, graceful fallback to SoftAP if network lost `(NC-09)`
-- [x] Display provisioning status on OLED ("Connecting...", "AP Mode: Safebox-AP", "Connected: x.x.x.x") `(NC-09)`
+- [x] Process SoftAP/captive DNS without blocking the independent MQ2 safety task `(NC-09)`
+- [x] Display provisioning AP status or the connected station SSID/IP on OLED `(NC-09)`
 
 ### 1.6 Firmware Stability & Polish (Phase 5)
 
-- [x] Reconnect MQTT with exponential backoff; continue local safety alerts while disconnected
+- [x] Reconnect MQTT at a simple fixed interval; continue local safety alerts while disconnected
 - [x] Clean up debug `Serial.println` (guard behind debug flag)
-- [x] Add MQ2 lifecycle states, 48-hour first burn-in, startup warm-up, stable clean-air calibration, and persisted `Ro` in ESP32 NVS
-- [x] Replace the MQ2 fixed 3.3 V ADC assumption with calibrated millivolt reads and an explicit voltage-divider/load-resistor circuit model
-- [x] Preserve offline gas safety during MQ2 warm-up with a conservative raw-voltage fallback, while suppressing uncalibrated PPM cloud alerts
 - [ ] Validate all 3 sensors (DHT22, PIR, MQ2) reading correctly
 - [ ] Validate all 5 actuators (Fan relay, Status LED, Alert LED, Buzzer, OLED) responding
-- [x] Fix `SensorSnapshot` struct (oled_display.h) to carry full telemetry state so `main.cpp` compiles
+- [x] Preserve the complete sensor and actuator telemetry state through firmware refactors
 
 ---
 
@@ -84,14 +106,12 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 2.3 Telemetry Ingestion & API
 
-- [x] Mock telemetry generator (`mockTelemetryGenerator.js`) simulating DHT22, PIR, MQ2 every 2s `(CB-01)`
-- [x] Remove mock telemetry generator (`mockTelemetryGenerator.js`) and disable all backend mock telemetry generation `(CB-01)`
+- [x] Remove the legacy runtime mock telemetry generator so persisted readings come only from ESP32 MQTT telemetry `(CB-01)`
 - [x] `GET /api/v1/telemetry/latest` — returns most recent document for device `(CB-01)`
 - [x] `GET /api/v1/telemetry/historical?from=&to=&sensor=` — historical query `(NC-03)`
 - [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
 - [x] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
 - [x] Return the newest bounded historical samples in chronological order and add route regression coverage `(NC-03)`
-- [x] Accept MQ2 readiness/diagnostic telemetry, store unavailable gas as `null`, and skip gas anomaly/email processing until calibrated
 
 ### 2.4 Remote Actuator Control
 
@@ -134,6 +154,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Commands: `status`, `gas`, `motion`, `temp`/`temperature`, `humidity`, `anomalies`, `help` `(NC-06)`
 - [x] Unrecognized input returns friendly error message `(NC-06)`
 - [x] Response format: `{ reply, data, timestamp }` `(NC-06)`
+- [x] Remove zero/false sensor fallbacks from chatbot replies when no telemetry exists `(NC-06)`
 
 ### 2.9 User Profile API
 
@@ -192,18 +213,18 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 4.3 Overview Page
 
 - [x] Live Temperature and Humidity cards, polling `/telemetry/latest` every 3s `(CB-01)`
-- [x] Motion status indicator card (active/idle) `(CB-02)`
+- [x] Motion status indicator card (active/idle) `(CB-02)` — the card highlights green while motion is detected (display-only; it does NOT drive any physical LED)
 - [x] Gas Level card `(NC-02)`
 - [x] Fan toggle switch (POST to `/control/actuator`) `(CB-03)`
 - [x] Buzzer toggle, Alert LED toggle (remote actuator controls) `(CB-03)`
 - [x] Anomaly list panel with severity color coding `(NC-01)`
-- [x] "Delete All" anomalies button `(NC-01)`
-- [x] Display MQ2 warm-up, calibration, readiness, and fault states instead of presenting uncalibrated readings as PPM
+- [x] "Resolve All" anomalies button that preserves the anomaly audit trail `(NC-01)`
+- [x] Replace zero-valued telemetry fallbacks with an explicit no-data state `(CB-01)`
 
 ### 4.4 Dashboard Page (NC-04)
 
 - [x] Recharts line charts: Temperature, Humidity, Gas Level over time `(NC-04)`
-- [x] Time-range presets: 1h, 6h, 24h, 7d `(NC-04)`
+- [x] Make time-range presets 1h, 6h, 24h, 7d send matching `from`/`to` query parameters `(NC-04)`
 - [x] Fetch from `GET /api/v1/telemetry/historical` `(NC-04)`
 - [x] CSV export (download chart data) `(NC-04)`
 - [x] Refresh button `(NC-04)`
@@ -226,15 +247,15 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Change password form `(Settings)`
 - [x] Email notification toggle (on/off) `(Settings)`
 - [x] Editable safety threshold inputs (gasMax, tempMax, tempMin, humidityMax, humidityMin, zScoreLimit) `(Settings)`
-- [x] Automatic/Manual mode toggle (Z-Score vs. manual bounds) `(Settings)`
-- [x] Disable manual inputs when Automatic mode; disable Z-score input when Manual mode `(Settings)`
+- [x] Automatic mode toggle adds Z-Score evaluation while hard safety bounds remain active in both modes `(Settings)`
+- [x] Keep hard-bound inputs enabled in both modes; disable only the Z-score input when Automatic mode is off `(Settings)`
 - [x] Save thresholds → `POST /api/v1/control/thresholds` `(Settings)`
 
 ### 4.7 Internationalization (i18n)
 
-- [x] Translation dictionary: `frontend/src/locales/en.json` `(i18n)`
-- [x] Translation provider: `LanguageContext.jsx` with `useTranslation()` hook `(i18n)`
-- [x] Vietnamese translation: `frontend/src/locales/vi.json` `(i18n)`
+- [ ] Translation dictionary: `frontend/src/locales/en.json` `(i18n)`
+- [ ] Translation provider: `LanguageContext.jsx` with `useTranslation()` hook `(i18n)`
+- [ ] Vietnamese translation: `frontend/src/locales/vi.json` `(i18n)`
 - [ ] Language switcher UI in Navbar or Settings `(i18n)`
 
 ### 4.8 Frontend Polish (Phase 5)
@@ -264,32 +285,36 @@ Use `[x]` for completed items, `[ ]` for pending.
 | Topic | Direction | QoS |
 |-------|-----------|-----|
 | `safebox/{deviceId}/telemetry` | ESP32 → Backend | 0 |
-| `safebox/{deviceId}/status` | ESP32 → Backend (LWT) | 1 (retained) |
+| `safebox/{deviceId}/status` | ESP32 → Backend | online QoS 0 retained; offline LWT QoS 1 retained |
 | `safebox/{deviceId}/control` | Backend → ESP32 | 1 |
-| `safebox/{deviceId}/alerts` | ESP32 → Backend | 1 |
+| `safebox/{deviceId}/alerts` | ESP32 → Backend | 0 |
 | `safebox/{deviceId}/config` | Backend → ESP32 (stretch) | 1 |
 
 ---
 
 ## 6. Documentation & Testing
 
+- [x] Clean generated/obsolete folders, resolve the interrupted merge consistently, and audit the complete project against `project_description.pdf` in `EVALUATE.md`
+
 ### 6.1 Documentation
 
+- [x] Add maintainable module/function/decision comments across firmware, backend, and frontend source code for code walkthrough and viva preparation
+- [x] Document the runtime WiFi switching flow, raw sensor payload contract, and MQ2 raw ADC warning bands in `README.md` and firmware documentation
 - [x] Update `README.md` with architecture diagram, setup instructions, env var reference, API summary, hardware pinout
 - [x] Add step-by-step MongoDB Atlas + EMQX Cloud connection guide to `FIRMWARE_INSTRUCTION.md`
 - [x] Remove obsolete LDR hardware and wiring references from `FIRMWARE_INSTRUCTION.md`
 - [x] Document the external EN/RST hardware reset button in `FIRMWARE_INSTRUCTION.md` and `README.md`
-- [ ] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
+- [x] Inline code comments on non-obvious logic (anomaly engine, MQTT handler, edge safety)
 
 ### 6.2 Integration Tests (TC-01 to TC-06)
 
 - [ ] **TC-01 (WiFi Provisioning)**: Captive portal `Safebox-AP` at `192.168.4.1`, NVS persistence, OLED IP
-- [x] **TC-02 (Telemetry Pipeline)**: 2s ESP32 → EMQX → MongoDB `sensor_readings`
+- [ ] **TC-02 (Telemetry Pipeline)**: save reproducible live evidence of 2s ESP32 → EMQX → MongoDB `sensor_readings`
 - [ ] **TC-03 (Edge Safety Autonomy)**: Offline gas breach < 200ms, no WiFi needed
 - [ ] **TC-04 (Z-Score Engine)**: Temp spike → Z > 3.0 → `anomaly_logs` + frontend alert
 - [ ] **TC-05 (Nodemailer)**: Email < 5s on CRITICAL anomaly; 15-min debounce verified
 - [ ] **TC-06 (Remote Override)**: Fan toggle on web → relay click < 500ms
-- [x] Add software regression coverage and firmware build verification for the MQ2 readiness contract and false-alert suppression
+- [x] Add software regression coverage and firmware build verification for the direct MQ2 ADC contract and invalid-sample false-alert suppression
 
 ### 6.3 Demonstration Preparation
 
@@ -304,7 +329,6 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Simplify non-obvious actuator-state and anomaly-engine code without changing system contracts
 - [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
 - [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
-- [ ] Merge the Thai Kiet viva, Q&A, code walkthrough, and demo guides into one polished, verified PDF handbook
 
 ### 6.5 User-Managed Email Alerts
 

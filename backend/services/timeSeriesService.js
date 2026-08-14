@@ -1,3 +1,8 @@
+/**
+ * Creates and verifies the MongoDB Time-Series collection before Mongoose writes
+ * telemetry. Collection options cannot be retrofitted safely by a normal schema,
+ * so incompatible deployments fail fast with a migration-oriented error.
+ */
 const COLLECTION_NAME = 'sensor_readings';
 const EXPIRE_AFTER_SECONDS = 30 * 24 * 60 * 60;
 const TIME_SERIES_OPTIONS = {
@@ -36,6 +41,7 @@ function validateCollectionOptions(collectionInfo) {
   }
 }
 
+/** Ensures collection creation/verification completes before telemetry producers start. */
 async function ensureSensorReadingsTimeSeries(db) {
   let collectionInfo = await db.listCollections({ name: COLLECTION_NAME }, { nameOnly: false }).next();
 
@@ -46,6 +52,7 @@ async function ensureSensorReadingsTimeSeries(db) {
         expireAfterSeconds: EXPIRE_AFTER_SECONDS
       });
     } catch (error) {
+      // Another backend instance may win the create race during a simultaneous deployment.
       if (error.codeName !== 'NamespaceExists' && error.code !== 48) throw error;
     }
 

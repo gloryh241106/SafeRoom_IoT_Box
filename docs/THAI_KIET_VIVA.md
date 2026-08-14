@@ -52,9 +52,9 @@ Ba ý cần nhấn mạnh:
 3. JWT được gắn vào request bởi `apiFetch()`.
 4. Backend kiểm tra `deviceId`, actuator và state.
 5. `mqttService.publishControlCommand()` publish JSON lên `safebox/{deviceId}/control`, QoS 1.
-6. `MqttClient` trên ESP32 parse payload rồi gọi callback `onControlMessage()` trong `main.cpp`.
-7. Callback định tuyến actuator `fan` sang module `Relay`; actuator lạ bị bỏ qua.
-8. `Relay::on()` hoặc `Relay::off()` ghi GPIO 16 theo cấu hình `RELAY_ACTIVE_LOW`.
+6. `firmware/src/connectivity/mqtt_client.cpp` parse payload và gọi callback điều khiển.
+7. `RemoteControl::handleCommand()` định tuyến actuator; nếu là `fan` thì gọi `FanRelay::set(state)`, actuator lạ bị bỏ qua.
+8. `FanRelay::set()` ghi GPIO 16 theo cấu hình `RELAY_ACTIVE_LOW`.
 9. Backend tạm ghi trạng thái yêu cầu để UI phản hồi nhanh; telemetry kế tiếp từ ESP32 xác nhận lại trạng thái thật.
 
 ### 4.2 Contract quan trọng
@@ -105,7 +105,7 @@ Sau khi broker nhận publish thành công, backend cập nhật requested state
 ### 4.6 Fail-safe của firmware
 
 - GPIO 16 được cấu hình OUTPUT khi khởi động.
-- `Relay::begin()` gọi `off()` nên fan mặc định OFF; với HL-52S active-low, mức boot là HIGH.
+- Firmware ghi mức OFF lên GPIO 16 trước khi chuyển chân sang OUTPUT; với HL-52S active-low, mức boot là HIGH.
 - JSON sai bị bỏ qua; actuator lạ không có handler. Backend chỉ publish state hợp lệ `on`/`off`.
 - Không có local auto-trigger cho fan ngoài yêu cầu backend, đúng phạm vi dự án.
 
@@ -151,7 +151,7 @@ Mẫu mới phải được so với baseline trước đó. Nếu đưa spike v
 
 - Nhiệt độ và độ ẩm là biến liên tục, phù hợp với phân tích độ lệch quanh baseline.
 - Motion là boolean, không có ý nghĩa Gaussian.
-- Gas là biến an toàn có ngưỡng cứng 600 PPM; chờ đủ 30 mẫu hoặc chờ Z-score có thể gây nguy hiểm.
+- Gas là biến an toàn có ngưỡng cứng 600 ADC index; chờ đủ 30 mẫu hoặc chờ Z-score có thể gây nguy hiểm.
 
 ### 5.5 Rule matrix thực tế
 
@@ -267,9 +267,9 @@ Nếu SMTP lỗi mà vẫn ghi thời điểm throttle, các lần retry tiếp 
 | CB-03 API | `backend/routes/control.js` | Validate request và gọi MQTT service |
 | CB-03 state | `backend/services/actuatorStateService.js` | Requested state và telemetry reconciliation |
 | CB-03 MQTT | `backend/services/mqttService.js` | Publish QoS 1 và nhận telemetry/status |
-| CB-03 firmware | `firmware/src/main.cpp` | Đăng ký callback và định tuyến actuator |
-| CB-03 MQTT parser | `firmware/src/mqtt/mqtt_client.cpp` | Subscribe control topic và parse JSON |
-| CB-03 relay | `firmware/src/actuators/relay.cpp` | Ghi GPIO 16 theo polarity cấu hình |
+| CB-03 MQTT firmware | `firmware/src/connectivity/mqtt_client.cpp` | Subscribe control topic và parse JSON |
+| CB-03 remote control | `firmware/src/features/remote_control.cpp` | Định tuyến lệnh actuator và bảo vệ safety override |
+| CB-03 fan relay | `firmware/src/actuators/fan_relay.cpp` | Ghi GPIO 16 theo polarity cấu hình |
 | NC-01 | `backend/services/anomalyEngine.js` | Z-score, rules, dedupe, actions |
 | NC-01 schema | `backend/models/Schemas.js` | Cấu trúc `anomaly_logs` |
 | NC-03 | `backend/services/timeSeriesService.js` | Tạo và verify Time Series collection |
@@ -313,7 +313,7 @@ Các mục này phải được đo bằng TC-02, TC-04, TC-05 và TC-06 với h
 ```text
 CB-03:
 React POST boolean -> backend validate -> MQTT on/off QoS 1
--> ESP32 MqttClient -> onControlMessage -> Relay -> GPIO 16
+-> ESP32 SafeboxMqttClient -> RemoteControl -> FanRelay -> GPIO 16
 Publish success != physical ACK; telemetry kế tiếp reconcile state.
 
 NC-01:
@@ -334,7 +334,7 @@ Throttle key=deviceId:sensorType, 15 phút.
 Chỉ ghi lastSent sau khi SMTP gửi thành công.
 
 MQ2 telemetry:
-48h burn-in -> stable clean-air Ro -> NVS -> 5m warm-up on later boots.
-Only ready has numeric gasLevel; preparing sends null + sensorStatus.
-100ms high-priority local task; raw fallback stays local, no fake email.
+Direct GPIO34 ADC index; gasLevel=gasRaw; gasUnit=adc_index, not PPM.
+gasValid means sample acquired, not electrical fault diagnosis; false suppresses backend gas rules.
+Priority-4 FreeRTOS task samples every 100ms and owns local buzzer/red LED/OLED transitions independently of networking.
 ```

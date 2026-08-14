@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global defaults are intentionally small; pages compose layout with utilities. */
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 min-h-screen;
@@ -9,6 +10,7 @@
   }
 }
 
+/* Shared surface token keeps cards consistent without a component abstraction. */
 .glass-card {
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgb(226 232 240);

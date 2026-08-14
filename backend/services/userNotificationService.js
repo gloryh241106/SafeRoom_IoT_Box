@@ -1,3 +1,8 @@
+/**
+ * Resolves persisted user notification preferences into a de-duplicated SMTP
+ * recipient list. Device ownership is not modelled, so enabled users currently
+ * subscribe to system-wide alerts.
+ */
 const { User } = require('../models/Schemas');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -21,6 +26,7 @@ async function getAlertRecipientResolution() {
     .map((user) => normalizeEmail(user.email));
 
   return {
+    // The caller uses this distinction to allow an env fallback only before any account exists.
     hasUsers: users.length > 0,
     recipients: [...new Set(recipients)]
   };

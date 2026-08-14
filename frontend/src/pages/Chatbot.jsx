@@ -1,3 +1,8 @@
+/**
+ * Conversation UI for the backend's deterministic keyword/intent router.
+ * It does not call an external LLM: the backend owns supported intents and
+ * returns Markdown plus optional structured context for each response.
+ */
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Send, Bot, User, Sparkles } from 'lucide-react';
@@ -23,6 +28,7 @@ export default function Chatbot() {
     'Help'
   ];
 
+  /** Send either a suggestion pill or the current input as one router query. */
   const handleSendMessage = async (textToSend) => {
     const text = textToSend || inputMessage;
     if (!text.trim() || loading) return;
@@ -77,7 +83,7 @@ export default function Chatbot() {
         <p className="text-sm text-slate-500">Natural language sentence query router for room safety & metrics</p>
       </div>
 
-      {/* Suggestion Pills */}
+      {/* Prompts mirror backend-supported intents and double as discoverability. */}
       <div className="flex flex-wrap gap-2">
         {promptPills.map((pill, idx) => (
           <button
@@ -90,9 +96,7 @@ export default function Chatbot() {
         ))}
       </div>
 
-      {/* Chat Conversation Box */}
       <div className="glass-card rounded-lg flex flex-col h-[520px]">
-        {/* Messages Scroll View */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
           {messages.map((msg, index) => (
             <div
@@ -117,6 +121,7 @@ export default function Chatbot() {
                 }`}
               >
                 <div className="prose max-w-none text-sm leading-relaxed">
+                  {/* ReactMarkdown escapes raw HTML by default while preserving formatting. */}
                   <ReactMarkdown>{msg.text}</ReactMarkdown>
                 </div>
 
@@ -144,7 +149,7 @@ export default function Chatbot() {
           )}
         </div>
 
-        {/* Input Controls */}
+        {/* Enter and the send button share the same guarded submission path. */}
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3 rounded-b-lg">
           <input
             type="text"

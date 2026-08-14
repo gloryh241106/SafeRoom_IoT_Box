@@ -1,3 +1,8 @@
+/**
+ * Top-level identity and session controls.
+ * Device health is intentionally owned by Overview; this bar only shows the
+ * configured device label and never claims that the ESP32 is currently online.
+ */
 import React from 'react';
 import { Shield, User, Wifi, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +23,7 @@ export default function Navbar({ user, onLogout }) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        {/* `safebox-01` is the coursework's configured device, not live LWT state. */}
         {user && (
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium">
             <Wifi className="w-3.5 h-3.5" />

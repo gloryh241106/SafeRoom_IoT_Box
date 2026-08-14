@@ -1,3 +1,4 @@
+/** Guards profile-setting updates against nested-document replacement and bad types. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');

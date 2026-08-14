@@ -1,3 +1,4 @@
+/** Covers safe creation and fail-fast verification of MongoDB Time-Series options. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

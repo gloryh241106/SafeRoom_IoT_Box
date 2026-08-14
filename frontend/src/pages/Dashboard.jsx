@@ -1,24 +1,51 @@
+/**
+ * Historical telemetry explorer and client-side CSV exporter.
+ * The API returns newest bounded samples in chronological order; the UI never
+ * recalibrates sensor values and represents invalid MQ-2 samples as chart gaps.
+ */
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../api';
+import {
+  MQ2_ADC_MAX,
+  MQ2_ADC_MIN,
+  getRawGasValue,
+  hasValidRawGasValue
+} from '../telemetryContract';
+
+const TIME_RANGE_MS = Object.freeze({
+  '1h': 60 * 60 * 1000,
+  '6h': 6 * 60 * 60 * 1000,
+  '24h': 24 * 60 * 60 * 1000,
+  '7d': 7 * 24 * 60 * 60 * 1000
+});
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
 
+  /** Request the selected wall-clock window; the API caps one response at 1000 samples. */
   const fetchHistoricalData = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/v1/telemetry/historical?limit=50`);
+      const to = new Date();
+      const from = new Date(to.getTime() - TIME_RANGE_MS[timeRange]);
+      const query = new URLSearchParams({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        limit: '1000'
+      });
+      const res = await apiFetch(`/api/v1/telemetry/historical?${query}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const formatted = json.data.map((item) => ({
+          timestamp: item.timestamp,
           time: new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           temperature: item.metrics.temperature,
           humidity: item.metrics.humidity,
-          gasLevel: Number.isFinite(item.metrics.gasLevel) ? item.metrics.gasLevel : null,
+          gasRaw: hasValidRawGasValue(item.metrics) ? getRawGasValue(item.metrics) : null
         }));
         setData(formatted);
       }
@@ -33,14 +60,15 @@ export default function Dashboard() {
     fetchHistoricalData();
   }, [timeRange]);
 
-  // CSV Data Export Feature
+  // Export exactly the samples currently graphed. Raw values are not rounded or
+  // converted, and invalid gas samples remain empty cells instead of zeroes.
   const handleExportCSV = () => {
     if (data.length === 0) return;
 
-    const headers = ['Time', 'Temperature (C)', 'Humidity (%)', 'Gas Level (PPM)'];
+    const headers = ['Timestamp', 'Temperature (C)', 'Humidity (%)', 'MQ2 Raw ADC (0-4095)'];
     const csvRows = [
       headers.join(','),
-      ...data.map((row) => [row.time, row.temperature, row.humidity, row.gasLevel ?? ''].join(','))
+      ...data.map((row) => [row.timestamp, row.temperature, row.humidity, row.gasRaw ?? ''].join(','))
     ];
 
     const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -54,7 +82,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header & Export controls */}
+      {/* Range buttons change the API from/to bounds, not merely the chart label. */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Historical Telemetry Charts</h2>
@@ -100,7 +128,6 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Temperature Chart */}
           <div className="glass-card p-5 rounded-lg space-y-4">
             <h3 className="text-sm font-semibold text-orange-600 uppercase tracking-wider">Temperature (°C)</h3>
             <div className="h-64">
@@ -116,7 +143,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Humidity Chart */}
           <div className="glass-card p-5 rounded-lg space-y-4">
             <h3 className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Humidity (%)</h3>
             <div className="h-64">
@@ -132,17 +158,17 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Gas Level Chart */}
+          {/* Fixed 12-bit domain makes the raw MQ-2 scale explicit across ranges. */}
           <div className="glass-card p-5 rounded-lg space-y-4">
-            <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wider">Gas / Smoke Level (PPM)</h3>
+            <h3 className="text-sm font-semibold text-red-600 uppercase tracking-wider">MQ-2 Raw ADC ({MQ2_ADC_MIN}–{MQ2_ADC_MAX})</h3>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="time" stroke="#64748b" tick={{ fontSize: 11 }} />
-                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={['auto', 'auto']} />
+                  <YAxis stroke="#64748b" tick={{ fontSize: 11 }} domain={[MQ2_ADC_MIN, MQ2_ADC_MAX]} />
                   <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#cbd5e1', borderRadius: '0.5rem', fontSize: '12px', color: '#0f172a' }} />
-                  <Line type="monotone" dataKey="gasLevel" stroke="#ef4444" strokeWidth={2} dot={false} />
+                  <Line type="monotone" dataKey="gasRaw" stroke="#ef4444" strokeWidth={2} dot={false} connectNulls={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>

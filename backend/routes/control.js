@@ -1,10 +1,16 @@
+/**
+ * Authenticated runtime control API. Fan commands cross the MQTT boundary;
+ * the buzzer and alert LED are edge-only outputs driven by the local gas
+ * alarm, so they are not remotely controllable. Armed state and thresholds
+ * remain backend process state.
+ */
 const express = require('express');
 const router = express.Router();
 const { getCurrentActuatorStates } = require('../services/actuatorStateService');
 const { setSystemArmed, isSystemArmed, getThresholds, updateThresholds } = require('../services/anomalyEngine');
 const { getMqttStatus, publishControlCommand } = require('../services/mqttService');
 
-const ALLOWED_ACTUATORS = new Set(['fan', 'buzzer', 'alertLed']);
+const ALLOWED_ACTUATORS = new Set(['fan']);
 
 function parseActuatorState(value) {
   if (typeof value === 'boolean') return value;
@@ -13,7 +19,6 @@ function parseActuatorState(value) {
   throw new TypeError("state must be a boolean or the string 'on'/'off'");
 }
 
-// GET /api/v1/control/thresholds — Get current safety thresholds
 router.get('/thresholds', (req, res) => {
   res.json({
     success: true,
@@ -21,7 +26,6 @@ router.get('/thresholds', (req, res) => {
   });
 });
 
-// POST /api/v1/control/thresholds — Update safety thresholds
 router.post('/thresholds', (req, res) => {
   try {
     const updated = updateThresholds(req.body);
@@ -35,7 +39,6 @@ router.post('/thresholds', (req, res) => {
   }
 });
 
-// POST /api/v1/control/actuator — Toggle actuators (fan, buzzer, alertLed)
 router.post('/actuator', async (req, res) => {
   try {
     const { deviceId = process.env.DEVICE_ID || 'safebox-01', actuator, state } = req.body;
@@ -45,6 +48,7 @@ router.post('/actuator', async (req, res) => {
     }
 
     if (actuator === 'systemArmed') {
+      // Armed state is a backend motion-rule switch, not a physical MQTT actuator.
       const targetState = parseActuatorState(state);
       setSystemArmed(targetState);
       return res.json({
@@ -75,7 +79,6 @@ router.post('/actuator', async (req, res) => {
   }
 });
 
-// GET /api/v1/control/status — Get actuator & armed states
 router.get('/status', (req, res) => {
   const deviceId = req.query.deviceId || process.env.DEVICE_ID || 'safebox-01';
   res.json({

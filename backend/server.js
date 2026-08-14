@@ -1,3 +1,8 @@
+/**
+ * Backend composition root. Importing this file constructs the Express app for
+ * tests without opening sockets; startServer owns external MongoDB, MQTT, SMTP,
+ * and HTTP lifecycle side effects.
+ */
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -26,17 +31,16 @@ const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/safebox';
 let httpServer = null;
 
-// Global Middleware
 app.use(cors());
 app.use(express.json());
 
-// Request logging middleware
+// Keep one request-level trace before route handling to correlate API and device demo logs.
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// Route Mounting
+// Authentication is applied at each protected prefix so individual route files cannot omit it.
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/telemetry', authenticateToken, telemetryRouter);
 app.use('/api/v1/control', authenticateToken, controlRouter);
@@ -44,7 +48,7 @@ app.use('/api/v1/anomalies', authenticateToken, anomaliesRouter);
 app.use('/api/v1/chatbot', authenticateToken, chatbotRouter);
 app.use('/api/v1/users', authenticateToken, usersRouter);
 
-// Health check endpoint
+// Health stays public for deployment probes and exposes connectivity state, never credentials.
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -57,6 +61,7 @@ app.get('/health', (req, res) => {
 async function startServer() {
   await mongoose.connect(MONGO_URI);
   console.log('[MongoDB] Connected successfully.');
+  // Verify collection semantics before the MQTT subscriber can ingest telemetry.
   const collectionStatus = await ensureSensorReadingsTimeSeries(mongoose.connection.db);
   console.log(
     `[MongoDB] ${collectionStatus.collection} verified as Time Series with ${collectionStatus.expireAfterSeconds}s retention.`
@@ -64,6 +69,7 @@ async function startServer() {
 
   setEmailRecipientProvider(async (config) => {
     const resolution = await getAlertRecipientResolution();
+    // An env recipient is bootstrap-only; existing users' opt-out choices take precedence.
     if (resolution.hasUsers) return resolution.recipients;
     return config.recipient ? [config.recipient] : [];
   });
@@ -85,6 +91,7 @@ async function startServer() {
 }
 
 async function stopServer() {
+  // Stop MQTT first so shutdown cannot enqueue work after connections begin closing.
   await stopMqttService();
   if (httpServer) {
     await new Promise((resolve, reject) => httpServer.close((error) => error ? reject(error) : resolve()));

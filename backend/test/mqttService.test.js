@@ -1,3 +1,4 @@
+/** Verifies real-mode MQTT startup without contacting an external broker. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');

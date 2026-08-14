@@ -1,3 +1,7 @@
+/**
+ * Idempotent demo-account seeder. Credentials are accepted only through the
+ * local environment so coursework/demo secrets never need to live in source.
+ */
 require('dotenv').config();
 
 const bcrypt = require('bcryptjs');
@@ -36,6 +40,7 @@ async function seedDemoUser() {
         $set: { email, passwordHash },
         $setOnInsert: { settings: { emailEnabled: true }, createdAt: new Date() }
       },
+      // Upsert makes repeated setup safe while schema validators protect stored settings.
       { upsert: true, runValidators: true }
     );
 

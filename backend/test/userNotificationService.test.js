@@ -1,3 +1,4 @@
+/** Verifies recipient normalization, deduplication, and persisted opt-out behavior. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

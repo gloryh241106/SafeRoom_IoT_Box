@@ -1,10 +1,14 @@
+/**
+ * Rule-based chatbot endpoint. Intent detection deliberately stays deterministic
+ * and reads the same persisted telemetry/runtime thresholds used by the dashboard;
+ * it does not call an external LLM.
+ */
 const express = require('express');
 const router = express.Router();
 const { SensorReading, AnomalyLog } = require('../models/Schemas');
+const { getThresholds } = require('../services/anomalyEngine');
 
-/**
- * Natural Language Sentence Intent Detection
- */
+// Order matters: sensor-specific terms must win before broad words such as "status".
 function detectIntent(message) {
   const text = message.toLowerCase().trim();
 
@@ -38,14 +42,10 @@ router.post('/query', async (req, res) => {
       case 'status': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
         if (!latest) {
-          reply = "System status: Device 'safebox-01' is initializing. No sensor readings recorded yet.";
+          reply = `System status: Device '${deviceId}' has no sensor readings recorded yet.`;
         } else {
           const { metrics, actuatorStates } = latest;
-          const gasReady = latest.sensorStatus?.gas?.ready !== false && Number.isFinite(metrics.gasLevel);
-          const gasText = gasReady
-            ? `${metrics.gasLevel} PPM (LPG estimate)`
-            : `Unavailable (${latest.sensorStatus?.gas?.state || 'sensor preparing'})`;
-          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• Gas Level: ${gasText}\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
+          reply = `🌐 **System Status Summary**:\n• Temp: ${metrics.temperature}°C | Humidity: ${metrics.humidity}%\n• MQ-2 Gas Index: ${metrics.gasValid === false ? 'invalid reading' : metrics.gasLevel}\n• Motion: ${metrics.motionDetected ? '🔴 Motion Detected!' : '🟢 Clear'}\n• Actuators: Fan (${actuatorStates.fanOn ? 'ON' : 'OFF'}), Buzzer (${actuatorStates.buzzerActive ? 'ACTIVE' : 'OFF'}), Alert LED (${actuatorStates.alertLedActive ? 'ON' : 'OFF'})`;
           dataPayload = latest;
         }
         break;
@@ -54,21 +54,35 @@ router.post('/query', async (req, res) => {
       case 'gas': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
         const lastGasAnomaly = await AnomalyLog.findOne({ deviceId, sensorType: 'gasLevel' }).sort({ timestamp: -1 });
-        const gasVal = latest?.metrics?.gasLevel;
-        const gasReady = latest?.sensorStatus?.gas?.ready !== false && Number.isFinite(gasVal);
+        const gasThreshold = getThresholds().gasMax;
+
+        if (!latest) {
+          reply = `💨 **Gas & Smoke Status**:\n• No MQ-2 telemetry has been recorded for device '${deviceId}' yet.`;
+          dataPayload = { currentGasLevel: null, lastAnomaly: lastGasAnomaly };
+          break;
+        }
+
+        const gasVal = latest.metrics.gasLevel;
         
-        reply = `💨 **Gas & Smoke Status**:\n• Current Gas Level: ${gasReady ? `${gasVal} PPM LPG estimate (threshold: 600 PPM)` : `Unavailable (${latest?.sensorStatus?.gas?.state || 'no ready sensor'})`}.\n` +
+        reply = `💨 **Gas & Smoke Status**:\n• Current MQ-2 gas index: ${latest?.metrics?.gasValid === false ? 'invalid reading' : gasVal} (ADC threshold: ${gasThreshold}).\n` +
           (lastGasAnomaly 
-            ? `• Last Gas Alert: Observed ${lastGasAnomaly.observedValue} PPM on ${new Date(lastGasAnomaly.timestamp).toLocaleString()} (Severity: ${lastGasAnomaly.severity}).`
+            ? `• Last Gas Alert: Observed index ${lastGasAnomaly.observedValue} on ${new Date(lastGasAnomaly.timestamp).toLocaleString()} (Severity: ${lastGasAnomaly.severity}).`
             : `• No historical gas anomalies detected.`);
-        dataPayload = { currentGasLevel: gasReady ? gasVal : null, gasSensor: latest?.sensorStatus?.gas, lastAnomaly: lastGasAnomaly };
+        dataPayload = { currentGasLevel: gasVal, lastAnomaly: lastGasAnomaly };
         break;
       }
 
       case 'motion': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
         const lastMotionAnomaly = await AnomalyLog.findOne({ deviceId, sensorType: 'motionDetected' }).sort({ timestamp: -1 });
-        const isMotion = latest ? latest.metrics.motionDetected : false;
+
+        if (!latest) {
+          reply = `🏃 **Motion Detection Status**:\n• No PIR telemetry has been recorded for device '${deviceId}' yet.`;
+          dataPayload = { currentMotion: null, lastAnomaly: lastMotionAnomaly };
+          break;
+        }
+
+        const isMotion = latest.metrics.motionDetected;
 
         reply = `🏃 **Motion Detection Status**:\n• Current PIR Sensor State: ${isMotion ? '🔴 Active Motion Detected' : '🟢 Idle / No Motion'}.\n` +
           (lastMotionAnomaly
@@ -80,18 +94,34 @@ router.post('/query', async (req, res) => {
 
       case 'temp': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
-        const tempVal = latest ? latest.metrics.temperature : 0;
 
-        reply = `🌡️ **Temperature Reading**:\n• Current Temperature: ${tempVal}°C.\n• Normal Range: 10°C – 45°C. High temperature threshold auto-triggers the DC Fan relay.`;
+        if (!latest) {
+          reply = `🌡️ **Temperature Reading**:\n• No temperature telemetry has been recorded for device '${deviceId}' yet.`;
+          dataPayload = { temperature: null };
+          break;
+        }
+
+        const tempVal = latest.metrics.temperature;
+        const { tempMin, tempMax } = getThresholds();
+
+        reply = `🌡️ **Temperature Reading**:\n• Current Temperature: ${tempVal}°C.\n• Configured Range: ${tempMin}°C – ${tempMax}°C. High temperature threshold auto-triggers the DC Fan relay.`;
         dataPayload = { temperature: tempVal };
         break;
       }
 
       case 'humidity': {
         const latest = await SensorReading.findOne({ deviceId }).sort({ timestamp: -1 });
-        const humVal = latest ? latest.metrics.humidity : 0;
 
-        reply = `💧 **Humidity Reading**:\n• Current Relative Humidity: ${humVal}%.\n• Normal Comfort Range: 30% – 80%.`;
+        if (!latest) {
+          reply = `💧 **Humidity Reading**:\n• No humidity telemetry has been recorded for device '${deviceId}' yet.`;
+          dataPayload = { humidity: null };
+          break;
+        }
+
+        const humVal = latest.metrics.humidity;
+        const { humidityMin, humidityMax } = getThresholds();
+
+        reply = `💧 **Humidity Reading**:\n• Current Relative Humidity: ${humVal}%.\n• Configured Range: ${humidityMin}% – ${humidityMax}%.`;
         dataPayload = { humidity: humVal };
         break;
       }
@@ -113,7 +143,7 @@ router.post('/query', async (req, res) => {
         if (intent === 'unknown') {
           reply = `🤖 I parsed your message, but I wasn't completely sure of your intent.\n\nHere are some questions you can ask me:\n• *"What is the current system status?"*\n• *"Is there any gas leak or smoke?"*\n• *"Has any motion been detected?"*\n• *"How hot is the temperature right now?"*\n• *"What is the humidity level?"*\n• *"Show me all unresolved anomalies."*`;
         } else {
-          reply = `💡 **Safebox Assistant Commands & Intent Guide**:\nYou can ask me full natural sentences! Supported topics:\n• **Status**: Ask about overall room condition, actuators, or system state.\n• **Gas / Smoke**: Inquire about gas PPM levels and smoke alarms.\n• **Motion**: Check PIR sensor motion triggers.\n• **Temperature / Humidity**: Inquire about environmental climate levels.\n• **Anomalies**: Ask for active security alarms or threshold breaches.`;
+          reply = `💡 **Safebox Assistant Commands & Intent Guide**:\nYou can ask me full natural sentences! Supported topics:\n• **Status**: Ask about overall room condition, actuators, or system state.\n• **Gas / Smoke**: Inquire about the MQ-2 ADC gas index and smoke alarms.\n• **Motion**: Check PIR sensor motion triggers.\n• **Temperature / Humidity**: Inquire about environmental climate levels.\n• **Anomalies**: Ask for active security alarms or threshold breaches.`;
         }
         break;
       }

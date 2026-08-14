@@ -1,3 +1,8 @@
+/**
+ * Authentication routes and the shared JWT guard. Password hashes never appear
+ * in API responses, and protected routers receive only the signed user identity in
+ * req.user instead of trusting ids supplied in request bodies.
+ */
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -7,7 +12,7 @@ const { normalizeEmail } = require('../services/userNotificationService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'safebox_secret_key_2026_hcmus';
 
-// Middleware to authenticate JWT token
+// Accept only the conventional "Bearer <token>" position; verification enforces signature and expiry.
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -20,7 +25,7 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// POST /api/v1/auth/register
+// Registration normalizes email before uniqueness lookup so case variants cannot create duplicates.
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -59,7 +64,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// POST /api/v1/auth/login
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -89,7 +93,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/v1/auth/me
 router.get('/me', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-passwordHash');

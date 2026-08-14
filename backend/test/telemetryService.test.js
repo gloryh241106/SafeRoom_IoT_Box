@@ -1,3 +1,4 @@
+/** Regression coverage for the MQTT telemetry/edge-alert trust boundary. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -5,6 +6,7 @@ const { validateTelemetryPayload } = require('../services/telemetryService');
 const { SensorReading } = require('../models/Schemas');
 const { getCurrentActuatorStates, synchronizeActuatorStates } = require('../services/actuatorStateService');
 const { handleMqttMessage, parseTopic, validateEdgeAlert } = require('../services/mqttService');
+const { MQ2_ADC_MAX, MQ2_UNIT } = require('../config/sensorContract');
 
 function validPayload() {
   return {
@@ -14,6 +16,9 @@ function validPayload() {
       temperature: 28.5,
       humidity: 65.2,
       gasLevel: 180,
+      gasRaw: 180,
+      gasValid: true,
+      gasUnit: MQ2_UNIT,
       lightIntensity: 450,
       motionDetected: false
     },
@@ -29,44 +34,73 @@ test('normalizes a complete ESP32 telemetry payload', () => {
   const normalized = validateTelemetryPayload(validPayload(), 'safebox-01');
   assert.equal(normalized.deviceId, 'safebox-01');
   assert.equal(normalized.metrics.lightIntensity, 450);
-  assert.deepEqual(normalized.sensorStatus.gas, { state: 'ready', ready: true });
   assert.ok(normalized.timestamp instanceof Date);
 });
 
-test('accepts unavailable gas PPM only while the MQ2 is preparing', () => {
+test('preserves the MQ2 direct ADC index, raw value, and validity flag', () => {
   const payload = validPayload();
-  payload.metrics.gasLevel = null;
-  payload.sensorStatus = {
-    gas: {
-      state: 'warming_up',
-      ready: false,
-      adcRaw: 1840,
-      adcMillivolts: 1120,
-      sourceMillivolts: 2240,
-      burnInRemainingSeconds: 0
-    }
-  };
+  payload.metrics.gasLevel = 642;
+  payload.metrics.gasRaw = 642;
+  payload.metrics.gasValid = true;
+  payload.metrics.gasUnit = 'adc_index';
 
   const normalized = validateTelemetryPayload(payload, 'safebox-01');
-  assert.equal(normalized.metrics.gasLevel, null);
-  assert.equal(normalized.sensorStatus.gas.state, 'warming_up');
-  assert.equal(normalized.sensorStatus.gas.adcMillivolts, 1120);
+  assert.equal(normalized.metrics.gasLevel, 642);
+  assert.equal(normalized.metrics.gasRaw, 642);
+  assert.equal(normalized.metrics.gasValid, true);
+  assert.equal(normalized.metrics.gasUnit, 'adc_index');
 });
 
-test('rejects contradictory MQ2 readiness and PPM fields', () => {
-  const readyWithoutPpm = validPayload();
-  readyWithoutPpm.metrics.gasLevel = null;
-  readyWithoutPpm.sensorStatus = { gas: { state: 'ready', ready: true } };
+test('keeps legacy documents without gasRaw valid at the Mongoose boundary', () => {
+  const payload = validPayload();
+  delete payload.metrics.gasRaw;
+  const normalized = validateTelemetryPayload(payload, 'safebox-01');
+  const document = new SensorReading(normalized);
+
+  assert.equal(document.metrics.gasRaw, null);
+  assert.equal(document.validateSync(), undefined);
+});
+
+test('rejects conflicting MQ2 alias values in one telemetry snapshot', () => {
+  const payload = validPayload();
+  payload.metrics.gasLevel = 642;
+  payload.metrics.gasRaw = 671;
+
   assert.throws(
-    () => validateTelemetryPayload(readyWithoutPpm, 'safebox-01'),
-    /gasLevel must be a finite number when the gas sensor is ready/
+    () => validateTelemetryPayload(payload, 'safebox-01'),
+    /gasRaw must equal metrics\.gasLevel/
+  );
+});
+
+test('rejects MQ2 telemetry outside the ESP32 12-bit ADC range', () => {
+  const gasLevelOverflow = validPayload();
+  gasLevelOverflow.metrics.gasLevel = MQ2_ADC_MAX + 1;
+  assert.throws(
+    () => validateTelemetryPayload(gasLevelOverflow, 'safebox-01'),
+    /gasLevel must be an integer between 0 and 4095/
   );
 
-  const warmingWithPpm = validPayload();
-  warmingWithPpm.sensorStatus = { gas: { state: 'warming_up', ready: false } };
+  const gasRawOverflow = validPayload();
+  gasRawOverflow.metrics.gasRaw = MQ2_ADC_MAX + 1;
   assert.throws(
-    () => validateTelemetryPayload(warmingWithPpm, 'safebox-01'),
-    /gasLevel must be null while the gas sensor is not ready/
+    () => validateTelemetryPayload(gasRawOverflow, 'safebox-01'),
+    /gasRaw must be an integer between 0 and 4095/
+  );
+});
+
+test('rejects fractional MQ2 ADC samples in either compatibility field', () => {
+  const fractionalLevel = validPayload();
+  fractionalLevel.metrics.gasLevel = 600.5;
+  assert.throws(
+    () => validateTelemetryPayload(fractionalLevel, 'safebox-01'),
+    /gasLevel must be an integer/
+  );
+
+  const fractionalRaw = validPayload();
+  fractionalRaw.metrics.gasRaw = 180.25;
+  assert.throws(
+    () => validateTelemetryPayload(fractionalRaw, 'safebox-01'),
+    /gasRaw must be an integer/
   );
 });
 
@@ -89,12 +123,13 @@ test('parses only registered SafeRoom MQTT topics', () => {
   assert.throws(() => parseTopic('other/safebox-01/telemetry'), /Unsupported MQTT topic/);
 });
 
-test('accepts only gas edge-safety alerts with finite values', () => {
+test('accepts only coherent integer gas edge-safety alerts in ADC units', () => {
   const alert = validateEdgeAlert({
     type: 'EDGE_SAFETY_TRIGGER',
     sensorType: 'gasLevel',
     observedValue: 720,
     threshold: 600,
+    unit: MQ2_UNIT,
     timestamp: 1785974400000
   }, 'safebox-01');
   assert.equal(alert.deviceId, 'safebox-01');
@@ -104,16 +139,56 @@ test('accepts only gas edge-safety alerts with finite values', () => {
     type: 'EDGE_SAFETY_TRIGGER',
     sensorType: 'temperature',
     observedValue: 48,
-    threshold: 45
+    threshold: 45,
+    unit: MQ2_UNIT
   }, 'safebox-01'), /sensorType must be gasLevel/);
 
   assert.throws(() => validateEdgeAlert({
     type: 'EDGE_SAFETY_TRIGGER',
     sensorType: 'gasLevel',
-    observedValue: 1800,
-    threshold: 1500,
-    calibrated: false
-  }, 'safebox-01'), /uncalibrated gas alerts must remain local/);
+    observedValue: MQ2_ADC_MAX + 1,
+    threshold: 600,
+    unit: MQ2_UNIT
+  }, 'safebox-01'), /0 to 4095/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 720.5,
+    threshold: 600,
+    unit: MQ2_UNIT
+  }, 'safebox-01'), /observedValue must be an integer/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 720,
+    threshold: 600.5,
+    unit: MQ2_UNIT
+  }, 'safebox-01'), /threshold must be an integer/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 600,
+    threshold: 600,
+    unit: MQ2_UNIT
+  }, 'safebox-01'), /observedValue must be greater than threshold/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 720,
+    threshold: 600,
+    unit: 'ppm'
+  }, 'safebox-01'), /unit must be exactly 'adc_index'/);
+
+  assert.throws(() => validateEdgeAlert({
+    type: 'EDGE_SAFETY_TRIGGER',
+    sensorType: 'gasLevel',
+    observedValue: 720,
+    threshold: 600
+  }, 'safebox-01'), /unit must be exactly 'adc_index'/);
 });
 
 test('synchronizes actuator status from confirmed device telemetry', async () => {

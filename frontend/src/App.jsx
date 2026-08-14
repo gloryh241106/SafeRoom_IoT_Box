@@ -1,3 +1,8 @@
+/**
+ * Application shell and authentication state machine.
+ * Page components own domain data; this layer only controls session validation,
+ * protected routing, and the shared navigation frame.
+ */
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
@@ -9,6 +14,7 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
+/** Keep redirect policy in one place so every private route fails closed. */
 function ProtectedRoute({ authenticated, children }) {
   return authenticated ? children : <Navigate to="/login" replace />;
 }
@@ -25,6 +31,8 @@ export default function App() {
       return undefined;
     }
 
+    // A stored token is only a credential candidate. `/auth/me` must confirm it
+    // before private UI is rendered, and abort prevents updates after teardown.
     const controller = new AbortController();
     setAuthChecking(true);
 
@@ -51,6 +59,7 @@ export default function App() {
   }, [token]);
 
   const handleLoginSuccess = (newToken, userData) => {
+    // Persist first so page-level apiFetch calls made after navigation see it.
     localStorage.setItem('safebox_token', newToken);
     setToken(newToken);
     setUser(userData);

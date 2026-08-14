@@ -1,3 +1,4 @@
+/** Exercises JWT protection at every non-public API prefix. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
