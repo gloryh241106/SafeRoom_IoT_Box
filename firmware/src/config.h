@@ -29,6 +29,8 @@ constexpr uint8_t WIFI_CONNECT_TIMEOUT_SECONDS = 5;
 // Non-blocking task intervals in milliseconds.
 constexpr uint32_t SENSOR_TELEMETRY_INTERVAL_MS = 2000;
 constexpr uint32_t MQTT_RECONNECT_INTERVAL_MS = 3000;
+constexpr uint32_t NTP_STATUS_LOG_INTERVAL_MS = 5000;
+constexpr uint32_t NTP_MIN_VALID_UNIX_TIME = 1609459200;  // 2021-01-01 UTC
 constexpr uint32_t GAS_SAMPLE_INTERVAL_MS = 50;
 // A cold MQ2 heater outputs a near-max ADC value for tens of seconds, so
 // alarm decisions are suppressed (and readings marked invalid) until 30 s.

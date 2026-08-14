@@ -39,9 +39,43 @@ uint32_t lastTelemetryMs = 0;
 uint32_t lastAlertAttemptMs = 0;
 uint16_t pendingAlertRaw = 0;
 bool alertPending = false;
-bool timeConfigured = false;
+bool ntpStarted = false;
+bool timeReady = false;
+uint32_t lastNtpStatusLogMs = 0;
 bool gasAlarmObserved = false;
 bool previousGasAlarm = false;
+
+/**
+ * Starts SNTP after WiFi association and waits for a certificate-safe epoch.
+ * Merely calling configTime() is not enough because synchronization is async.
+ */
+void updateNetworkTime(uint32_t nowMs) {
+    if (!wifi.connected()) {
+        ntpStarted = false;
+        timeReady = false;
+        return;
+    }
+
+    if (!ntpStarted) {
+        configTime(0, 0, "pool.ntp.org", "time.google.com",
+                   "time.cloudflare.com");
+        ntpStarted = true;
+        lastNtpStatusLogMs = nowMs;
+        SAFEBOX_LOG_LN("[Time] NTP sync requested; MQTTS paused");
+    }
+
+    const time_t currentTime = time(nullptr);
+    if (!timeReady
+        && currentTime >= static_cast<time_t>(NTP_MIN_VALID_UNIX_TIME)) {
+        timeReady = true;
+        SAFEBOX_LOGF("[Time] NTP synchronized, epoch=%lld\n",
+                     static_cast<long long>(currentTime));
+    } else if (!timeReady
+               && nowMs - lastNtpStatusLogMs >= NTP_STATUS_LOG_INTERVAL_MS) {
+        lastNtpStatusLogMs = nowMs;
+        SAFEBOX_LOG_LN("[Time] Waiting for valid NTP time; MQTTS paused");
+    }
+}
 
 /**
  * Selects OLED content for the current network state.
@@ -172,13 +206,10 @@ void loop() {
     if (wifi.takeConnectionChanged()) {
         actuators.setStatusLed(wifi.connected());
         showNetworkStatus();
-        if (wifi.connected() && !timeConfigured) {
-            configTime(0, 0, "pool.ntp.org");
-            timeConfigured = true;
-        }
     }
 
-    mqtt.update(wifi.connected());
+    updateNetworkTime(now);
+    mqtt.update(wifi.connected() && timeReady);
     publishPendingGasAlert(now);
     readSensorsAndPublish(now);
 

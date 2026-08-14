@@ -1,0 +1,3009 @@
+\documentclass[11pt,oneside,openany]{book}
+
+\usepackage[a4paper,left=18mm,right=18mm,top=22mm,bottom=19mm,headheight=21pt]{geometry}
+\usepackage{fontspec}
+\setmainfont{Arial}
+\setsansfont{Arial}
+\setmonofont{Consolas}[Scale=0.88]
+
+\usepackage[table]{xcolor}
+\definecolor{PageBg}{HTML}{0B1F33}
+\definecolor{PageBgSoft}{HTML}{102A43}
+\definecolor{Panel}{HTML}{153B4A}
+\definecolor{PanelAlt}{HTML}{16324A}
+\definecolor{BodyText}{HTML}{F4F8FB}
+\definecolor{MutedText}{HTML}{B8CDD9}
+\definecolor{Accent}{HTML}{34D1BF}
+\definecolor{AccentTwo}{HTML}{F6AE2D}
+\definecolor{RuleColor}{HTML}{315872}
+\pagecolor{PageBg}
+\color{BodyText}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{longtable,booktabs,array,calc}
+\newcounter{none}
+\usepackage{etoolbox}
+\usepackage{enumitem}
+\usepackage{fancyvrb}
+\usepackage{fvextra}
+\usepackage{framed}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage[unicode,colorlinks=true,linkcolor=Accent,urlcolor=Accent,citecolor=Accent]{hyperref}
+\usepackage{bookmark}
+\hypersetup{
+  pdftitle={Cẩm nang Thái Kiệt - SafeRoom IoT Box},
+  pdfauthor={SafeRoom IoT Box},
+  pdfsubject={CB-03, NC-01, NC-03, NC-05}
+}
+\renewcommand{\contentsname}{Mục lục}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt plus 1pt minus 1pt}
+\setlength{\emergencystretch}{3em}
+\renewcommand{\arraystretch}{1.25}
+\let\originaltexttt\texttt
+\renewcommand{\texttt}[1]{{\ttfamily\small #1}}
+\setcounter{secnumdepth}{-1}
+\setcounter{tocdepth}{1}
+
+\titleformat{\chapter}[display]
+  {\sffamily\bfseries\color{BodyText}}
+  {\color{Accent}\large PHẦN}
+  {4pt}
+  {\Huge}
+  [\vspace{4pt}{\color{AccentTwo}\titlerule[1.2pt]}]
+\titlespacing*{\chapter}{0pt}{-8pt}{22pt}
+\titleformat{\section}{\sffamily\bfseries\Large\color{Accent}}{}{0pt}{}
+\titleformat{\subsection}{\sffamily\bfseries\large\color{AccentTwo}}{}{0pt}{}
+\titleformat{\subsubsection}{\sffamily\bfseries\normalsize\color{Accent}}{}{0pt}{}
+\titlespacing*{\section}{0pt}{15pt}{5pt}
+\titlespacing*{\subsection}{0pt}{11pt}{4pt}
+\titlespacing*{\subsubsection}{0pt}{9pt}{3pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\sffamily\bfseries\scriptsize\color{MutedText} CẨM NANG THÁI KIỆT}
+\fancyhead[R]{\sffamily\scriptsize\color{MutedText} SAFEROOM IOT BOX}
+\fancyfoot[L]{\sffamily\scriptsize\color{MutedText} CB-03 \textbullet{} NC-01 \textbullet{} NC-03 \textbullet{} NC-05}
+\fancyfoot[R]{\sffamily\bfseries\color{Accent}\thepage}
+\renewcommand{\headrulewidth}{0.35pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{RuleColor}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{\pagestyle{fancy}}
+
+\setlist[itemize]{leftmargin=5mm,itemsep=2pt,topsep=3pt,label=\textcolor{Accent}{\textbullet}}
+\setlist[enumerate]{leftmargin=6mm,itemsep=2pt,topsep=3pt,label=\textcolor{Accent}{\arabic*.}}
+
+\AtBeginEnvironment{longtable}{\small\color{BodyText}\rowcolors{2}{PageBgSoft}{PanelAlt}}
+\AtBeginEnvironment{tabular}{\small\color{BodyText}}
+\arrayrulecolor{RuleColor}
+\colorlet{tablehead}{Accent}
+\let\oldtoprule\toprule
+\renewcommand{\toprule}{\arrayrulecolor{Accent}\oldtoprule\arrayrulecolor{RuleColor}}
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{35,38,41}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.58,0.85,0.30}{\textbf{\colorbox[rgb]{0.30,0.12,0.14}{#1}}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.25,0.50,0.35}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.16,0.50,0.73}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.96,0.45,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.50,0.55,0.55}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.24,0.68,0.91}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.48,0.49,0.49}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.50,0.55,0.55}{#1}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.15,0.68,0.68}{\textbf{#1}}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.99,0.74,0.29}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.16,0.50,0.73}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.96,0.45,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.64,0.20,0.25}{#1}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.85,0.27,0.33}{\underline{#1}}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.60,1.00}{\textbf{#1}}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.96,0.45,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.56,0.27,0.68}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.15,0.68,0.38}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.77,0.36,0.00}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.81,0.81,0.76}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.81,0.81,0.76}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.81,0.76}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.15,0.68,0.38}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.15,0.68,0.38}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.16,0.50,0.73}{\colorbox[rgb]{0.08,0.19,0.26}{#1}}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.24,0.68,0.91}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.85,0.27,0.33}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.96,0.31,0.31}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.15,0.68,0.68}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.85,0.27,0.33}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.85,0.27,0.33}{#1}}
+\definecolor{shadecolor}{HTML}{183846}
+\renewenvironment{Shaded}{%
+  \def\FrameCommand{\fboxsep=8pt\colorbox{shadecolor}}%
+  \MakeFramed{\advance\hsize-\width\FrameRestore}%
+}{\endMakeFramed}
+\fvset{breaklines=true,breakanywhere=true,fontsize=\small}
+
+\renewenvironment{quote}{%
+  \def\FrameCommand{\hspace{1pt}{\color{Accent}\vrule width 3pt}\hspace{9pt}}%
+  \MakeFramed{\advance\hsize-\width\FrameRestore}%
+  \color{MutedText}\itshape
+}{\endMakeFramed}
+
+\providecommand{\tightlist}{\setlength{\itemsep}{1pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+\providecommand{\passthrough}[1]{#1}
+\newcommand{\sectionbreak}{\clearpage}
+
+\begin{document}
+
+\begin{titlepage}
+\pagecolor{PageBgSoft}
+\thispagestyle{empty}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[Accent!45!PageBgSoft] (current page.north east) circle (42mm);
+  \fill[Accent!15!PageBgSoft] (current page.south west) circle (34mm);
+\end{tikzpicture}
+\vspace*{37mm}
+\begin{center}
+  {\sffamily\bfseries\color{AccentTwo}\large SAFEROOM IOT BOX\par}
+  \vspace{8mm}
+  {\sffamily\bfseries\color{BodyText}\fontsize{30}{35}\selectfont CẨM NANG THÁI KIỆT\par}
+  \vspace{5mm}
+  {\sffamily\color{MutedText}\Large Vấn đáp - Q\&A - Code walkthrough - Kịch bản demo\par}
+  \vspace{18mm}
+  {\color{Accent}\rule{0.68\textwidth}{1.1pt}\par}
+  \vspace{8mm}
+  {\sffamily\bfseries\color{BodyText}\large CB-03 \quad NC-01 \quad NC-03 \quad NC-05\par}
+  \vspace{26mm}
+  {\sffamily\color{MutedText}\large
+   Điều khiển quạt \textbullet{} Anomaly engine \textbullet{} MongoDB Time Series\par
+   Email cảnh báo và throttle 15 phút\par}
+\end{center}
+\vfill
+\begin{center}
+  {\sffamily\small\color{MutedText} Tài liệu hợp nhất từ bốn hướng dẫn trong thư mục \texttt{docs}\par}
+\end{center}
+\end{titlepage}
+
+\pagecolor{PageBg}
+\thispagestyle{empty}
+\chapter*{Cách dùng cẩm nang}
+\addcontentsline{toc}{chapter}{Cách dùng cẩm nang}
+Tài liệu được sắp theo bốn nhịp học: hiểu kiến trúc và câu trả lời cốt lõi; luyện 80 câu hỏi; theo dấu code; cuối cùng là chạy demo và xử lý lỗi. Hãy hiểu luồng dữ liệu trước, nhớ contract và giới hạn sau, rồi mới học vị trí file.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.45}
+\begin{tabular}{>{\bfseries\color{Accent}}p{0.34\textwidth}p{0.56\textwidth}}
+Ôn nhanh trước vấn đáp & Đọc Phần I và cheat sheet cuối phần.\\
+Luyện phản biện & Đọc Phần II - 80 câu hỏi và trả lời.\\
+Chuẩn bị mở code & Đọc Phần III - Code walkthrough.\\
+Chuẩn bị demo & Đọc Phần IV - Kịch bản demo.\\
+\end{tabular}
+\end{center}
+
+\clearpage
+\thispagestyle{empty}
+\tableofcontents
+\clearpage
+\setcounter{page}{1}
+
+\chapter{Cẩm nang vấn đáp phần Thái
+Kiệt}\label{cux1ea9m-nang-vux1ea5n-ux111uxe1p-phux1ea7n-thuxe1i-kiux1ec7t}
+
+Tài liệu này bám theo proposal của nhóm và phiên bản code hiện tại của
+SafeRoom IoT Box. Mục tiêu là giúp Thái Kiệt giải thích đúng phần mình
+phụ trách, chỉ được code liên quan, nói rõ giới hạn và đưa ra bằng chứng
+kiểm thử.
+
+\section{1. Phạm vi phụ trách}\label{1-phux1ea1m-vi-phux1ee5-truxe1ch}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1200}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2600}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1400}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4300}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+ID
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Chức năng
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Điểm trong proposal
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Phần cần nắm chắc
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+CB-03 & Điều khiển quạt từ Website & 4.0 & React -\textgreater{} REST
+API -\textgreater{} MQTT QoS 1 -\textgreater{} ESP32 -\textgreater{}
+relay GPIO 16 \\
+NC-01 & Phát hiện dữ liệu bất thường bằng Z-score & 2.0 & Rolling window
+N=30, Z-score, hard rules, dedupe, hành động tự động \\
+NC-03 & Lưu dữ liệu cảm biến theo thời gian & 1.5 & MongoDB Time Series,
+schema, ingestion, retention 30 ngày, historical query \\
+NC-05 & Cảnh báo tự động qua Email & 1.0 & Nodemailer, HIGH/CRITICAL,
+HTML template, throttle 15 phút \\
+\end{longtable}
+}
+
+Phần của Kiệt đi xuyên nhiều tầng. Không nên trả lời ``em chỉ làm
+backend''. Câu trả lời chính xác hơn:
+
+\begin{quote}
+Em phụ trách thiết kế và tích hợp bốn luồng CB-03, NC-01, NC-03 và
+NC-05. Trọng tâm code của em nằm ở backend, nhưng CB-03 còn có phần gọi
+API ở React và phần nhận lệnh MQTT trên ESP32. Em cũng viết test để
+chứng minh các tầng nối với nhau đúng contract.
+\end{quote}
+
+\section{2. Câu giới thiệu 30
+giây}\label{2-cuxe2u-giux1edbi-thiux1ec7u-30-giuxe2y}
+
+\begin{quote}
+Phần của em nhận telemetry từ ESP32 qua MQTT, kiểm tra và lưu vào
+MongoDB Time Series. Sau khi lưu, anomaly engine áp dụng hard rule cho
+gas và motion, còn nhiệt độ và độ ẩm có rolling Z-score N=30. Khi có
+anomaly HIGH hoặc CRITICAL, backend có thể bật quạt qua MQTT và gửi
+email, trong đó email được giới hạn một lần mỗi 15 phút theo từng cặp
+thiết bị và loại cảm biến. Với CB-03, người dùng bật quạt trên React,
+backend publish lệnh QoS 1, ESP32 nhận JSON và đổi GPIO 16.
+\end{quote}
+
+\section{3. Sơ đồ tổng thể phần
+Kiệt}\label{3-sux1a1-ux111ux1ed3-tux1ed5ng-thux1ec3-phux1ea7n-kiux1ec7t}
+
+\begin{center}
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=7mm and 6mm,
+  box/.style={draw=Accent,rounded corners=2mm,fill=Panel,text=BodyText,
+              align=center,font=\sffamily\bfseries\scriptsize,
+              minimum height=9mm,minimum width=25mm},
+  flow/.style={-{Stealth[length=2.3mm]},draw=MutedText,thick},
+  label/.style={font=\sffamily\bfseries\scriptsize,text=Accent}
+]
+\node[label] (controltitle) {LUỒNG ĐIỀU KHIỂN};
+\node[box,below=3mm of controltitle] (ui) {React\\Overview};
+\node[box,right=of ui] (api) {Express\\Backend};
+\node[box,right=of api] (broker) {EMQX\\Broker};
+\node[box,right=of broker] (esp) {ESP32};
+\node[box,right=of esp] (relay) {Relay +\\DC Fan};
+\draw[flow] (ui) -- (api);
+\draw[flow] (api) -- (broker);
+\draw[flow] (broker) -- (esp);
+\draw[flow] (esp) -- (relay);
+
+\node[label,below=17mm of ui] (datatitle) {LUỒNG TELEMETRY VÀ PHÂN TÍCH};
+\node[box,below=3mm of datatitle] (esp2) {ESP32};
+\node[box,right=of esp2] (broker2) {EMQX};
+\node[box,right=of broker2] (ingest) {Validate +\\ingest};
+\node[box,right=of ingest] (mongo) {MongoDB\\Time Series};
+\node[box,right=of mongo] (engine) {Anomaly\\Engine};
+\draw[flow] (esp2) -- (broker2);
+\draw[flow] (broker2) -- (ingest);
+\draw[flow] (ingest) -- (mongo);
+\draw[flow] (mongo) -- (engine);
+
+\node[box,below=14mm of ingest,minimum width=31mm,draw=AccentTwo] (log) {anomaly\_logs};
+\node[box,right=9mm of log,minimum width=34mm,draw=AccentTwo] (mail) {Email\\HIGH / CRITICAL};
+\node[box,right=9mm of mail,minimum width=34mm,draw=AccentTwo] (mqtt) {MQTT\\fan command};
+\draw[flow] (engine) -- (log);
+\draw[flow] (engine) -- (mail);
+\draw[flow] (engine) -- (mqtt);
+\end{tikzpicture}
+}
+\end{center}
+
+Ba ý cần nhấn mạnh:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  MQTT tách backend khỏi ESP32, vì vậy web không điều khiển GPIO trực
+  tiếp.
+\item
+  Telemetry được validate trước khi lưu và trước khi chạy anomaly
+  engine.
+\item
+  Gas vẫn có cảnh báo cục bộ trên ESP32; backend không được xem là lớp
+  an toàn duy nhất.
+\end{enumerate}
+
+\section{4. CB-03 - Điều khiển quạt từ
+Website}\label{4-cb-03---ux111iux1ec1u-khiux1ec3n-quux1ea1t-tux1eeb-website}
+
+\subsection{4.1 Luồng xử lý}\label{41-luux1ed3ng-xux1eed-luxfd}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Người dùng nhấn nút fan trên \texttt{Overview.jsx}.
+\item
+  Frontend đảo trạng thái hiện tại và gửi
+  \nolinkurl{POST /api/v1/control/actuator}.
+\item
+  JWT được gắn vào request bởi \texttt{apiFetch()}.
+\item
+  Backend kiểm tra \texttt{deviceId}, actuator và state.
+\item
+  \texttt{mqttService.publishControlCommand()} publish JSON lên
+  \nolinkurl{safebox/{deviceId}/control}, QoS 1.
+\item
+  \texttt{MqttClient} trên ESP32 parse payload rồi gọi callback
+  \texttt{onControlMessage()} trong \texttt{main.cpp}.
+\item
+  Callback định tuyến actuator \texttt{fan} sang module \texttt{Relay};
+  actuator lạ bị bỏ qua.
+\item
+  \texttt{Relay::on()} hoặc \texttt{Relay::off()} ghi GPIO 16 theo cấu
+  hình \texttt{RELAY\_ACTIVE\_LOW}.
+\item
+  Backend tạm ghi trạng thái yêu cầu để UI phản hồi nhanh; telemetry kế
+  tiếp từ ESP32 xác nhận lại trạng thái thật.
+\end{enumerate}
+
+\subsection{4.2 Contract quan trọng}\label{42-contract-quan-trux1ecdng}
+
+Request từ frontend:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"deviceId"}\FunctionTok{:} \StringTok{"safebox{-}01"}\FunctionTok{,}
+  \DataTypeTok{"actuator"}\FunctionTok{:} \StringTok{"fan"}\FunctionTok{,}
+  \DataTypeTok{"state"}\FunctionTok{:} \KeywordTok{true}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+MQTT command gửi xuống ESP32:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"actuator"}\FunctionTok{:} \StringTok{"fan"}\FunctionTok{,}
+  \DataTypeTok{"state"}\FunctionTok{:} \StringTok{"on"}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Topic:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{safebox/safebox{-}01/control}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{4.3 Vì sao REST dùng boolean nhưng MQTT dùng
+on/off?}\label{43-vuxec-sao-rest-duxf9ng-boolean-nhux1b0ng-mqtt-duxf9ng-onoff}
+
+\begin{itemize}
+\tightlist
+\item
+  Boolean thuận tiện cho toggle React và validation API.
+\item
+  Chuỗi \texttt{on}/\texttt{off} dễ đọc trên MQTT client và Serial
+  Monitor.
+\item
+  Backend là nơi chuyển đổi contract, nên ESP32 không phải hiểu nhiều
+  định dạng.
+\end{itemize}
+
+\subsection{4.4 Vì sao dùng QoS 1?}\label{44-vuxec-sao-duxf9ng-qos-1}
+
+QoS 1 bảo đảm lệnh được giao ít nhất một lần giữa client và broker. Lệnh
+bật/tắt là idempotent: nhận \texttt{fan=on} hai lần vẫn chỉ cho fan ở
+trạng thái ON. Không được nói QoS 1 là ``exactly once''; đó là QoS 2.
+
+\subsection{4.5 Requested state và confirmed
+state}\label{45-requested-state-vuxe0-confirmed-state}
+
+Sau khi broker nhận publish thành công, backend cập nhật requested state
+để API status phản hồi ngay. Tuy nhiên đây chưa phải bằng chứng relay đã
+đổi trạng thái. Telemetry kế tiếp chứa \texttt{actuatorStates.fanOn} sẽ
+reconcile lại state theo báo cáo của ESP32.
+
+Đây là câu trả lời tốt khi bị hỏi ``publish thành công có chắc quạt quay
+chưa?'':
+
+\begin{quote}
+Chưa chắc. Publish callback chỉ chứng minh broker nhận lệnh. Xác nhận
+thiết bị cần telemetry phản hồi hoặc acknowledgment riêng. Bản hiện tại
+dùng telemetry kế tiếp để reconcile; nếu cần xác nhận mạnh hơn có thể
+thêm command ID và ACK topic.
+\end{quote}
+
+\subsection{4.6 Fail-safe của
+firmware}\label{46-fail-safe-cux1ee7a-firmware}
+
+\begin{itemize}
+\tightlist
+\item
+  GPIO 16 được cấu hình OUTPUT khi khởi động.
+\item
+  \texttt{Relay::begin()} gọi \texttt{off()} nên fan mặc định OFF; với
+  HL-52S active-low, mức boot là HIGH.
+\item
+  JSON sai bị bỏ qua; actuator lạ không có handler. Backend chỉ publish
+  state hợp lệ \texttt{on}/\texttt{off}.
+\item
+  Không có local auto-trigger cho fan ngoài yêu cầu backend, đúng phạm
+  vi dự án.
+\end{itemize}
+
+\section{5. NC-01 - Anomaly engine và
+Z-score}\label{5-nc-01---anomaly-engine-vuxe0-z-score}
+
+\subsection{5.1 Công thức}\label{51-cuxf4ng-thux1ee9c}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mean = tổng 30 giá trị / 30}
+\NormalTok{variance = tổng (x\_i {-} mean)\^{}2 / 30}
+\NormalTok{standard deviation = sqrt(variance)}
+\NormalTok{Z = (giá trị mới {-} mean) / standard deviation}
+\end{Highlighting}
+\end{Shaded}
+
+Một điểm được xem là anomaly thống kê khi đồng thời:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{|Z| \textgreater{} zScoreLimit}
+\NormalTok{và}
+\NormalTok{|giá trị mới {-} mean| \textgreater{} minimum physical delta}
+\end{Highlighting}
+\end{Shaded}
+
+Giá trị mặc định:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3100}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6400}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Thông số
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Giá trị
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Window & 30 mẫu trước đó \\
+Z-score limit & 3.0 \\
+Minimum delta nhiệt độ & 1.0°C \\
+Minimum delta độ ẩm & 2.0\% \\
+\end{longtable}
+}
+
+\subsection{5.2 Vì sao dùng 30 mẫu trước, không cho mẫu mới vào
+trước?}\label{52-vuxec-sao-duxf9ng-30-mux1eabu-trux1b0ux1edbc-khuxf4ng-cho-mux1eabu-mux1edbi-vuxe0o-trux1b0ux1edbc}
+
+Mẫu mới phải được so với baseline trước đó. Nếu đưa spike vào window
+trước khi tính mean và độ lệch chuẩn, chính spike sẽ kéo baseline về
+phía nó và làm giảm Z-score. Code tính thống kê trước, sau đó mới
+\texttt{push} mẫu mới và bỏ mẫu cũ nhất.
+
+\subsection{5.3 Cold start và zero
+variance}\label{53-cold-start-vuxe0-zero-variance}
+
+\begin{itemize}
+\tightlist
+\item
+  Ít hơn 30 mẫu: chưa đủ baseline, trả \texttt{ready=false} và dựa vào
+  hard threshold.
+\item
+  Độ lệch chuẩn bằng 0: không chia cho 0; trả Z=0 và không tạo anomaly
+  thống kê.
+\item
+  Hard threshold vẫn luôn hoạt động, kể cả khi Z-score chưa sẵn sàng.
+\end{itemize}
+
+\subsection{5.4 Vì sao gas và motion không dùng
+Z-score?}\label{54-vuxec-sao-gas-vuxe0-motion-khuxf4ng-duxf9ng-z-score}
+
+\begin{itemize}
+\tightlist
+\item
+  Nhiệt độ và độ ẩm là biến liên tục, phù hợp với phân tích độ lệch
+  quanh baseline.
+\item
+  Motion là boolean, không có ý nghĩa Gaussian.
+\item
+  Gas là biến an toàn có ngưỡng cứng 600 PPM; chờ đủ 30 mẫu hoặc chờ
+  Z-score có thể gây nguy hiểm.
+\end{itemize}
+
+\subsection{5.5 Rule matrix thực
+tế}\label{55-rule-matrix-thux1ef1c-tux1ebf}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1400}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2200}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1800}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.1400}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 8\tabcolsep) * \real{0.2700}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Sensor
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Điều kiện
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Trigger
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Severity
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Hành động
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Gas & \texttt{gasLevel\ \textgreater{}\ gasMax} & Hard threshold &
+CRITICAL & Log + email \\
+Temperature & Ngoài min/max & Hard threshold & HIGH & Log + email; bật
+fan nếu vượt max \\
+Temperature & Auto mode và Z bất thường & Z-score & HIGH & Log + email;
+bật fan nếu spike hướng lên \\
+Motion & Motion=true và system armed & Hard threshold & HIGH & Log +
+email + alert LED \\
+Humidity & Ngoài min/max & Hard threshold & MEDIUM & Log \\
+Humidity & Auto mode và Z bất thường & Z-score & MEDIUM & Log \\
+\end{longtable}
+}
+
+\subsection{5.6 Dedupe khác email throttle thế
+nào?}\label{56-dedupe-khuxe1c-email-throttle-thux1ebf-nuxe0o}
+
+\begin{itemize}
+\tightlist
+\item
+  Anomaly dedupe mặc định 60 giây, key gồm
+  \texttt{deviceId:sensorType:triggerType}. Mục đích là tránh ghi cùng
+  sự kiện quá dày.
+\item
+  Email throttle là 15 phút, key gồm \texttt{deviceId:sensorType}. Mục
+  đích là tránh spam hộp thư.
+\item
+  Hai cơ chế giải quyết hai vấn đề khác nhau và không nên gộp.
+\end{itemize}
+
+\subsection{5.7 Thứ tự xử lý anomaly có cố định
+không?}\label{57-thux1ee9-tux1ef1-xux1eed-luxfd-anomaly-cuxf3-cux1ed1-ux111ux1ecbnh-khuxf4ng}
+
+Không. Các candidate được xử lý bằng \texttt{Promise.all}, nên email
+hoặc MQTT của từng candidate có thể hoàn tất khác thứ tự. Điều cần bảo
+đảm là đủ tập anomaly và đúng nội dung, không dựa vào thứ tự hoàn thành.
+
+\section{6. NC-03 - MongoDB Time
+Series}\label{6-nc-03---mongodb-time-series}
+
+\subsection{6.1 Tại sao dùng Time Series
+collection?}\label{61-tux1ea1i-sao-duxf9ng-time-series-collection}
+
+Telemetry là dữ liệu liên tục, mỗi document có timestamp và deviceId.
+Time Series tối ưu cách MongoDB lưu và truy vấn dữ liệu theo thời gian,
+đồng thời hỗ trợ retention tự động.
+
+\subsection{6.2 Cấu hình
+authoritative}\label{62-cux1ea5u-huxecnh-authoritative}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{collection: sensor\_readings}
+\NormalTok{timeField: timestamp}
+\NormalTok{metaField: deviceId}
+\NormalTok{granularity: seconds}
+\NormalTok{expireAfterSeconds: 2,592,000 (30 ngày)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{6.3 Luồng ghi dữ
+liệu}\label{63-luux1ed3ng-ghi-dux1eef-liux1ec7u}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \texttt{mqttService} nhận topic telemetry.
+\item
+  \texttt{validateTelemetryPayload()} kiểm tra device ID, timestamp,
+  metric và actuator state.
+\item
+  \texttt{SensorReading.create()} ghi document vào
+  \texttt{sensor\_readings}.
+\item
+  Document vừa ghi được chuyển cho anomaly engine.
+\end{enumerate}
+
+Việc lưu trước rồi phân tích giúp giữ lại dữ liệu gốc ngay cả khi một
+hành động anomaly như email hoặc MQTT gặp lỗi.
+
+\subsection{\texorpdfstring{6.4 Vì sao schema đặt
+\texttt{autoCreate=false}?}{6.4 Vì sao schema đặt autoCreate=false?}}\label{64-vuxec-sao-schema-ux111ux1eb7t-autocreatefalse}
+
+Mongoose không tự tạo collection thường. \texttt{timeSeriesService} chủ
+động tạo collection với đúng \texttt{timeseries} và TTL option trước khi
+model ghi dữ liệu. Nếu collection đã tồn tại nhưng sai cấu hình, backend
+fail fast và yêu cầu migration thay vì âm thầm chạy sai.
+
+\subsection{6.5 Historical query lấy dữ liệu thế
+nào?}\label{65-historical-query-lux1ea5y-dux1eef-liux1ec7u-thux1ebf-nuxe0o}
+
+Backend lọc theo device và khoảng thời gian, sort giảm dần để lấy đúng N
+mẫu mới nhất, áp dụng limit, sau đó reverse trong bộ nhớ để frontend
+nhận chuỗi theo thời gian tăng dần.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{MongoDB: newest {-}\textgreater{} oldest, limit N}
+\NormalTok{Response: oldest {-}\textgreater{} newest trong N mẫu vừa chọn}
+\end{Highlighting}
+\end{Shaded}
+
+Nếu sort tăng dần trước limit, API sẽ trả N mẫu cũ nhất trong khoảng,
+không phải N mẫu mới nhất.
+
+\subsection{6.6 TTL có xóa đúng ngay giây thứ 2,592,000
+không?}\label{66-ttl-cuxf3-xuxf3a-ux111uxfang-ngay-giuxe2y-thux1ee9-2592000-khuxf4ng}
+
+Không nên khẳng định chính xác tới từng giây. MongoDB TTL monitor chạy
+nền, nên document được xóa sau khi hết hạn với một độ trễ nhỏ. Ý nghĩa
+là retention tự động, không phải timer realtime.
+
+\section{7. NC-05 - Email
+Notification}\label{7-nc-05---email-notification}
+
+\subsection{7.1 Luồng gửi email}\label{71-luux1ed3ng-gux1eedi-email}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Anomaly candidate được tạo.
+\item
+  \texttt{executeActions()} chỉ gọi email cho severity HIGH hoặc
+  CRITICAL.
+\item
+  \texttt{sendAlertEmail()} đọc cấu hình SMTP sender từ environment.
+\item
+  Recipient resolver lấy \texttt{User.email} của các tài khoản có
+  \texttt{settings.emailEnabled=true}.
+\item
+  Hàm tạo key \texttt{deviceId:sensorType} và kiểm tra lần gửi gần nhất.
+\item
+  Nếu chưa bị throttle, Nodemailer gửi cả text và HTML email.
+\item
+  Chỉ sau khi \texttt{sendMail()} thành công mới lưu thời điểm gửi.
+\end{enumerate}
+
+\subsection{7.2 Vì sao chỉ HIGH và
+CRITICAL?}\label{72-vuxec-sao-chux1ec9-high-vuxe0-critical}
+
+MEDIUM như humidity bất thường vẫn được ghi log và hiển thị trên
+dashboard nhưng không gửi email để tránh cảnh báo quá mức. HIGH và
+CRITICAL cần người dùng phản ứng sớm hơn.
+
+\subsection{7.3 Vì sao throttle theo cặp device và
+sensor?}\label{73-vuxec-sao-throttle-theo-cux1eb7p-device-vuxe0-sensor}
+
+Gas trên \texttt{safebox-01} không được chặn email nhiệt độ trên cùng
+thiết bị, và cũng không được chặn gas trên \texttt{safebox-02}. Vì vậy
+key phải chứa cả device và sensor.
+
+Ví dụ:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{safebox{-}01:gasLevel       {-}\textgreater{} một window riêng}
+\NormalTok{safebox{-}01:temperature    {-}\textgreater{} một window riêng}
+\NormalTok{safebox{-}02:gasLevel       {-}\textgreater{} một window riêng}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{7.4 Vì sao lưu throttle sau khi gửi thành
+công?}\label{74-vuxec-sao-lux1b0u-throttle-sau-khi-gux1eedi-thuxe0nh-cuxf4ng}
+
+Nếu SMTP lỗi mà vẫn ghi thời điểm throttle, các lần retry tiếp theo sẽ
+bị chặn dù người dùng chưa nhận email nào. Code chỉ cập nhật map sau
+\texttt{sendMail()} thành công.
+
+\subsection{7.5 Giới hạn cần nói
+thật}\label{75-giux1edbi-hux1ea1n-cux1ea7n-nuxf3i-thux1eadt}
+
+\begin{itemize}
+\tightlist
+\item
+  Throttle map nằm trong RAM, nên reset khi backend restart.
+\item
+  Recipient lấy từ email đăng ký của mọi user đang bật email trong
+  Settings; nếu tất cả user tắt thì SMTP không được gọi.
+\item
+  Hệ thống chưa có quan hệ device-owner, nên mọi user đang bật đều nhận
+  anomaly của thiết bị. Bản production cần ánh xạ user với device.
+\item
+  \texttt{ALERT\_RECIPIENT\_EMAIL} chỉ là fallback khi database chưa có
+  tài khoản nào.
+\item
+  Nếu triển khai nhiều instance, nên chuyển throttle sang Redis/MongoDB.
+\end{itemize}
+
+\section{8. Bản đồ file cần mở khi vấn
+đáp}\label{8-bux1ea3n-ux111ux1ed3-file-cux1ea7n-mux1edf-khi-vux1ea5n-ux111uxe1p}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2300}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3700}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Phần
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+File chính
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Vai trò
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+CB-03 frontend & \nolinkurl{frontend/src/pages/Overview.jsx} & Toggle,
+POST API, optimistic state \\
+CB-03 auth helper & \nolinkurl{frontend/src/api.js} & Gắn JWT vào
+request \\
+CB-03 API & \nolinkurl{backend/routes/control.js} & Validate request và
+gọi MQTT service \\
+CB-03 state & \nolinkurl{backend/services/actuatorStateService.js} &
+Requested state và telemetry reconciliation \\
+CB-03 MQTT & \nolinkurl{backend/services/mqttService.js} & Publish QoS 1
+và nhận telemetry/status \\
+CB-03 firmware & \nolinkurl{firmware/src/main.cpp} & Đăng ký callback và
+định tuyến actuator \\
+CB-03 MQTT parser & \nolinkurl{firmware/src/mqtt/mqtt_client.cpp} &
+Subscribe control topic và parse JSON \\
+CB-03 relay & \nolinkurl{firmware/src/actuators/relay.cpp} & Ghi GPIO 16
+theo polarity cấu hình \\
+NC-01 & \nolinkurl{backend/services/anomalyEngine.js} & Z-score, rules,
+dedupe, actions \\
+NC-01 schema & \nolinkurl{backend/models/Schemas.js} & Cấu trúc
+\texttt{anomaly\_logs} \\
+NC-03 & \nolinkurl{backend/services/timeSeriesService.js} & Tạo và
+verify Time Series collection \\
+NC-03 ingestion & \nolinkurl{backend/services/telemetryService.js} &
+Validate, create, gọi anomaly engine \\
+NC-03 API & \nolinkurl{backend/routes/telemetry.js} & Latest và
+historical query \\
+NC-05 & \nolinkurl{backend/services/emailService.js} & SMTP, template,
+severity, throttle \\
+Khởi động & \nolinkurl{backend/server.js} & MongoDB, Time Series, email,
+MQTT, mock \\
+\end{longtable}
+}
+
+Chi tiết code có trong \url{THAI_KIET_CODE_WALKTHROUGH.md}.
+
+\section{9. Bằng chứng hiện
+có}\label{9-bux1eb1ng-chux1ee9ng-hiux1ec7n-cuxf3}
+
+Chạy tại thư mục \texttt{backend}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{npm run test}\OperatorTok{:}\NormalTok{kiet}
+\end{Highlighting}
+\end{Shaded}
+
+Bộ test chứng minh:
+
+\begin{itemize}
+\tightlist
+\item
+  Mapping và reconcile actuator state.
+\item
+  JWT chặn request không xác thực trong CB-03 simulation.
+\item
+  N=30, per-device buffer, zero variance và minimum delta.
+\item
+  Gas/motion không đi qua Z-score.
+\item
+  Hard-rule matrix và hành động alert LED.
+\item
+  Temperature spike tạo Z-score anomaly, bật fan, ghi log và gửi email.
+\item
+  Email throttle cùng key và độc lập giữa các key.
+\item
+  Time Series options và retention 30 ngày.
+\item
+  Historical API chọn N mẫu mới nhất và trả theo thứ tự thời gian.
+\end{itemize}
+
+Điều chưa được test phần mềm thay thế hoàn toàn:
+
+\begin{itemize}
+\tightlist
+\item
+  Relay vật lý có click và fan quay dưới 500 ms hay không.
+\item
+  SMTP thật có giao email trong dưới 5 giây hay không.
+\item
+  EMQX và Atlas thật có ổn định trong phiên demo hay không.
+\end{itemize}
+
+Các mục này phải được đo bằng TC-02, TC-04, TC-05 và TC-06 với hạ tầng
+thật.
+
+\section{10. Cheat sheet một phút trước khi vào
+phòng}\label{10-cheat-sheet-mux1ed9t-phuxfat-trux1b0ux1edbc-khi-vuxe0o-phuxf2ng}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{CB{-}03:}
+\NormalTok{React POST boolean {-}\textgreater{} backend validate {-}\textgreater{} MQTT on/off QoS 1}
+\NormalTok{{-}\textgreater{} ESP32 MqttClient {-}\textgreater{} onControlMessage {-}\textgreater{} Relay {-}\textgreater{} GPIO 16}
+\NormalTok{Publish success != physical ACK; telemetry kế tiếp reconcile state.}
+
+\NormalTok{NC{-}01:}
+\NormalTok{Z{-}score chỉ temp/humidity, previous N=30, |Z|\textgreater{}3 và min delta.}
+\NormalTok{Gas \textgreater{}600 và motion dùng hard rule.}
+\NormalTok{Cold start dùng hard bounds; sigma=0 thì Z=0.}
+\NormalTok{Dedupe anomaly 60s khác email throttle 15m.}
+
+\NormalTok{NC{-}03:}
+\NormalTok{sensor\_readings Time Series; timestamp=timeField; deviceId=metaField.}
+\NormalTok{Granularity seconds; TTL 30 ngày.}
+\NormalTok{Validate {-}\textgreater{} create {-}\textgreater{} anomaly engine.}
+\NormalTok{Sort DESC + limit + reverse để lấy N mẫu mới nhất theo thứ tự tăng dần.}
+
+\NormalTok{NC{-}05:}
+\NormalTok{Nodemailer chỉ HIGH/CRITICAL.}
+\NormalTok{Throttle key=deviceId:sensorType, 15 phút.}
+\NormalTok{Chỉ ghi lastSent sau khi SMTP gửi thành công.}
+
+\NormalTok{MQ2 telemetry:}
+\NormalTok{48h burn{-}in {-}\textgreater{} stable clean{-}air Ro {-}\textgreater{} NVS {-}\textgreater{} 5m warm{-}up on later boots.}
+\NormalTok{Only ready has numeric gasLevel; preparing sends null + sensorStatus.}
+\NormalTok{100ms high{-}priority local task; raw fallback stays local, no fake email.}
+\end{Highlighting}
+\end{Shaded}
+
+\chapter{Bộ câu hỏi vấn đáp phần Thái
+Kiệt}\label{bux1ed9-cuxe2u-hux1ecfi-vux1ea5n-ux111uxe1p-phux1ea7n-thuxe1i-kiux1ec7t}
+
+Câu trả lời mẫu được viết theo cách nói trực tiếp. Không cần học thuộc
+từng chữ; cần hiểu luận điểm và chỉ được code minh họa.
+
+\section{A. Câu hỏi tổng quan}\label{a-cuxe2u-hux1ecfi-tux1ed5ng-quan}
+
+\subsection{1. Em phụ trách phần
+nào?}\label{1-em-phux1ee5-truxe1ch-phux1ea7n-nuxe0o}
+
+Em phụ trách CB-03 điều khiển quạt từ website, NC-01 anomaly detection
+bằng Z-score và hard rules, NC-03 lưu telemetry bằng MongoDB Time
+Series, và NC-05 gửi email cảnh báo có throttle.
+
+\subsection{2. Bốn phần này liên hệ với nhau thế
+nào?}\label{2-bux1ed1n-phux1ea7n-nuxe0y-liuxean-hux1ec7-vux1edbi-nhau-thux1ebf-nuxe0o}
+
+NC-03 nhận và lưu telemetry. NC-01 phân tích chính telemetry đó. NC-01
+có thể gọi lại luồng CB-03 để bật fan khi nhiệt độ cao và gọi NC-05 để
+gửi email khi severity HIGH hoặc CRITICAL.
+
+\subsection{3. Thành phần nào là trung tâm điều
+phối?}\label{3-thuxe0nh-phux1ea7n-nuxe0o-luxe0-trung-tuxe2m-ux111iux1ec1u-phux1ed1i}
+
+Express backend. Nó nhận REST từ frontend, giao tiếp MQTT với ESP32, ghi
+MongoDB, chạy anomaly engine và gọi Nodemailer.
+
+\subsection{4. Vì sao không cho frontend kết nối MQTT trực
+tiếp?}\label{4-vuxec-sao-khuxf4ng-cho-frontend-kux1ebft-nux1ed1i-mqtt-trux1ef1c-tiux1ebfp}
+
+Backend cần giữ MQTT credential, validate quyền người dùng, chuẩn hóa
+lệnh và tập trung business rule. Nếu frontend kết nối broker trực tiếp
+thì credential bị lộ và khó kiểm soát quyền publish.
+
+\subsection{5. Điểm an toàn quan trọng nhất của kiến trúc là
+gì?}\label{5-ux111iux1ec3m-an-touxe0n-quan-trux1ecdng-nhux1ea5t-cux1ee7a-kiux1ebfn-truxfac-luxe0-guxec}
+
+Cảnh báo gas nguy hiểm vẫn phải chạy cục bộ trên ESP32 dưới 200 ms,
+không phụ thuộc backend. Backend bổ sung lưu log và email chứ không thay
+thế edge safety.
+
+\subsection{6. Em chứng minh code chạy bằng
+gì?}\label{6-em-chux1ee9ng-minh-code-chux1ea1y-bux1eb1ng-guxec}
+
+Em dùng test tự động cho logic và integration simulation, cộng với
+firmware/frontend build. Riêng latency relay, SMTP thật, EMQX và Atlas
+phải đo bằng test end-to-end với hạ tầng thật.
+
+\subsection{7. Nếu được làm lại, em ưu tiên cải tiến
+gì?}\label{7-nux1ebfu-ux111ux1b0ux1ee3c-luxe0m-lux1ea1i-em-ux1b0u-tiuxean-cux1ea3i-tiux1ebfn-guxec}
+
+Em sẽ thêm command ID và ACK topic cho actuator, chuyển dedupe/throttle
+state sang Redis hoặc MongoDB để không mất khi restart, và gắn device
+ownership với user cho mô hình nhiều thiết bị.
+
+\section{B. CB-03 - Điều khiển
+quạt}\label{b-cb-03---ux111iux1ec1u-khiux1ec3n-quux1ea1t}
+
+\subsection{8. Luồng bật quạt bắt đầu từ
+đâu?}\label{8-luux1ed3ng-bux1eadt-quux1ea1t-bux1eaft-ux111ux1ea7u-tux1eeb-ux111uxe2u}
+
+Từ
+\texttt{handleActuatorToggle(\textquotesingle{}fan\textquotesingle{},\ actuators.fanOn)}
+trong \texttt{Overview.jsx}. Frontend gửi POST tới
+\nolinkurl{/api/v1/control/actuator} với deviceId, actuator và boolean
+state.
+
+\subsection{9. Request có được xác thực
+không?}\label{9-request-cuxf3-ux111ux1b0ux1ee3c-xuxe1c-thux1ef1c-khuxf4ng}
+
+Có. \texttt{apiFetch()} gắn JWT vào Authorization header. Backend mount
+\texttt{authenticateToken} trước control router. Không có token trả 401,
+token sai hoặc hết hạn trả 403.
+
+\subsection{10. Backend validate những
+gì?}\label{10-backend-validate-nhux1eefng-guxec}
+
+Route yêu cầu actuator và state, actuator phải nằm trong allowlist,
+state phải là boolean hoặc chuỗi on/off. MQTT service kiểm tra thêm
+deviceId, actuator và boolean trước khi publish.
+
+\subsection{11. Topic điều khiển là
+gì?}\label{11-topic-ux111iux1ec1u-khiux1ec3n-luxe0-guxec}
+
+\nolinkurl{safebox/{deviceId}/control}, ví dụ
+\nolinkurl{safebox/safebox-01/control}.
+
+\subsection{12. Payload MQTT là gì?}\label{12-payload-mqtt-luxe0-guxec}
+
+\texttt{\{"actuator":"fan","state":"on"\}} hoặc state \texttt{off}.
+
+\subsection{13. Vì sao dùng QoS 1?}\label{13-vuxec-sao-duxf9ng-qos-1}
+
+Lệnh điều khiển quan trọng hơn telemetry thông thường, nên cần
+at-least-once delivery. Bật/tắt là idempotent nên duplicate không gây
+toggle ngược.
+
+\subsection{14. QoS 1 có bảo đảm quạt đã quay
+không?}\label{14-qos-1-cuxf3-bux1ea3o-ux111ux1ea3m-quux1ea1t-ux111uxe3-quay-khuxf4ng}
+
+Không. Nó chỉ bảo đảm giao message ở tầng MQTT đến broker/client theo cơ
+chế QoS. Muốn biết phần cứng đã thực thi phải dùng telemetry phản hồi
+hoặc ACK riêng từ ESP32.
+
+\subsection{15. Vì sao control message không
+retained?}\label{15-vuxec-sao-control-message-khuxf4ng-retained}
+
+Nếu retained, ESP32 kết nối lại có thể nhận lệnh cũ và bật quạt ngoài ý
+muốn. Control command là event hiện tại nên dùng \texttt{retain=false}.
+
+\subsection{16. Nếu MQTT offline thì API trả
+gì?}\label{16-nux1ebfu-mqtt-offline-thuxec-api-trux1ea3-guxec}
+
+\texttt{publishControlCommand()} ném lỗi có code \texttt{MQTT\_OFFLINE},
+route chuyển thành HTTP 503. Frontend hiển thị control feedback lỗi và
+không giả vờ thành công.
+
+\subsection{17. Trạng thái fan trên backend lấy từ
+đâu?}\label{17-trux1ea1ng-thuxe1i-fan-truxean-backend-lux1ea5y-tux1eeb-ux111uxe2u}
+
+Ngay sau publish thành công, backend lưu requested state trong
+\texttt{actuatorStateService}. Khi telemetry ESP32 về, snapshot được
+synchronize lại bằng \texttt{actuatorStates} do thiết bị báo cáo.
+
+\subsection{\texorpdfstring{18. Vì sao tách
+\texttt{actuatorStateService} khỏi mock
+generator?}{18. Vì sao tách actuatorStateService khỏi mock generator?}}\label{18-vuxec-sao-tuxe1ch-actuatorstateservice-khux1ecfi-mock-generator}
+
+State này được dùng cả simulation và MQTT thật. Đặt nó trong file mock
+gây hiểu nhầm ownership. Service riêng làm rõ đây là trạng thái runtime
+chung; mock generator chỉ sinh dữ liệu.
+
+\subsection{19. Firmware chống payload sai thế
+nào?}\label{19-firmware-chux1ed1ng-payload-sai-thux1ebf-nuxe0o}
+
+ArduinoJson parse theo buffer và length; JSON lỗi bị bỏ qua.
+\texttt{main.cpp} chỉ định tuyến \texttt{fan}, \texttt{buzzer},
+\texttt{alertLed}, nên actuator lạ không tạo tác động. Backend đã
+validate và chỉ publish state hợp lệ; phía firmware xử lý chuỗi khác
+\texttt{on} theo hướng fail-off.
+
+\subsection{20. Fan ở trạng thái nào khi ESP32
+boot?}\label{20-fan-ux1edf-trux1ea1ng-thuxe1i-nuxe0o-khi-esp32-boot}
+
+OFF. \texttt{Relay::begin()} cấu hình pin OUTPUT rồi gọi \texttt{off()}.
+Với HL-52S mặc định active-low, OFF tương ứng GPIO 16 HIGH; polarity có
+thể đổi bằng \texttt{RELAY\_ACTIVE\_LOW}.
+
+\subsection{21. Nếu QoS 1 giao cùng lệnh hai lần thì
+sao?}\label{21-nux1ebfu-qos-1-giao-cuxf9ng-lux1ec7nh-hai-lux1ea7n-thuxec-sao}
+
+Không sao vì command mang trạng thái đích, không phải lệnh toggle. Gọi
+\texttt{Relay::on()} hai lần vẫn cho fan ON.
+
+\subsection{22. Hệ thống có hỗ trợ nhiều device hoàn chỉnh
+chưa?}\label{22-hux1ec7-thux1ed1ng-cuxf3-hux1ed7-trux1ee3-nhiux1ec1u-device-houxe0n-chux1ec9nh-chux1b0a}
+
+Topic, telemetry schema và historical query có deviceId. Tuy nhiên
+runtime actuator snapshot hiện là một object vì coursework dùng một
+device chính. Muốn multi-device hoàn chỉnh cần đổi thành
+\texttt{Map\textless{}deviceId,\ actuatorStates\textgreater{}}.
+
+\section{C. NC-01 - Z-score và
+anomaly}\label{c-nc-01---z-score-vuxe0-anomaly}
+
+\subsection{23. Công thức Z-score là
+gì?}\label{23-cuxf4ng-thux1ee9c-z-score-luxe0-guxec}
+
+\nolinkurl{Z = (x - mean) / standardDeviation}. Code lấy mean và
+standard deviation từ 30 mẫu trước đó của cùng device và cùng sensor.
+
+\subsection{24. Vì sao chọn N=30?}\label{24-vuxec-sao-chux1ecdn-n30}
+
+Đây là kích thước rolling window theo thiết kế dự án: đủ tạo baseline
+ngắn hạn nhưng vẫn phản ứng với thay đổi môi trường. Với chu kỳ 2 giây,
+30 mẫu đại diện khoảng một phút.
+
+\subsection{25. Tại sao dùng 30 mẫu trước thay vì gồm cả mẫu
+mới?}\label{25-tux1ea1i-sao-duxf9ng-30-mux1eabu-trux1b0ux1edbc-thay-vuxec-gux1ed3m-cux1ea3-mux1eabu-mux1edbi}
+
+Mẫu mới là đối tượng cần kiểm tra. Nếu đưa nó vào baseline trước, spike
+làm mean và variance tăng, khiến Z-score bị giảm và khó phát hiện hơn.
+
+\subsection{26. Điều kiện anomaly thống kê là
+gì?}\label{26-ux111iux1ec1u-kiux1ec7n-anomaly-thux1ed1ng-kuxea-luxe0-guxec}
+
+Hai điều kiện đồng thời: trị tuyệt đối Z lớn hơn threshold mặc định 3.0
+và độ lệch vật lý lớn hơn minimum delta, 1°C cho nhiệt độ hoặc 2\% cho
+độ ẩm.
+
+\subsection{27. Minimum delta để làm
+gì?}\label{27-minimum-delta-ux111ux1ec3-luxe0m-guxec}
+
+Khi standard deviation rất nhỏ, một dao động rất nhỏ cũng có thể tạo
+Z-score lớn. Minimum delta lọc các spike toán học nhưng không có ý nghĩa
+vật lý.
+
+\subsection{28. Z-score áp dụng cho sensor
+nào?}\label{28-z-score-uxe1p-dux1ee5ng-cho-sensor-nuxe0o}
+
+Chỉ temperature và humidity. \texttt{MIN\_DELTA} cũng đóng vai trò
+allowlist; sensor khác trả \texttt{ready=false} ngay.
+
+\subsection{29. Vì sao gas không dùng
+Z-score?}\label{29-vuxec-sao-gas-khuxf4ng-duxf9ng-z-score}
+
+Gas là thông số an toàn có ngưỡng cứng. Gas vượt 600 PPM phải cảnh báo
+ngay, không thể chờ 30 mẫu hoặc phụ thuộc phân phối thống kê.
+
+\subsection{30. Vì sao motion không dùng
+Z-score?}\label{30-vuxec-sao-motion-khuxf4ng-duxf9ng-z-score}
+
+Motion là boolean, không phải biến liên tục có phân phối phù hợp để tính
+mean và standard deviation theo cách này.
+
+\subsection{31. Cold start xử lý thế
+nào?}\label{31-cold-start-xux1eed-luxfd-thux1ebf-nuxe0o}
+
+Khi buffer dưới 30 mẫu, Z-score chưa ready. Hard bounds vẫn chạy để
+không bỏ qua nhiệt độ, độ ẩm hoặc gas nguy hiểm.
+
+\subsection{32. Standard deviation bằng 0 thì
+sao?}\label{32-standard-deviation-bux1eb1ng-0-thuxec-sao}
+
+Phép chia không xác định nên code trả Z=0 và không tạo statistical
+anomaly. Hard thresholds vẫn là lớp fallback. Có thể dùng epsilon trong
+hệ thống nâng cao, nhưng bản này tuân theo rule zero-variance của dự án.
+
+\subsection{33. Code dùng population hay sample standard
+deviation?}\label{33-code-duxf9ng-population-hay-sample-standard-deviation}
+
+Population standard deviation, variance chia N. Rolling window được xem
+là toàn bộ baseline runtime hiện tại, không phải mẫu nghiên cứu cần ước
+lượng tổng thể bằng N-1.
+
+\subsection{34. Buffer có trộn dữ liệu giữa hai thiết bị
+không?}\label{34-buffer-cuxf3-trux1ed9n-dux1eef-liux1ec7u-giux1eefa-hai-thiux1ebft-bux1ecb-khuxf4ng}
+
+Không. Key là \texttt{deviceId:sensorType}, ví dụ
+\texttt{room-a:temperature} khác \texttt{room-b:temperature} và khác
+\texttt{room-a:humidity}.
+
+\subsection{35. Automatic mode có tắt hard threshold
+không?}\label{35-automatic-mode-cuxf3-tux1eaft-hard-threshold-khuxf4ng}
+
+Không. Hard threshold luôn được ưu tiên như safety bound. Automatic mode
+chỉ bật thêm nhánh Z-score khi giá trị chưa vi phạm hard bound.
+
+\subsection{36. Nhiệt độ Z-score âm có bật fan
+không?}\label{36-nhiux1ec7t-ux111ux1ed9-z-score-uxe2m-cuxf3-bux1eadt-fan-khuxf4ng}
+
+Không. Temperature anomaly vẫn được log và email nếu HIGH, nhưng
+\texttt{autoFan} chỉ true khi giá trị mới lớn hơn mean, tức bất thường
+theo hướng nóng lên.
+
+\subsection{37. Gas vượt ngưỡng tạo severity
+gì?}\label{37-gas-vux1b0ux1ee3t-ngux1b0ux1ee1ng-tux1ea1o-severity-guxec}
+
+CRITICAL, trigger type \texttt{HARD\_THRESHOLD\_BREACH}. Edge alert từ
+ESP32 dùng trigger type \texttt{EDGE\_SAFETY\_TRIGGER} nhưng cũng
+CRITICAL.
+
+\subsection{38. Motion tạo anomaly khi
+nào?}\label{38-motion-tux1ea1o-anomaly-khi-nuxe0o}
+
+Chỉ khi \texttt{motionDetected=true} và system đang armed. Nó tạo HIGH
+anomaly, gửi email và publish lệnh bật alert LED.
+
+\subsection{39. Humidity anomaly gửi email
+không?}\label{39-humidity-anomaly-gux1eedi-email-khuxf4ng}
+
+Không trong matrix hiện tại vì severity MEDIUM. Nó vẫn được lưu vào
+\texttt{anomaly\_logs} và hiện trên dashboard.
+
+\subsection{40. Dedupe key gồm gì?}\label{40-dedupe-key-gux1ed3m-guxec}
+
+\texttt{deviceId:sensorType:triggerType}. Như vậy hard threshold và edge
+trigger của cùng gas vẫn là hai loại sự kiện khác nhau.
+
+\subsection{41. Vì sao reserve dedupe key trước action
+async?}\label{41-vuxec-sao-reserve-dedupe-key-trux1b0ux1edbc-action-async}
+
+Nếu hai telemetry message vào gần như đồng thời, cả hai có thể cùng vượt
+kiểm tra trước khi lần đầu ghi DB. Reserve trước giúp chặn race
+duplicate.
+
+\subsection{42. Nếu action hoặc ghi DB lỗi thì dedupe key thế
+nào?}\label{42-nux1ebfu-action-houx1eb7c-ghi-db-lux1ed7i-thuxec-dedupe-key-thux1ebf-nuxe0o}
+
+Catch sẽ xóa reservation nếu nó vẫn thuộc lần xử lý hiện tại, cho phép
+message sau retry thay vì bị chặn oan.
+
+\subsection{43. Các anomaly có luôn được tạo đúng thứ tự gas, temp,
+motion, humidity
+không?}\label{43-cuxe1c-anomaly-cuxf3-luuxf4n-ux111ux1b0ux1ee3c-tux1ea1o-ux111uxfang-thux1ee9-tux1ef1-gas-temp-motion-humidity-khuxf4ng}
+
+Không nên phụ thuộc thứ tự hoàn tất vì dùng \texttt{Promise.all}.
+Business correctness nằm ở tập kết quả và nội dung từng anomaly.
+
+\subsection{44. Nếu bật fan thất bại thì anomaly có bị mất
+không?}\label{44-nux1ebfu-bux1eadt-fan-thux1ea5t-bux1ea1i-thuxec-anomaly-cuxf3-bux1ecb-mux1ea5t-khuxf4ng}
+
+Không. Lỗi action được bắt và ghi vào \texttt{actionsTaken}; pipeline
+tiếp tục tạo anomaly log. Đây là graceful degradation.
+
+\subsection{45. Điểm hạn chế của rolling buffer hiện tại là
+gì?}\label{45-ux111iux1ec3m-hux1ea1n-chux1ebf-cux1ee7a-rolling-buffer-hiux1ec7n-tux1ea1i-luxe0-guxec}
+
+Buffer nằm trong RAM nên mất khi backend restart và mỗi instance có
+buffer riêng. Production nhiều instance nên lưu state vào Redis hoặc
+dùng truy vấn window từ time-series database.
+
+\section{D. NC-03 - MongoDB Time
+Series}\label{d-nc-03---mongodb-time-series}
+
+\subsection{46. Collection telemetry tên
+gì?}\label{46-collection-telemetry-tuxean-guxec}
+
+\texttt{sensor\_readings}.
+
+\subsection{\texorpdfstring{47. \texttt{timeField} và \texttt{metaField}
+là
+gì?}{47. timeField và metaField là gì?}}\label{47-timefield-vuxe0-metafield-luxe0-guxec}
+
+\texttt{timestamp} là timeField; \texttt{deviceId} là metaField. MongoDB
+dùng timestamp để tổ chức theo thời gian và deviceId để nhóm metadata
+series.
+
+\subsection{48. Granularity là gì?}\label{48-granularity-luxe0-guxec}
+
+\texttt{seconds}, phù hợp dữ liệu ESP32 gửi mỗi khoảng 2 giây.
+
+\subsection{49. Retention là bao
+lâu?}\label{49-retention-luxe0-bao-luxe2u}
+
+2,592,000 giây, tương đương 30 ngày.
+
+\subsection{50. TTL có xóa đúng ngay khi đủ 30 ngày
+không?}\label{50-ttl-cuxf3-xuxf3a-ux111uxfang-ngay-khi-ux111ux1ee7-30-nguxe0y-khuxf4ng}
+
+Không chính xác từng giây vì TTL monitor chạy nền. Document sẽ được xóa
+tự động sau khi hết hạn với độ trễ vận hành nhỏ.
+
+\subsection{\texorpdfstring{51. Vì sao Mongoose schema dùng
+\texttt{autoCreate=false}?}{51. Vì sao Mongoose schema dùng autoCreate=false?}}\label{51-vuxec-sao-mongoose-schema-duxf9ng-autocreatefalse}
+
+Để Mongoose không tạo nhầm collection thường. Backend chủ động tạo Time
+Series collection với đúng options trước khi ghi.
+
+\subsection{52. Startup kiểm tra collection ra
+sao?}\label{52-startup-kiux1ec3m-tra-collection-ra-sao}
+
+\texttt{ensureSensorReadingsTimeSeries()} đọc metadata. Nếu chưa có thì
+tạo; nếu có thì so timeField, metaField, granularity và TTL. Sai bất kỳ
+option nào thì fail fast.
+
+\subsection{53. Vì sao fail fast thay vì tự sửa
+collection?}\label{53-vuxec-sao-fail-fast-thay-vuxec-tux1ef1-sux1eeda-collection}
+
+Đổi một collection thường thành Time Series không phải update option đơn
+giản và có nguy cơ mất dữ liệu. Fail fast buộc migration có chủ đích.
+
+\subsection{54. Telemetry được validate trước hay sau khi
+lưu?}\label{54-telemetry-ux111ux1b0ux1ee3c-validate-trux1b0ux1edbc-hay-sau-khi-lux1b0u}
+
+Trước. \texttt{validateTelemetryPayload()} chuẩn hóa dữ liệu, kiểm tra
+type/range và đối chiếu deviceId trong payload với topic.
+
+\subsection{55. Vì sao phải đối chiếu deviceId payload với
+topic?}\label{55-vuxec-sao-phux1ea3i-ux111ux1ed1i-chiux1ebfu-deviceid-payload-vux1edbi-topic}
+
+Để client không publish vào topic của device A nhưng khai payload device
+B, gây ghi sai series hoặc giả mạo dữ liệu.
+
+\subsection{56. Tại sao historical query sort DESC rồi
+reverse?}\label{56-tux1ea1i-sao-historical-query-sort-desc-rux1ed3i-reverse}
+
+DESC + limit lấy đúng N mẫu mới nhất. Reverse sau đó trả chúng theo thời
+gian tăng dần để chart vẽ đúng. ASC + limit sẽ lấy N mẫu cũ nhất.
+
+\subsection{57. Historical API giới hạn bao nhiêu
+record?}\label{57-historical-api-giux1edbi-hux1ea1n-bao-nhiuxeau-record}
+
+\texttt{limit} phải là integer từ 1 đến 1000. Giới hạn ngăn response quá
+lớn và query thiếu kiểm soát.
+
+\subsection{58. Nếu chỉ hỏi một sensor thì API làm
+gì?}\label{58-nux1ebfu-chux1ec9-hux1ecfi-mux1ed9t-sensor-thuxec-api-luxe0m-guxec}
+
+Route dùng allowlist map sensor sang path schema rồi \texttt{.select()}
+timestamp, deviceId và field sensor đó. Không lấy field tùy ý từ query
+string.
+
+\subsection{59. Dữ liệu được lưu trước hay phân tích anomaly
+trước?}\label{59-dux1eef-liux1ec7u-ux111ux1b0ux1ee3c-lux1b0u-trux1b0ux1edbc-hay-phuxe2n-tuxedch-anomaly-trux1b0ux1edbc}
+
+Lưu trước, sau đó chạy anomaly engine trên reading đã tạo. Như vậy dữ
+liệu gốc vẫn có trong DB nếu action phía sau gặp lỗi.
+
+\section{E. NC-05 - Email}\label{e-nc-05---email}
+
+\subsection{60. Thư viện gửi email là
+gì?}\label{60-thux1b0-viux1ec7n-gux1eedi-email-luxe0-guxec}
+
+Nodemailer với SMTP transport.
+
+\subsection{61. Severity nào gửi
+email?}\label{61-severity-nuxe0o-gux1eedi-email}
+
+HIGH và CRITICAL. LOW/MEDIUM trả status \texttt{ignored} trước khi liên
+hệ SMTP.
+
+\subsection{62. Throttle window là bao
+lâu?}\label{62-throttle-window-luxe0-bao-luxe2u}
+
+15 phút, tức \texttt{15\ *\ 60\ *\ 1000} millisecond.
+
+\subsection{63. Throttle key gồm
+gì?}\label{63-throttle-key-gux1ed3m-guxec}
+
+\texttt{deviceId:sensorType}. Nó bảo đảm các cảm biến và thiết bị khác
+nhau không chặn email của nhau.
+
+\subsection{64. Vì sao key không chứa
+triggerType?}\label{64-vuxec-sao-key-khuxf4ng-chux1ee9a-triggertype}
+
+Mục tiêu là hạn chế email theo vấn đề cảm biến. Nếu cùng gas vừa có hard
+threshold vừa có edge alert, người dùng vẫn không nên nhận hai chuỗi
+email riêng dồn dập.
+
+\subsection{65. Thời điểm throttle được ghi khi
+nào?}\label{65-thux1eddi-ux111iux1ec3m-throttle-ux111ux1b0ux1ee3c-ghi-khi-nuxe0o}
+
+Sau khi \texttt{sendMail()} thành công. SMTP lỗi không được phép mở một
+window giả.
+
+\subsection{66. Nếu email bị disable thì anomaly có mất
+không?}\label{66-nux1ebfu-email-bux1ecb-disable-thuxec-anomaly-cuxf3-mux1ea5t-khuxf4ng}
+
+Không. Email service trả status \texttt{disabled}; anomaly engine ghi
+\texttt{EMAIL\_DISABLED} trong actionsTaken rồi vẫn lưu anomaly.
+
+\subsection{67. SMTP password nằm ở
+đâu?}\label{67-smtp-password-nux1eb1m-ux1edf-ux111uxe2u}
+
+Trong environment variable, không commit vào Git. \texttt{.env.example}
+chỉ chứa placeholder.
+
+Địa chỉ gửi (\texttt{SMTP\_USER}) vẫn do server quản lý, nhưng địa chỉ
+nhận lấy từ \texttt{User.email} đã đăng ký. Người dùng bật hoặc tắt nhận
+mail tại Settings.
+
+\subsection{68. Email có chống HTML injection
+không?}\label{68-email-cuxf3-chux1ed1ng-html-injection-khuxf4ng}
+
+Có. Các field động được escape \texttt{\&}, \texttt{\textless{}},
+\texttt{\textgreater{}}, dấu nháy trước khi chèn vào HTML template.
+
+\subsection{69. Transporter được tạo mỗi email
+không?}\label{69-transporter-ux111ux1b0ux1ee3c-tux1ea1o-mux1ed7i-email-khuxf4ng}
+
+Không. Service cache transporter trong runtime để tái sử dụng kết
+nối/cấu hình.
+
+\subsection{70. Email recipient hiện hỗ trợ nhiều user
+không?}\label{70-email-recipient-hiux1ec7n-hux1ed7-trux1ee3-nhiux1ec1u-user-khuxf4ng}
+
+Có ở mức tài khoản: backend lấy email profile của mọi user có
+\texttt{settings.emailEnabled=true}, loại trùng địa chỉ và dùng BCC khi
+có nhiều người nhận. Tuy nhiên hệ thống chưa ánh xạ device với owner,
+nên mọi user đang bật đều nhận anomaly của mọi thiết bị.
+\texttt{ALERT\_RECIPIENT\_EMAIL} chỉ fallback khi database chưa có user.
+
+\subsection{71. Throttle có tồn tại sau backend restart
+không?}\label{71-throttle-cuxf3-tux1ed3n-tux1ea1i-sau-backend-restart-khuxf4ng}
+
+Không, vì map nằm trong RAM. Muốn bền vững và dùng nhiều instance cần
+Redis hoặc collection riêng với atomic expiration.
+
+\subsection{72. Tại sao test dùng fake transport và fake
+clock?}\label{72-tux1ea1i-sao-test-duxf9ng-fake-transport-vuxe0-fake-clock}
+
+Để test nhanh, lặp lại được và không gửi email thật. Fake clock cho phép
+nhảy chính xác 15 phút mà không phải chờ thực tế.
+
+\section{F. Câu hỏi phản biện và cách trả lời trung
+thực}\label{f-cuxe2u-hux1ecfi-phux1ea3n-biux1ec7n-vuxe0-cuxe1ch-trux1ea3-lux1eddi-trung-thux1ef1c}
+
+\subsection{73. Dự án đã hoàn toàn production-ready
+chưa?}\label{73-dux1ef1-uxe1n-ux111uxe3-houxe0n-touxe0n-production-ready-chux1b0a}
+
+Chưa. Core coursework và automated logic đã hoàn thành. Production cần
+persistent distributed state, per-user authorization/device ownership,
+observability, retry policy và end-to-end load/security testing.
+
+\subsection{74. Test pass có chứng minh relay dưới 500 ms
+không?}\label{74-test-pass-cuxf3-chux1ee9ng-minh-relay-dux1b0ux1edbi-500-ms-khuxf4ng}
+
+Không. Simulation chỉ chứng minh contract phần mềm. TC-06 phải đo từ
+thao tác web đến relay thật bằng log timestamp hoặc thiết bị đo.
+
+\subsection{75. Test email có chứng minh nhận mail dưới 5 giây
+không?}\label{75-test-email-cuxf3-chux1ee9ng-minh-nhux1eadn-mail-dux1b0ux1edbi-5-giuxe2y-khuxf4ng}
+
+Không. Fake SMTP chứng minh logic severity và throttle. TC-05 với SMTP
+thật mới đo latency giao mail.
+
+\subsection{76. Tại sao không dùng machine learning phức tạp
+hơn?}\label{76-tux1ea1i-sao-khuxf4ng-duxf9ng-machine-learning-phux1ee9c-tux1ea1p-hux1a1n}
+
+Dataset nhỏ, thời gian dự án ngắn và yêu cầu cần giải thích được.
+Rolling Z-score minh bạch, nhẹ, dễ test và phù hợp ESP32/IoT coursework
+hơn một model khó hiệu chỉnh.
+
+\subsection{77. Tại sao không chạy Z-score trên
+ESP32?}\label{77-tux1ea1i-sao-khuxf4ng-chux1ea1y-z-score-truxean-esp32}
+
+Backend đã nhận và lưu lịch sử, có tài nguyên tốt hơn và dễ cập nhật
+threshold. ESP32 chỉ giữ logic an toàn bắt buộc phải hoạt động offline
+như gas threshold.
+
+\subsection{78. Nếu MongoDB lỗi thì email/anomaly có chạy
+không?}\label{78-nux1ebfu-mongodb-lux1ed7i-thuxec-emailanomaly-cuxf3-chux1ea1y-khuxf4ng}
+
+Trong pipeline hiện tại \texttt{SensorReading.create()} chạy trước
+anomaly engine, nên ghi telemetry lỗi sẽ dừng xử lý anomaly của message
+đó. Đây là tradeoff bảo đảm anomaly dựa trên dữ liệu đã persist. Edge
+gas vẫn an toàn cục bộ trên ESP32.
+
+\subsection{79. Nếu email đã gửi nhưng ghi anomaly log lỗi thì
+sao?}\label{79-nux1ebfu-email-ux111uxe3-gux1eedi-nhux1b0ng-ghi-anomaly-log-lux1ed7i-thuxec-sao}
+
+Action được thực hiện trước khi \texttt{AnomalyLog.create()} để lưu đầy
+đủ \texttt{actionsTaken}. Vì vậy có khả năng email đã gửi nhưng DB write
+sau đó lỗi. Thiết kế production tốt hơn có thể tạo log trạng thái
+PENDING trước rồi update action hoặc dùng outbox pattern.
+
+\subsection{80. Em sẽ mở file nào đầu tiên nếu được yêu cầu show
+code?}\label{80-em-sux1ebd-mux1edf-file-nuxe0o-ux111ux1ea7u-tiuxean-nux1ebfu-ux111ux1b0ux1ee3c-yuxeau-cux1ea7u-show-code}
+
+\begin{itemize}
+\tightlist
+\item
+  CB-03: \nolinkurl{backend/routes/control.js}, sau đó
+  \texttt{mqttService.js},
+  \nolinkurl{firmware/src/mqtt/mqtt_client.cpp}, \texttt{main.cpp} và
+  \nolinkurl{actuators/relay.cpp}.
+\item
+  NC-01: \nolinkurl{backend/services/anomalyEngine.js} tại
+  \texttt{evaluateZScore} và \texttt{processTelemetryForAnomalies}.
+\item
+  NC-03: \texttt{timeSeriesService.js}, \texttt{telemetryService.js},
+  rồi \nolinkurl{routes/telemetry.js}.
+\item
+  NC-05: \texttt{emailService.js} tại \texttt{sendAlertEmail}.
+\end{itemize}
+
+\section{Câu hỏi bổ sung về MQ2 sau hiệu
+chỉnh}\label{cuxe2u-hux1ecfi-bux1ed5-sung-vux1ec1-mq2-sau-hiux1ec7u-chux1ec9nh}
+
+\subsection{\texorpdfstring{81. Tại sao \texttt{gasLevel} có thể là
+null?}{81. Tại sao gasLevel có thể là null?}}\label{81-tux1ea1i-sao-gaslevel-cuxf3-thux1ec3-luxe0-null}
+
+Vì MQ2 chưa ở trạng thái \texttt{ready}. \texttt{null} biểu diễn đúng
+việc PPM chưa có giá trị, khác với \texttt{0} vốn là một phép đo.
+Backend vẫn lưu \texttt{sensorStatus.gas} nhưng không tạo gas anomaly
+hoặc email từ dữ liệu chưa hiệu chuẩn.
+
+\subsection{\texorpdfstring{82. Vì sao cần burn-in 48 giờ và lưu
+\texttt{Ro} trong
+NVS?}{82. Vì sao cần burn-in 48 giờ và lưu Ro trong NVS?}}\label{82-vuxec-sao-cux1ea7n-burn-in-48-giux1edd-vuxe0-lux1b0u-ro-trong-nvs}
+
+Datasheet MQ2 yêu cầu preheat ban đầu trên 48 giờ. \texttt{Ro} là điện
+trở cảm biến trong không khí sạch; hiệu chuẩn ngay khi bật nguồn sẽ học
+một baseline sai. NVS giữ \texttt{Ro} qua reset, nên các lần sau chỉ
+warm-up 5 phút và không hiệu chuẩn sai lại từ đầu.
+
+\subsection{83. Trong 48 giờ burn-in có mất an toàn local
+không?}\label{83-trong-48-giux1edd-burn-in-cuxf3-mux1ea5t-an-touxe0n-local-khuxf4ng}
+
+Không hoàn toàn. Firmware chưa được phép gọi điện áp raw là PPM hoặc gửi
+email, nhưng vẫn có ngưỡng ADC gần bão hòa để bật còi, LED và OLED tại
+chỗ. Đây là lớp dự phòng bảo thủ, không thay cho cảnh báo 600 PPM sau
+hiệu chuẩn.
+
+\subsection{84. Tại sao phải dùng FreeRTOS task riêng cho
+gas?}\label{84-tux1ea1i-sao-phux1ea3i-duxf9ng-freertos-task-riuxeang-cho-gas}
+
+WiFi và bắt tay TLS có thể chặn Arduino \texttt{loop()} lâu hơn 200 ms.
+Task gas ưu tiên cao chạy mỗi 100 ms, chỉ đọc ADC và điều khiển local;
+task mạng publish bản ghi đã xếp hàng sau. Vì vậy đường an toàn không
+chờ cloud.
+
+\subsection{85. MQ2 có đo PPM chính xác cho mọi loại khí
+không?}\label{85-mq2-cuxf3-ux111o-ppm-chuxednh-xuxe1c-cho-mux1ecdi-loux1ea1i-khuxed-khuxf4ng}
+
+Không. MQ2 phản ứng chéo với propane, methane, cồn và khói. Hệ thống nội
+suy đường propane trong datasheet nên phải gọi là LPG-equivalent PPM
+estimate. Muốn PPM chuẩn cần khí chuẩn, điều kiện nhiệt độ/độ ẩm kiểm
+soát và cảm biến chọn lọc phù hợp.
+
+\chapter{Code walkthrough phần Thái
+Kiệt}\label{code-walkthrough-phux1ea7n-thuxe1i-kiux1ec7t}
+
+Tài liệu này không sao chép toàn bộ source. Nó trích các đoạn quyết định
+hành vi của CB-03, NC-01, NC-03 và NC-05, rồi giải thích cách các đoạn
+nối với nhau. Khi vấn đáp, nên mở file thật và tìm theo tên hàm in đậm.
+
+\section{1. Cách đọc project}\label{1-cuxe1ch-ux111ux1ecdc-project}
+
+Đọc một luồng theo thứ tự sau:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Input {-}\textgreater{} route/message handler {-}\textgreater{} service {-}\textgreater{} model/output {-}\textgreater{} test}
+\end{Highlighting}
+\end{Shaded}
+
+Ví dụ CB-03:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Overview.jsx}
+\NormalTok{  {-}\textgreater{} POST /api/v1/control/actuator}
+\NormalTok{  {-}\textgreater{} control.js}
+\NormalTok{  {-}\textgreater{} mqttService.publishControlCommand()}
+\NormalTok{  {-}\textgreater{} MQTT topic}
+\NormalTok{  {-}\textgreater{} MqttClient.handleMessage()}
+\NormalTok{  {-}\textgreater{} main.cpp onControlMessage()}
+\NormalTok{  {-}\textgreater{} Relay.on()/off()}
+\NormalTok{  {-}\textgreater{} digitalWrite(GPIO 16 theo RELAY\_ACTIVE\_LOW)}
+\end{Highlighting}
+\end{Shaded}
+
+\section{2. CB-03 - Điều khiển
+quạt}\label{2-cb-03---ux111iux1ec1u-khiux1ec3n-quux1ea1t}
+
+\subsection{2.1 Frontend gửi lệnh}\label{21-frontend-gux1eedi-lux1ec7nh}
+
+File:
+\href{../frontend/src/pages/Overview.jsx}{\nolinkurl{frontend/src/pages/Overview.jsx}}
+
+Đầu file có mapping giữa tên actuator của API và field trong telemetry:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ ACTUATOR\_STATE\_FIELDS }\OperatorTok{=}\NormalTok{ \{}
+  \DataTypeTok{fan}\OperatorTok{:} \StringTok{\textquotesingle{}fanOn\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{buzzer}\OperatorTok{:} \StringTok{\textquotesingle{}buzzerActive\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{alertLed}\OperatorTok{:} \StringTok{\textquotesingle{}alertLedActive\textquotesingle{}}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Mapping này thay cho ternary lồng nhau. Khi thêm actuator mới, chỉ cần
+thêm một entry và phần cập nhật optimistic state vẫn dễ đọc.
+
+Hàm \textbf{handleActuatorToggle} thực hiện ba việc:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ targetState }\OperatorTok{=} \OperatorTok{!}\NormalTok{currentState}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ res }\OperatorTok{=} \ControlFlowTok{await} \FunctionTok{apiFetch}\NormalTok{(}\StringTok{\textquotesingle{}/api/v1/control/actuator\textquotesingle{}}\OperatorTok{,}\NormalTok{ \{}
+  \DataTypeTok{method}\OperatorTok{:} \StringTok{\textquotesingle{}POST\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{headers}\OperatorTok{:}\NormalTok{ \{ }\StringTok{\textquotesingle{}Content{-}Type\textquotesingle{}}\OperatorTok{:} \StringTok{\textquotesingle{}application/json\textquotesingle{}}\NormalTok{ \}}\OperatorTok{,}
+  \DataTypeTok{body}\OperatorTok{:} \BuiltInTok{JSON}\OperatorTok{.}\FunctionTok{stringify}\NormalTok{(\{}
+    \DataTypeTok{deviceId}\OperatorTok{:}\NormalTok{ telemetry}\OperatorTok{?.}\AttributeTok{deviceId} \OperatorTok{||} \StringTok{\textquotesingle{}safebox{-}01\textquotesingle{}}\OperatorTok{,}
+\NormalTok{    actuator}\OperatorTok{,}
+    \DataTypeTok{state}\OperatorTok{:}\NormalTok{ targetState}
+\NormalTok{  \})}
+\NormalTok{\})}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Đảo trạng thái hiện tại.
+\item
+  Gửi JSON đến backend.
+\item
+  Dùng \texttt{apiFetch} để tự gắn JWT.
+\end{enumerate}
+
+Sau response thành công, UI cập nhật trước khi vòng polling tiếp theo
+chạy:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ stateField }\OperatorTok{=}\NormalTok{ ACTUATOR\_STATE\_FIELDS[actuator]}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\NormalTok{stateField) }\ControlFlowTok{throw} \KeywordTok{new} \BuiltInTok{Error}\NormalTok{(}\VerbatimStringTok{\textasciigrave{}Unsupported actuator \textquotesingle{}}\SpecialCharTok{$\{}\NormalTok{actuator}\SpecialCharTok{\}}\VerbatimStringTok{\textquotesingle{}\textasciigrave{}}\NormalTok{)}\OperatorTok{;}
+\FunctionTok{setTelemetry}\NormalTok{((prev) }\KeywordTok{=\textgreater{}}\NormalTok{ (\{}
+  \OperatorTok{...}\NormalTok{(prev }\OperatorTok{||}\NormalTok{ \{\})}\OperatorTok{,}
+  \DataTypeTok{actuatorStates}\OperatorTok{:}\NormalTok{ \{}
+    \OperatorTok{...}\NormalTok{(prev}\OperatorTok{?.}\AttributeTok{actuatorStates} \OperatorTok{||}\NormalTok{ \{\})}\OperatorTok{,}
+\NormalTok{    [stateField]}\OperatorTok{:}\NormalTok{ targetState}
+\NormalTok{  \}}
+\NormalTok{\}))}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Đây là optimistic update. Nó giúp UI phản hồi nhanh nhưng không được xem
+là xác nhận phần cứng.
+
+\subsection{2.2 JWT helper}\label{22-jwt-helper}
+
+File: \href{../frontend/src/api.js}{\nolinkurl{frontend/src/api.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{export} \KeywordTok{function} \FunctionTok{apiFetch}\NormalTok{(input}\OperatorTok{,}\NormalTok{ options }\OperatorTok{=}\NormalTok{ \{\}) \{}
+  \KeywordTok{const}\NormalTok{ token }\OperatorTok{=}\NormalTok{ localStorage}\OperatorTok{.}\FunctionTok{getItem}\NormalTok{(}\StringTok{\textquotesingle{}safebox\_token\textquotesingle{}}\NormalTok{)}\OperatorTok{;}
+  \KeywordTok{const}\NormalTok{ headers }\OperatorTok{=} \KeywordTok{new} \FunctionTok{Headers}\NormalTok{(options}\OperatorTok{.}\AttributeTok{headers} \OperatorTok{||}\NormalTok{ \{\})}\OperatorTok{;}
+
+  \ControlFlowTok{if}\NormalTok{ (token) headers}\OperatorTok{.}\FunctionTok{set}\NormalTok{(}\StringTok{\textquotesingle{}Authorization\textquotesingle{}}\OperatorTok{,} \VerbatimStringTok{\textasciigrave{}Bearer }\SpecialCharTok{$\{}\NormalTok{token}\SpecialCharTok{\}}\VerbatimStringTok{\textasciigrave{}}\NormalTok{)}\OperatorTok{;}
+
+  \ControlFlowTok{return} \FunctionTok{fetch}\NormalTok{(input}\OperatorTok{,}\NormalTok{ \{}
+    \OperatorTok{...}\NormalTok{options}\OperatorTok{,}
+\NormalTok{    headers}
+\NormalTok{  \})}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Điểm cần nói:
+
+\begin{itemize}
+\tightlist
+\item
+  Helper không tự tạo token; token được tạo bởi backend khi login.
+\item
+  Nó giữ nguyên header caller truyền vào rồi bổ sung Authorization.
+\item
+  Nếu không có token, backend middleware trả 401.
+\end{itemize}
+
+\subsection{2.3 REST route nhận
+lệnh}\label{23-rest-route-nhux1eadn-lux1ec7nh}
+
+File:
+\href{../backend/routes/control.js}{\nolinkurl{backend/routes/control.js}}
+
+Hàm \textbf{parseActuatorState} chuẩn hóa hai dạng input:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{parseActuatorState}\NormalTok{(value) \{}
+  \ControlFlowTok{if}\NormalTok{ (}\KeywordTok{typeof}\NormalTok{ value }\OperatorTok{===} \StringTok{\textquotesingle{}boolean\textquotesingle{}}\NormalTok{) }\ControlFlowTok{return}\NormalTok{ value}\OperatorTok{;}
+  \ControlFlowTok{if}\NormalTok{ (value }\OperatorTok{===} \StringTok{\textquotesingle{}on\textquotesingle{}}\NormalTok{) }\ControlFlowTok{return} \KeywordTok{true}\OperatorTok{;}
+  \ControlFlowTok{if}\NormalTok{ (value }\OperatorTok{===} \StringTok{\textquotesingle{}off\textquotesingle{}}\NormalTok{) }\ControlFlowTok{return} \KeywordTok{false}\OperatorTok{;}
+  \ControlFlowTok{throw} \KeywordTok{new} \BuiltInTok{TypeError}\NormalTok{(}\StringTok{"state must be a boolean or the string \textquotesingle{}on\textquotesingle{}/\textquotesingle{}off\textquotesingle{}"}\NormalTok{)}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Route kiểm tra actuator trước khi publish:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\NormalTok{ALLOWED\_ACTUATORS}\OperatorTok{.}\FunctionTok{has}\NormalTok{(actuator)) \{}
+  \ControlFlowTok{return}\NormalTok{ res}\OperatorTok{.}\FunctionTok{status}\NormalTok{(}\DecValTok{400}\NormalTok{)}\OperatorTok{.}\FunctionTok{json}\NormalTok{(\{}
+    \DataTypeTok{success}\OperatorTok{:} \KeywordTok{false}\OperatorTok{,}
+    \DataTypeTok{error}\OperatorTok{:} \VerbatimStringTok{\textasciigrave{}Unsupported actuator \textquotesingle{}}\SpecialCharTok{$\{}\NormalTok{actuator}\SpecialCharTok{\}}\VerbatimStringTok{\textquotesingle{}\textasciigrave{}}
+\NormalTok{  \})}\OperatorTok{;}
+\NormalTok{\}}
+
+\KeywordTok{const}\NormalTok{ targetState }\OperatorTok{=} \FunctionTok{parseActuatorState}\NormalTok{(state)}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ publishResult }\OperatorTok{=} \ControlFlowTok{await} \FunctionTok{publishControlCommand}\NormalTok{(deviceId}\OperatorTok{,}\NormalTok{ actuator}\OperatorTok{,}\NormalTok{ targetState)}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Nếu MQTT thật đang offline, service gắn code \texttt{MQTT\_OFFLINE} và
+route trả 503. Input sai trả 400. Lỗi không dự kiến trả 500.
+
+\subsection{2.4 Kho trạng thái
+actuator}\label{24-kho-trux1ea1ng-thuxe1i-actuator}
+
+File:
+\href{../backend/services/actuatorStateService.js}{\nolinkurl{backend/services/actuatorStateService.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ ACTUATOR\_STATE\_FIELDS }\OperatorTok{=} \BuiltInTok{Object}\OperatorTok{.}\FunctionTok{freeze}\NormalTok{(\{}
+  \DataTypeTok{fan}\OperatorTok{:} \StringTok{\textquotesingle{}fanOn\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{buzzer}\OperatorTok{:} \StringTok{\textquotesingle{}buzzerActive\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{alertLed}\OperatorTok{:} \StringTok{\textquotesingle{}alertLedActive\textquotesingle{}}
+\NormalTok{\})}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Hàm \textbf{updateActuatorState} lưu requested state sau publish:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{updateActuatorState}\NormalTok{(actuator}\OperatorTok{,}\NormalTok{ state) \{}
+  \KeywordTok{const}\NormalTok{ stateField }\OperatorTok{=}\NormalTok{ ACTUATOR\_STATE\_FIELDS[actuator]}\OperatorTok{;}
+  \ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\NormalTok{stateField) }\ControlFlowTok{throw} \KeywordTok{new} \BuiltInTok{TypeError}\NormalTok{(}\VerbatimStringTok{\textasciigrave{}Unsupported actuator \textquotesingle{}}\SpecialCharTok{$\{}\NormalTok{actuator}\SpecialCharTok{\}}\VerbatimStringTok{\textquotesingle{}\textasciigrave{}}\NormalTok{)}\OperatorTok{;}
+
+\NormalTok{  currentActuatorStates }\OperatorTok{=}\NormalTok{ \{}
+    \OperatorTok{...}\NormalTok{currentActuatorStates}\OperatorTok{,}
+\NormalTok{    [stateField]}\OperatorTok{:} \BuiltInTok{Boolean}\NormalTok{(state)}
+\NormalTok{  \}}\OperatorTok{;}
+  \ControlFlowTok{return} \FunctionTok{getCurrentActuatorStates}\NormalTok{()}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Hàm \textbf{synchronizeActuatorStates} thay snapshot bằng telemetry đã
+xác thực:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{synchronizeActuatorStates}\NormalTok{(actuatorStates) \{}
+\NormalTok{  currentActuatorStates }\OperatorTok{=}\NormalTok{ \{}
+    \DataTypeTok{fanOn}\OperatorTok{:} \BuiltInTok{Boolean}\NormalTok{(actuatorStates}\OperatorTok{.}\AttributeTok{fanOn}\NormalTok{)}\OperatorTok{,}
+    \DataTypeTok{buzzerActive}\OperatorTok{:} \BuiltInTok{Boolean}\NormalTok{(actuatorStates}\OperatorTok{.}\AttributeTok{buzzerActive}\NormalTok{)}\OperatorTok{,}
+    \DataTypeTok{alertLedActive}\OperatorTok{:} \BuiltInTok{Boolean}\NormalTok{(actuatorStates}\OperatorTok{.}\AttributeTok{alertLedActive}\NormalTok{)}
+\NormalTok{  \}}\OperatorTok{;}
+  \ControlFlowTok{return} \FunctionTok{getCurrentActuatorStates}\NormalTok{()}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Service trả object copy, không trả reference map nội bộ. Caller không
+thể vô tình sửa state mà không đi qua service.
+
+\subsection{2.5 Backend publish MQTT}\label{25-backend-publish-mqtt}
+
+File:
+\href{../backend/services/mqttService.js}{\nolinkurl{backend/services/mqttService.js}}
+
+Hàm \textbf{publishControlCommand}:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ topic }\OperatorTok{=} \VerbatimStringTok{\textasciigrave{}safebox/}\SpecialCharTok{$\{}\NormalTok{deviceId}\SpecialCharTok{\}}\VerbatimStringTok{/control\textasciigrave{}}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ payload }\OperatorTok{=} \BuiltInTok{JSON}\OperatorTok{.}\FunctionTok{stringify}\NormalTok{(\{ actuator}\OperatorTok{,} \DataTypeTok{state}\OperatorTok{:}\NormalTok{ state }\OperatorTok{?} \StringTok{\textquotesingle{}on\textquotesingle{}} \OperatorTok{:} \StringTok{\textquotesingle{}off\textquotesingle{}}\NormalTok{ \})}\OperatorTok{;}
+\ControlFlowTok{await} \KeywordTok{new} \BuiltInTok{Promise}\NormalTok{((resolve}\OperatorTok{,}\NormalTok{ reject) }\KeywordTok{=\textgreater{}}\NormalTok{ \{}
+\NormalTok{  mqttClient}\OperatorTok{.}\FunctionTok{publish}\NormalTok{(topic}\OperatorTok{,}\NormalTok{ payload}\OperatorTok{,}\NormalTok{ \{ }\DataTypeTok{qos}\OperatorTok{:} \DecValTok{1}\OperatorTok{,} \DataTypeTok{retain}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}\OperatorTok{,}\NormalTok{ (error) }\KeywordTok{=\textgreater{}}\NormalTok{ \{}
+    \ControlFlowTok{if}\NormalTok{ (error) }\FunctionTok{reject}\NormalTok{(error)}\OperatorTok{;}
+    \ControlFlowTok{else} \FunctionTok{resolve}\NormalTok{()}\OperatorTok{;}
+\NormalTok{  \})}\OperatorTok{;}
+\NormalTok{\})}\OperatorTok{;}
+\FunctionTok{updateActuatorState}\NormalTok{(actuator}\OperatorTok{,}\NormalTok{ state)}\OperatorTok{;}
+\ControlFlowTok{return}\NormalTok{ \{ }\DataTypeTok{status}\OperatorTok{:} \StringTok{\textquotesingle{}published\textquotesingle{}}\OperatorTok{,}\NormalTok{ topic \}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Ý nghĩa từng option:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{qos:\ 1}: at least once.
+\item
+  \texttt{retain:\ false}: lệnh cũ không được giữ lại để chạy lại khi
+  thiết bị kết nối sau.
+\item
+  Chỉ cập nhật requested state sau callback publish không báo lỗi.
+\end{itemize}
+
+Khi telemetry thật quay về:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ControlFlowTok{if}\NormalTok{ (channel }\OperatorTok{===} \StringTok{\textquotesingle{}telemetry\textquotesingle{}}\NormalTok{) \{}
+  \KeywordTok{const}\NormalTok{ result }\OperatorTok{=} \ControlFlowTok{await} \FunctionTok{ingestTelemetry}\NormalTok{(payload}\OperatorTok{,}\NormalTok{ deviceId)}\OperatorTok{;}
+  \FunctionTok{synchronizeActuatorStates}\NormalTok{(result}\OperatorTok{.}\AttributeTok{reading}\OperatorTok{.}\AttributeTok{actuatorStates}\NormalTok{)}\OperatorTok{;}
+  \ControlFlowTok{return}\NormalTok{ result}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{2.6 Firmware nhận MQTT}\label{26-firmware-nhux1eadn-mqtt}
+
+File:
+\href{../firmware/src/mqtt/mqtt_client.cpp}{\nolinkurl{firmware/src/mqtt/mqtt_client.cpp}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DataTypeTok{void}\NormalTok{ MqttClient}\OperatorTok{::}\NormalTok{handleMessage}\OperatorTok{(}\NormalTok{byte}\OperatorTok{*}\NormalTok{ payload}\OperatorTok{,} \DataTypeTok{unsigned} \DataTypeTok{int}\NormalTok{ length}\OperatorTok{)} \OperatorTok{\{}
+\NormalTok{  JsonDocument doc}\OperatorTok{;}
+\NormalTok{  DeserializationError error }\OperatorTok{=}\NormalTok{ deserializeJson}\OperatorTok{(}\NormalTok{doc}\OperatorTok{,}\NormalTok{ payload}\OperatorTok{,}\NormalTok{ length}\OperatorTok{);}
+  \ControlFlowTok{if} \OperatorTok{(}\NormalTok{error}\OperatorTok{)} \ControlFlowTok{return}\OperatorTok{;}
+
+  \AttributeTok{const} \DataTypeTok{char}\OperatorTok{*}\NormalTok{ actuator }\OperatorTok{=}\NormalTok{ doc}\OperatorTok{[}\StringTok{"actuator"}\OperatorTok{]} \OperatorTok{|} \StringTok{""}\OperatorTok{;}
+  \DataTypeTok{bool}\NormalTok{ state }\OperatorTok{=} \KeywordTok{false}\OperatorTok{;}
+  \ControlFlowTok{if} \OperatorTok{(}\NormalTok{doc}\OperatorTok{[}\StringTok{"state"}\OperatorTok{].}\NormalTok{is}\OperatorTok{\textless{}}\DataTypeTok{bool}\OperatorTok{\textgreater{}())} \OperatorTok{\{}
+\NormalTok{    state }\OperatorTok{=}\NormalTok{ doc}\OperatorTok{[}\StringTok{"state"}\OperatorTok{].}\NormalTok{as}\OperatorTok{\textless{}}\DataTypeTok{bool}\OperatorTok{\textgreater{}();}
+  \OperatorTok{\}} \ControlFlowTok{else} \OperatorTok{\{}
+    \AttributeTok{const} \DataTypeTok{char}\OperatorTok{*}\NormalTok{ stateStr }\OperatorTok{=}\NormalTok{ doc}\OperatorTok{[}\StringTok{"state"}\OperatorTok{]} \OperatorTok{|} \StringTok{"off"}\OperatorTok{;}
+\NormalTok{    state }\OperatorTok{=} \OperatorTok{(}\NormalTok{strcmp}\OperatorTok{(}\NormalTok{stateStr}\OperatorTok{,} \StringTok{"on"}\OperatorTok{)} \OperatorTok{==} \DecValTok{0}\OperatorTok{);}
+  \OperatorTok{\}}
+
+  \ControlFlowTok{if} \OperatorTok{(}\NormalTok{\_controlCallback}\OperatorTok{)}\NormalTok{ \_controlCallback}\OperatorTok{(}\NormalTok{actuator}\OperatorTok{,}\NormalTok{ state}\OperatorTok{);}
+\OperatorTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{MqttClient} chịu trách nhiệm subscribe topic control, parse JSON
+và đổi state sang boolean. JSON lỗi bị bỏ qua. Chuỗi khác \texttt{on}
+được xử lý theo hướng fail-off; actuator lạ không tạo tác động vì
+callback ở \texttt{main.cpp} không có nhánh tương ứng.
+
+File: \href{../firmware/src/main.cpp}{\nolinkurl{firmware/src/main.cpp}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\AttributeTok{static} \DataTypeTok{void}\NormalTok{ onControlMessage}\OperatorTok{(}\AttributeTok{const} \DataTypeTok{char}\OperatorTok{*}\NormalTok{ actuator}\OperatorTok{,} \DataTypeTok{bool}\NormalTok{ state}\OperatorTok{)} \OperatorTok{\{}
+  \ControlFlowTok{if} \OperatorTok{(}\NormalTok{strcmp}\OperatorTok{(}\NormalTok{actuator}\OperatorTok{,} \StringTok{"fan"}\OperatorTok{)} \OperatorTok{==} \DecValTok{0}\OperatorTok{)} \OperatorTok{\{}
+    \ControlFlowTok{if} \OperatorTok{(}\NormalTok{state}\OperatorTok{)}\NormalTok{ fanRelay}\OperatorTok{.}\NormalTok{on}\OperatorTok{();}
+    \ControlFlowTok{else}\NormalTok{ fanRelay}\OperatorTok{.}\NormalTok{off}\OperatorTok{();}
+\NormalTok{    DBG}\OperatorTok{(}\StringTok{"[Fan] Relay state: }\SpecialCharTok{\%s\textbackslash{}n}\StringTok{"}\OperatorTok{,}\NormalTok{ fanRelay}\OperatorTok{.}\NormalTok{isOn}\OperatorTok{()} \OperatorTok{?} \StringTok{"ON"} \OperatorTok{:} \StringTok{"OFF"}\OperatorTok{);}
+  \OperatorTok{\}} \ControlFlowTok{else} \ControlFlowTok{if} \OperatorTok{(}\NormalTok{strcmp}\OperatorTok{(}\NormalTok{actuator}\OperatorTok{,} \StringTok{"buzzer"}\OperatorTok{)} \OperatorTok{==} \DecValTok{0}\OperatorTok{)} \OperatorTok{\{}
+\NormalTok{    edgeSafety}\OperatorTok{.}\NormalTok{applyRemoteBuzzer}\OperatorTok{(}\NormalTok{state}\OperatorTok{);}
+  \OperatorTok{\}} \ControlFlowTok{else} \ControlFlowTok{if} \OperatorTok{(}\NormalTok{strcmp}\OperatorTok{(}\NormalTok{actuator}\OperatorTok{,} \StringTok{"alertLed"}\OperatorTok{)} \OperatorTok{==} \DecValTok{0}\OperatorTok{)} \OperatorTok{\{}
+\NormalTok{    edgeSafety}\OperatorTok{.}\NormalTok{applyRemoteAlertLed}\OperatorTok{(}\NormalTok{state}\OperatorTok{);}
+  \OperatorTok{\}}
+\OperatorTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{main.cpp} chỉ định tuyến actuator. Buzzer và alert LED đi qua
+\texttt{EdgeSafety}, nhờ đó cảnh báo gas cục bộ có thể ưu tiên hơn lệnh
+remote.
+
+File:
+\href{../firmware/src/actuators/relay.cpp}{\nolinkurl{firmware/src/actuators/relay.cpp}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\DataTypeTok{void}\NormalTok{ Relay}\OperatorTok{::}\NormalTok{begin}\OperatorTok{()} \OperatorTok{\{}
+\NormalTok{  pinMode}\OperatorTok{(}\NormalTok{\_pin}\OperatorTok{,}\NormalTok{ OUTPUT}\OperatorTok{);}
+\NormalTok{  off}\OperatorTok{();}
+\OperatorTok{\}}
+
+\DataTypeTok{void}\NormalTok{ Relay}\OperatorTok{::}\NormalTok{on}\OperatorTok{()} \OperatorTok{\{}
+\NormalTok{  digitalWrite}\OperatorTok{(}\NormalTok{\_pin}\OperatorTok{,}\NormalTok{ RELAY\_ACTIVE\_LOW }\OperatorTok{?}\NormalTok{ LOW }\OperatorTok{:}\NormalTok{ HIGH}\OperatorTok{);}
+\NormalTok{  \_state }\OperatorTok{=} \KeywordTok{true}\OperatorTok{;}
+\OperatorTok{\}}
+
+\DataTypeTok{void}\NormalTok{ Relay}\OperatorTok{::}\NormalTok{off}\OperatorTok{()} \OperatorTok{\{}
+\NormalTok{  digitalWrite}\OperatorTok{(}\NormalTok{\_pin}\OperatorTok{,}\NormalTok{ RELAY\_ACTIVE\_LOW }\OperatorTok{?}\NormalTok{ HIGH }\OperatorTok{:}\NormalTok{ LOW}\OperatorTok{);}
+\NormalTok{  \_state }\OperatorTok{=} \KeywordTok{false}\OperatorTok{;}
+\OperatorTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Với module HL-52S mặc định \texttt{RELAY\_ACTIVE\_LOW=1}, GPIO 16 LOW là
+relay ON và HIGH là OFF. \texttt{begin()} gọi \texttt{off()}, nên fan
+vẫn tắt trong lúc boot.
+
+\section{3. NC-01 - Z-score và rule
+engine}\label{3-nc-01---z-score-vuxe0-rule-engine}
+
+File:
+\href{../backend/services/anomalyEngine.js}{\nolinkurl{backend/services/anomalyEngine.js}}
+
+\subsection{3.1 Hằng số và
+state}\label{31-hux1eb1ng-sux1ed1-vuxe0-state}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ WINDOW\_SIZE }\OperatorTok{=} \DecValTok{30}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ DEDUPE\_WINDOW\_MS }\OperatorTok{=} \BuiltInTok{Number}\NormalTok{(}\BuiltInTok{process}\OperatorTok{.}\AttributeTok{env}\OperatorTok{.}\AttributeTok{ANOMALY\_DEDUPE\_WINDOW\_MS} \OperatorTok{||} \DecValTok{60\_000}\NormalTok{)}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ MIN\_DELTA }\OperatorTok{=}\NormalTok{ \{ }\DataTypeTok{temperature}\OperatorTok{:} \FloatTok{1.0}\OperatorTok{,} \DataTypeTok{humidity}\OperatorTok{:} \FloatTok{2.0}\NormalTok{ \}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{DEFAULT\_THRESHOLDS} được freeze để tránh sửa nhầm object mặc
+định. Runtime dùng một bản copy, nên \texttt{updateThresholds()} vẫn
+thay đổi được cấu hình đang chạy.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ systemThresholds }\OperatorTok{=}\NormalTok{ \{ }\OperatorTok{...}\NormalTok{DEFAULT\_THRESHOLDS \}}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ rollingBuffers }\OperatorTok{=} \KeywordTok{new} \BuiltInTok{Map}\NormalTok{()}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ anomalyDedupMap }\OperatorTok{=} \KeywordTok{new} \BuiltInTok{Map}\NormalTok{()}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Key rolling buffer là \texttt{deviceId:sensorType}, vì mỗi thiết bị và
+mỗi metric cần baseline riêng.
+
+\subsection{3.2 Tính mean và standard
+deviation}\label{32-tuxednh-mean-vuxe0-standard-deviation}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{meanAndStdDev}\NormalTok{(values) \{}
+  \KeywordTok{const}\NormalTok{ mean }\OperatorTok{=}\NormalTok{ values}\OperatorTok{.}\FunctionTok{reduce}\NormalTok{((sum}\OperatorTok{,}\NormalTok{ value) }\KeywordTok{=\textgreater{}}\NormalTok{ sum }\OperatorTok{+}\NormalTok{ value}\OperatorTok{,} \DecValTok{0}\NormalTok{) }\OperatorTok{/}\NormalTok{ values}\OperatorTok{.}\AttributeTok{length}\OperatorTok{;}
+  \KeywordTok{const}\NormalTok{ variance }\OperatorTok{=}\NormalTok{ values}\OperatorTok{.}\FunctionTok{reduce}\NormalTok{(}
+\NormalTok{    (sum}\OperatorTok{,}\NormalTok{ value) }\KeywordTok{=\textgreater{}}\NormalTok{ sum }\OperatorTok{+}\NormalTok{ ((value }\OperatorTok{{-}}\NormalTok{ mean) }\OperatorTok{**} \DecValTok{2}\NormalTok{)}\OperatorTok{,}
+    \DecValTok{0}
+\NormalTok{  ) }\OperatorTok{/}\NormalTok{ values}\OperatorTok{.}\AttributeTok{length}\OperatorTok{;}
+  \ControlFlowTok{return}\NormalTok{ \{ mean}\OperatorTok{,} \DataTypeTok{stdDev}\OperatorTok{:} \BuiltInTok{Math}\OperatorTok{.}\FunctionTok{sqrt}\NormalTok{(variance) \}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Code dùng population variance, chia cho N. Window 30 mẫu được coi là
+toàn bộ baseline hiện tại, không phải mẫu dùng để suy rộng thống kê học
+thuật.
+
+\subsection{3.3 Evaluate mẫu mới}\label{33-evaluate-mux1eabu-mux1edbi}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\BuiltInTok{Object}\OperatorTok{.}\FunctionTok{hasOwn}\NormalTok{(MIN\_DELTA}\OperatorTok{,}\NormalTok{ sensorType)) \{}
+  \ControlFlowTok{return}\NormalTok{ \{ }\DataTypeTok{ready}\OperatorTok{:} \KeywordTok{false}\OperatorTok{,} \DataTypeTok{zScore}\OperatorTok{:} \KeywordTok{null}\OperatorTok{,} \DataTypeTok{isAnomaly}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Dòng này là hàng rào bảo đảm gas và motion không bị đưa vào Z-score.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ControlFlowTok{if}\NormalTok{ (buffer}\OperatorTok{.}\AttributeTok{length} \OperatorTok{===}\NormalTok{ WINDOW\_SIZE) \{}
+  \KeywordTok{const}\NormalTok{ \{ mean}\OperatorTok{,}\NormalTok{ stdDev \} }\OperatorTok{=} \FunctionTok{meanAndStdDev}\NormalTok{(buffer)}\OperatorTok{;}
+  \ControlFlowTok{if}\NormalTok{ (stdDev }\OperatorTok{===} \DecValTok{0}\NormalTok{) \{}
+\NormalTok{    result }\OperatorTok{=}\NormalTok{ \{ }\DataTypeTok{ready}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \DataTypeTok{zScore}\OperatorTok{:} \DecValTok{0}\OperatorTok{,}\NormalTok{ mean}\OperatorTok{,}\NormalTok{ stdDev}\OperatorTok{,} \DataTypeTok{isAnomaly}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}\OperatorTok{;}
+\NormalTok{  \} }\ControlFlowTok{else}\NormalTok{ \{}
+    \KeywordTok{const}\NormalTok{ zScore }\OperatorTok{=}\NormalTok{ (value }\OperatorTok{{-}}\NormalTok{ mean) }\OperatorTok{/}\NormalTok{ stdDev}\OperatorTok{;}
+    \KeywordTok{const}\NormalTok{ isAnomaly }\OperatorTok{=} \BuiltInTok{Math}\OperatorTok{.}\FunctionTok{abs}\NormalTok{(zScore) }\OperatorTok{\textgreater{}}\NormalTok{ systemThresholds}\OperatorTok{.}\AttributeTok{zScoreLimit}
+      \OperatorTok{\&\&} \BuiltInTok{Math}\OperatorTok{.}\FunctionTok{abs}\NormalTok{(value }\OperatorTok{{-}}\NormalTok{ mean) }\OperatorTok{\textgreater{}}\NormalTok{ MIN\_DELTA[sensorType]}\OperatorTok{;}
+\NormalTok{    result }\OperatorTok{=}\NormalTok{ \{ }\DataTypeTok{ready}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,}\NormalTok{ zScore}\OperatorTok{,}\NormalTok{ mean}\OperatorTok{,}\NormalTok{ stdDev}\OperatorTok{,}\NormalTok{ isAnomaly \}}\OperatorTok{;}
+\NormalTok{  \}}
+\NormalTok{\}}
+
+\NormalTok{buffer}\OperatorTok{.}\FunctionTok{push}\NormalTok{(value)}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (buffer}\OperatorTok{.}\AttributeTok{length} \OperatorTok{\textgreater{}}\NormalTok{ WINDOW\_SIZE) buffer}\OperatorTok{.}\FunctionTok{shift}\NormalTok{()}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Thứ tự rất quan trọng: evaluate bằng 30 mẫu cũ, rồi mới roll mẫu mới vào
+window.
+
+\subsection{3.4 Bốn rule builder}\label{34-bux1ed1n-rule-builder}
+
+Sau refactor, mỗi sensor có một hàm dễ mở và giải thích:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{buildGasCandidate()}
+\NormalTok{buildTemperatureCandidate()}
+\NormalTok{buildMotionCandidate()}
+\NormalTok{buildHumidityCandidate()}
+\end{Highlighting}
+\end{Shaded}
+
+Hàm chính chỉ còn orchestration:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ context }\OperatorTok{=}\NormalTok{ \{ deviceId}\OperatorTok{,}\NormalTok{ timestamp}\OperatorTok{,}\NormalTok{ metrics \}}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ temperatureStats }\OperatorTok{=} \FunctionTok{evaluateZScore}\NormalTok{(deviceId}\OperatorTok{,} \StringTok{\textquotesingle{}temperature\textquotesingle{}}\OperatorTok{,}\NormalTok{ metrics}\OperatorTok{.}\AttributeTok{temperature}\NormalTok{)}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ humidityStats }\OperatorTok{=} \FunctionTok{evaluateZScore}\NormalTok{(deviceId}\OperatorTok{,} \StringTok{\textquotesingle{}humidity\textquotesingle{}}\OperatorTok{,}\NormalTok{ metrics}\OperatorTok{.}\AttributeTok{humidity}\NormalTok{)}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ candidates }\OperatorTok{=}\NormalTok{ [}
+  \FunctionTok{buildGasCandidate}\NormalTok{(context)}\OperatorTok{,}
+  \FunctionTok{buildTemperatureCandidate}\NormalTok{(context}\OperatorTok{,}\NormalTok{ temperatureStats)}\OperatorTok{,}
+  \FunctionTok{buildMotionCandidate}\NormalTok{(context)}\OperatorTok{,}
+  \FunctionTok{buildHumidityCandidate}\NormalTok{(context}\OperatorTok{,}\NormalTok{ humidityStats)}
+\NormalTok{]}\OperatorTok{.}\FunctionTok{filter}\NormalTok{(}\BuiltInTok{Boolean}\NormalTok{)}\OperatorTok{;}
+
+\KeywordTok{const}\NormalTok{ created }\OperatorTok{=} \ControlFlowTok{await} \BuiltInTok{Promise}\OperatorTok{.}\FunctionTok{all}\NormalTok{(candidates}\OperatorTok{.}\FunctionTok{map}\NormalTok{(createAnomalyIfNew))}\OperatorTok{;}
+\ControlFlowTok{return}\NormalTok{ created}\OperatorTok{.}\FunctionTok{filter}\NormalTok{(}\BuiltInTok{Boolean}\NormalTok{)}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{candidate} là object trung gian mô tả anomaly và hành động cần
+làm. Chỉ sau dedupe và action handling nó mới thành MongoDB document.
+
+\subsection{3.5 Temperature rule}\label{35-temperature-rule}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ aboveMaximum }\OperatorTok{=}\NormalTok{ metrics}\OperatorTok{.}\AttributeTok{temperature} \OperatorTok{\textgreater{}}\NormalTok{ systemThresholds}\OperatorTok{.}\AttributeTok{tempMax}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ belowMinimum }\OperatorTok{=}\NormalTok{ metrics}\OperatorTok{.}\AttributeTok{temperature} \OperatorTok{\textless{}}\NormalTok{ systemThresholds}\OperatorTok{.}\AttributeTok{tempMin}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Hard bounds được ưu tiên. Nếu trong bounds và automatic mode bật, code
+mới xét Z-score.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{autoFan}\OperatorTok{:}\NormalTok{ metrics}\OperatorTok{.}\AttributeTok{temperature} \OperatorTok{\textgreater{}}\NormalTok{ statistics}\OperatorTok{.}\AttributeTok{mean}
+\end{Highlighting}
+\end{Shaded}
+
+Z-score có thể âm hoặc dương. Fan chỉ bật khi bất thường theo hướng nóng
+lên, không bật khi nhiệt độ giảm mạnh.
+
+\subsection{3.6 Dedupe và action}\label{36-dedupe-vuxe0-action}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{function} \FunctionTok{dedupeKey}\NormalTok{(candidate) \{}
+  \ControlFlowTok{return} \VerbatimStringTok{\textasciigrave{}}\SpecialCharTok{$\{}\NormalTok{candidate}\OperatorTok{.}\AttributeTok{deviceId}\SpecialCharTok{\}}\VerbatimStringTok{:}\SpecialCharTok{$\{}\NormalTok{candidate}\OperatorTok{.}\AttributeTok{sensorType}\SpecialCharTok{\}}\VerbatimStringTok{:}\SpecialCharTok{$\{}\NormalTok{candidate}\OperatorTok{.}\AttributeTok{triggerType}\SpecialCharTok{\}}\VerbatimStringTok{\textasciigrave{}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ lastCreatedAt }\OperatorTok{=}\NormalTok{ anomalyDedupMap}\OperatorTok{.}\FunctionTok{get}\NormalTok{(key)}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (lastCreatedAt }\OperatorTok{!==} \KeywordTok{undefined} \OperatorTok{\&\&}\NormalTok{ now }\OperatorTok{{-}}\NormalTok{ lastCreatedAt }\OperatorTok{\textless{}}\NormalTok{ DEDUPE\_WINDOW\_MS) \{}
+  \ControlFlowTok{return} \KeywordTok{null}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Key được reserve trước các thao tác async để hai message đến gần nhau
+không cùng vượt qua kiểm tra.
+
+Action được bọc \nolinkurl{try/catch} riêng. Nếu bật fan hoặc gửi email
+thất bại, anomaly vẫn được ghi và \texttt{actionsTaken} chứa lý do lỗi.
+Đây là graceful degradation.
+
+\section{4. NC-03 - Time Series
+ingestion}\label{4-nc-03---time-series-ingestion}
+
+\subsection{4.1 Schema}\label{41-schema}
+
+File:
+\href{../backend/models/Schemas.js}{\nolinkurl{backend/models/Schemas.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ SensorReadingSchema }\OperatorTok{=} \KeywordTok{new} \FunctionTok{Schema}\NormalTok{(\{}
+  \DataTypeTok{timestamp}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Date}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \ControlFlowTok{default}\OperatorTok{:} \BuiltInTok{Date}\OperatorTok{.}\AttributeTok{now}\NormalTok{ \}}\OperatorTok{,}
+  \DataTypeTok{deviceId}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{String}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \DataTypeTok{index}\OperatorTok{:} \KeywordTok{true}\NormalTok{ \}}\OperatorTok{,}
+  \DataTypeTok{metrics}\OperatorTok{:}\NormalTok{ \{}
+    \DataTypeTok{temperature}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Number}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{humidity}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Number}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{gasLevel}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Number}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{lightIntensity}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Number}\OperatorTok{,} \ControlFlowTok{default}\OperatorTok{:} \KeywordTok{null}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{motionDetected}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Boolean}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\NormalTok{ \}}
+\NormalTok{  \}}\OperatorTok{,}
+  \DataTypeTok{actuatorStates}\OperatorTok{:}\NormalTok{ \{}
+    \DataTypeTok{fanOn}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Boolean}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \ControlFlowTok{default}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{buzzerActive}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Boolean}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \ControlFlowTok{default}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}\OperatorTok{,}
+    \DataTypeTok{alertLedActive}\OperatorTok{:}\NormalTok{ \{ }\DataTypeTok{type}\OperatorTok{:} \BuiltInTok{Boolean}\OperatorTok{,} \DataTypeTok{required}\OperatorTok{:} \KeywordTok{true}\OperatorTok{,} \ControlFlowTok{default}\OperatorTok{:} \KeywordTok{false}\NormalTok{ \}}
+\NormalTok{  \}}
+\NormalTok{\}}\OperatorTok{,}\NormalTok{ \{}
+  \DataTypeTok{autoCreate}\OperatorTok{:} \KeywordTok{false}\OperatorTok{,}
+  \DataTypeTok{autoIndex}\OperatorTok{:} \KeywordTok{false}
+\NormalTok{\})}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{autoCreate=false} ngăn Mongoose tạo collection thường trước khi
+service có cơ hội tạo Time Series collection.
+
+\subsection{4.2 Tạo và verify
+collection}\label{42-tux1ea1o-vuxe0-verify-collection}
+
+File:
+\href{../backend/services/timeSeriesService.js}{\nolinkurl{backend/services/timeSeriesService.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ EXPIRE\_AFTER\_SECONDS }\OperatorTok{=} \DecValTok{30} \OperatorTok{*} \DecValTok{24} \OperatorTok{*} \DecValTok{60} \OperatorTok{*} \DecValTok{60}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ TIME\_SERIES\_OPTIONS }\OperatorTok{=}\NormalTok{ \{}
+  \DataTypeTok{timeField}\OperatorTok{:} \StringTok{\textquotesingle{}timestamp\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{metaField}\OperatorTok{:} \StringTok{\textquotesingle{}deviceId\textquotesingle{}}\OperatorTok{,}
+  \DataTypeTok{granularity}\OperatorTok{:} \StringTok{\textquotesingle{}seconds\textquotesingle{}}
+\NormalTok{\}}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Hàm \textbf{ensureSensorReadingsTimeSeries}:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Gọi \texttt{listCollections()} tìm \texttt{sensor\_readings}.
+\item
+  Nếu chưa có, gọi \texttt{createCollection()} với \texttt{timeseries}
+  và TTL.
+\item
+  Đọc metadata lại.
+\item
+  \texttt{validateCollectionOptions()} so từng option.
+\item
+  Sai cấu hình thì throw để startup fail rõ ràng.
+\end{enumerate}
+
+\subsection{4.3 Validate và ingest}\label{43-validate-vuxe0-ingest}
+
+File:
+\href{../backend/services/telemetryService.js}{\nolinkurl{backend/services/telemetryService.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{async} \KeywordTok{function} \FunctionTok{ingestTelemetry}\NormalTok{(payload}\OperatorTok{,}\NormalTok{ expectedDeviceId) \{}
+  \KeywordTok{const}\NormalTok{ normalized }\OperatorTok{=} \FunctionTok{validateTelemetryPayload}\NormalTok{(payload}\OperatorTok{,}\NormalTok{ expectedDeviceId)}\OperatorTok{;}
+  \KeywordTok{const}\NormalTok{ reading }\OperatorTok{=} \ControlFlowTok{await}\NormalTok{ SensorReading}\OperatorTok{.}\FunctionTok{create}\NormalTok{(normalized)}\OperatorTok{;}
+  \KeywordTok{const}\NormalTok{ anomalies }\OperatorTok{=} \ControlFlowTok{await} \FunctionTok{processTelemetryForAnomalies}\NormalTok{(reading)}\OperatorTok{;}
+  \ControlFlowTok{return}\NormalTok{ \{ reading}\OperatorTok{,}\NormalTok{ anomalies \}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\texttt{expectedDeviceId} lấy từ MQTT topic. Nếu payload khai một
+deviceId khác topic, validation từ chối để tránh ghi dữ liệu sai thiết
+bị.
+
+Validation còn kiểm tra:
+
+\begin{itemize}
+\tightlist
+\item
+  Nhiệt độ -40 đến 85°C.
+\item
+  Độ ẩm 0 đến 100\%.
+\item
+  Gas và light là số hữu hạn không âm.
+\item
+  Motion và actuator states là boolean.
+\item
+  Timestamp phải parse được.
+\end{itemize}
+
+\subsection{4.4 Historical route}\label{44-historical-route}
+
+File:
+\href{../backend/routes/telemetry.js}{\nolinkurl{backend/routes/telemetry.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{let}\NormalTok{ databaseQuery }\OperatorTok{=}\NormalTok{ SensorReading}\OperatorTok{.}\FunctionTok{find}\NormalTok{(query)}
+  \OperatorTok{.}\FunctionTok{sort}\NormalTok{(\{ }\DataTypeTok{timestamp}\OperatorTok{:} \OperatorTok{{-}}\DecValTok{1}\NormalTok{ \})}
+  \OperatorTok{.}\FunctionTok{limit}\NormalTok{(parsedLimit)}\OperatorTok{;}
+
+\KeywordTok{const}\NormalTok{ readings }\OperatorTok{=} \ControlFlowTok{await}\NormalTok{ databaseQuery}\OperatorTok{;}
+\NormalTok{readings}\OperatorTok{.}\FunctionTok{reverse}\NormalTok{()}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Hai bước này trả N mẫu mới nhất nhưng vẫn theo thứ tự thời gian phù hợp
+để vẽ chart.
+
+\section{5. NC-05 - Nodemailer và
+throttle}\label{5-nc-05---nodemailer-vuxe0-throttle}
+
+File:
+\href{../backend/services/emailService.js}{\nolinkurl{backend/services/emailService.js}}
+
+\subsection{5.1 Hằng số}\label{51-hux1eb1ng-sux1ed1}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ THROTTLE\_WINDOW\_MS }\OperatorTok{=} \DecValTok{15} \OperatorTok{*} \DecValTok{60} \OperatorTok{*} \DecValTok{1000}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ ALERT\_SEVERITIES }\OperatorTok{=} \KeywordTok{new} \BuiltInTok{Set}\NormalTok{([}\StringTok{\textquotesingle{}HIGH\textquotesingle{}}\OperatorTok{,} \StringTok{\textquotesingle{}CRITICAL\textquotesingle{}}\NormalTok{])}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ emailThrottleMap }\OperatorTok{=} \KeywordTok{new} \BuiltInTok{Map}\NormalTok{()}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{5.2 Validate config}\label{52-validate-config}
+
+\texttt{getEmailConfig()} chỉ cho bật email khi đủ SMTP host, user và
+password. Port phải là integer từ 1 đến 65535. \texttt{SMTP\_SECURE} mặc
+định true nếu port 465. \texttt{ALERT\_RECIPIENT\_EMAIL} không còn là
+recipient chính; nó chỉ fallback khi database chưa có user.
+
+\subsection{5.3 Lấy recipient từ user
+profile}\label{53-lux1ea5y-recipient-tux1eeb-user-profile}
+
+File:
+\href{../backend/services/userNotificationService.js}{\nolinkurl{backend/services/userNotificationService.js}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ users }\OperatorTok{=} \ControlFlowTok{await}\NormalTok{ User}\OperatorTok{.}\FunctionTok{find}\NormalTok{(\{\})}
+  \OperatorTok{.}\FunctionTok{select}\NormalTok{(}\StringTok{\textquotesingle{}email settings.emailEnabled\textquotesingle{}}\NormalTok{)}
+  \OperatorTok{.}\FunctionTok{lean}\NormalTok{()}\OperatorTok{;}
+
+\KeywordTok{const}\NormalTok{ recipients }\OperatorTok{=}\NormalTok{ users}
+  \OperatorTok{.}\FunctionTok{filter}\NormalTok{((user) }\KeywordTok{=\textgreater{}}\NormalTok{ user}\OperatorTok{.}\AttributeTok{settings}\OperatorTok{?.}\AttributeTok{emailEnabled} \OperatorTok{!==} \KeywordTok{false}\NormalTok{)}
+  \OperatorTok{.}\FunctionTok{map}\NormalTok{((user) }\KeywordTok{=\textgreater{}} \FunctionTok{normalizeEmail}\NormalTok{(user}\OperatorTok{.}\AttributeTok{email}\NormalTok{))}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Email nhận cảnh báo chính là \texttt{User.email} đã nhập khi đăng ký.
+Settings lưu \texttt{settings.emailEnabled}. Khi đã có user nhưng tất cả
+đều tắt, resolver trả danh sách rỗng và không dùng fallback, nhờ đó lựa
+chọn trên web có hiệu lực thật.
+
+\subsection{5.4 Gửi email}\label{54-gux1eedi-email}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ severity }\OperatorTok{=} \BuiltInTok{String}\NormalTok{(alert}\OperatorTok{.}\AttributeTok{severity} \OperatorTok{||} \StringTok{\textquotesingle{}\textquotesingle{}}\NormalTok{)}\OperatorTok{.}\FunctionTok{toUpperCase}\NormalTok{()}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\NormalTok{ALERT\_SEVERITIES}\OperatorTok{.}\FunctionTok{has}\NormalTok{(severity)) \{}
+  \ControlFlowTok{return}\NormalTok{ \{ }\DataTypeTok{status}\OperatorTok{:} \StringTok{\textquotesingle{}ignored\textquotesingle{}}\OperatorTok{,} \DataTypeTok{reason}\OperatorTok{:} \StringTok{\textquotesingle{}severity\textquotesingle{}}\NormalTok{ \}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+MEDIUM và LOW dừng trước khi chạm SMTP.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ throttleKey }\OperatorTok{=} \VerbatimStringTok{\textasciigrave{}}\SpecialCharTok{$\{}\NormalTok{alert}\OperatorTok{.}\AttributeTok{deviceId}\SpecialCharTok{\}}\VerbatimStringTok{:}\SpecialCharTok{$\{}\NormalTok{alert}\OperatorTok{.}\AttributeTok{sensorType}\SpecialCharTok{\}}\VerbatimStringTok{\textasciigrave{}}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ now }\OperatorTok{=} \FunctionTok{nowProvider}\NormalTok{()}\OperatorTok{;}
+\KeywordTok{const}\NormalTok{ lastSent }\OperatorTok{=}\NormalTok{ emailThrottleMap}\OperatorTok{.}\FunctionTok{get}\NormalTok{(throttleKey)}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (lastSent }\OperatorTok{!==} \KeywordTok{undefined} \OperatorTok{\&\&}\NormalTok{ now }\OperatorTok{{-}}\NormalTok{ lastSent }\OperatorTok{\textless{}}\NormalTok{ THROTTLE\_WINDOW\_MS) \{}
+  \ControlFlowTok{return}\NormalTok{ \{ }\DataTypeTok{status}\OperatorTok{:} \StringTok{\textquotesingle{}throttled\textquotesingle{}}\OperatorTok{,} \DataTypeTok{lastSentAt}\OperatorTok{:} \KeywordTok{new} \BuiltInTok{Date}\NormalTok{(lastSent) \}}\OperatorTok{;}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Sau đó mới build message và gửi:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{const}\NormalTok{ providedRecipients }\OperatorTok{=} \ControlFlowTok{await} \FunctionTok{recipientProvider}\NormalTok{(config)}\OperatorTok{;}
+\ControlFlowTok{if}\NormalTok{ (providedRecipients}\OperatorTok{.}\AttributeTok{length} \OperatorTok{===} \DecValTok{0}\NormalTok{) \{}
+  \ControlFlowTok{return}\NormalTok{ \{ }\DataTypeTok{status}\OperatorTok{:} \StringTok{\textquotesingle{}skipped\textquotesingle{}}\OperatorTok{,} \DataTypeTok{reason}\OperatorTok{:} \StringTok{\textquotesingle{}no\_recipients\textquotesingle{}}\NormalTok{ \}}\OperatorTok{;}
+\NormalTok{\}}
+
+\KeywordTok{const}\NormalTok{ result }\OperatorTok{=} \ControlFlowTok{await}\NormalTok{ activeTransporter}\OperatorTok{.}\FunctionTok{sendMail}\NormalTok{(\{}
+  \DataTypeTok{from}\OperatorTok{:}\NormalTok{ config}\OperatorTok{.}\AttributeTok{from}\OperatorTok{,}
+  \OperatorTok{...}\NormalTok{recipientHeaders}\OperatorTok{,}
+  \OperatorTok{...}\NormalTok{message}
+\NormalTok{\})}\OperatorTok{;}
+
+\NormalTok{emailThrottleMap}\OperatorTok{.}\FunctionTok{set}\NormalTok{(throttleKey}\OperatorTok{,}\NormalTok{ now)}\OperatorTok{;}
+\end{Highlighting}
+\end{Shaded}
+
+Map chỉ được cập nhật sau khi \texttt{sendMail} resolve thành công.
+
+Một recipient dùng header \texttt{to}; nhiều recipient dùng \texttt{bcc}
+để họ không nhìn thấy địa chỉ của nhau. Map throttle chỉ được cập nhật
+sau khi \texttt{sendMail} resolve thành công.
+
+\subsection{5.5 HTML safety}\label{55-html-safety}
+
+Mọi giá trị động được đưa qua \texttt{escapeHtml()} trước khi chèn vào
+HTML. Điều này ngăn dữ liệu cảm biến hoặc device ID chứa HTML tùy ý làm
+hỏng email.
+
+Timestamp vẫn được lưu và xử lý nội bộ theo UTC. Riêng template email
+gọi \texttt{formatVietnamTimestamp()} với timezone
+\nolinkurl{Asia/Ho_Chi_Minh}, nên người nhận thấy định dạng
+\texttt{YYYY-MM-DD\ HH:mm:ss\ UTC+7} mà không làm thay đổi dữ liệu gốc.
+
+\section{6. Test map}\label{6-test-map}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.3100}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.6400}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+File test
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Chứng minh
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{actuatorStateService.test.js} & Mapping actuator và telemetry
+reconciliation \\
+\texttt{anomalyEngine.test.js} & N=30, per-device, zero variance, min
+delta, hard rules, dedupe, integrated action \\
+\texttt{emailService.test.js} & Severity filter, 15 phút, profile
+recipients, opt-out, HTML escaping \\
+\texttt{userNotificationService.test.js} & Chuẩn hóa, loại trùng và lọc
+user đã tắt email \\
+\texttt{userRoutes.test.js} & Settings lưu
+\texttt{settings.emailEnabled} đúng field \\
+\texttt{telemetryService.test.js} & Payload validation, topic/device
+match, edge alert, actuator confirmation \\
+\texttt{telemetryRoutes.test.js} & Latest-N query và chronological
+response \\
+\texttt{timeSeriesService.test.js} & Collection options và fail-fast \\
+\nolinkurl{scripts/testCb03Mock.js} & REST fan ON/status/OFF có JWT
+trong simulation mode \\
+\end{longtable}
+}
+
+\section{6.1 MQ2 readiness contract cần biết khi giải thích
+telemetry}\label{61-mq2-readiness-contract-cux1ea7n-biux1ebft-khi-giux1ea3i-thuxedch-telemetry}
+
+Firmware không còn biến mẫu ADC lúc MQ2 chưa ổn định thành PPM. Driver
+có năm trạng thái: \texttt{burn\_in}, \texttt{warming\_up},
+\texttt{calibrating}, \texttt{ready}, \texttt{fault}. Chỉ \texttt{ready}
+mới gửi \texttt{metrics.gasLevel} dạng số; các trạng thái khác gửi
+\texttt{null} cùng \texttt{sensorStatus.gas} để backend vẫn lưu được
+chẩn đoán.
+
+\texttt{telemetryService.js} kiểm tra tính nhất quán hai chiều:
+\texttt{ready=true} bắt buộc có PPM hữu hạn, còn chưa ready bắt buộc
+\texttt{gasLevel=null}. \texttt{anomalyEngine.js} bỏ qua gas khi giá trị
+không hữu hạn, nên dữ liệu burn-in không tạo anomaly/email giả. Firmware
+cũ và mock không có \texttt{sensorStatus} vẫn tương thích và được xem là
+legacy-ready.
+
+Đường local safety độc lập với cloud: FreeRTOS task ưu tiên cao đọc MQ2
+mỗi 100 ms. Sensor ready dùng ngưỡng 600 PPM; sensor đang chuẩn bị chỉ
+dùng ngưỡng điện áp ADC gần bão hòa để bật còi/LED/OLED tại chỗ. Raw
+fallback không publish MQTT vì nó không phải PPM đã hiệu chuẩn.
+
+\section{7. Điều nên và không nên học
+thuộc}\label{7-ux111iux1ec1u-nuxean-vuxe0-khuxf4ng-nuxean-hux1ecdc-thuux1ed9c}
+
+Nên nhớ:
+
+\begin{itemize}
+\tightlist
+\item
+  Tên bốn luồng và thứ tự các tầng.
+\item
+  Công thức Z-score, N=30, threshold 3.0 và minimum delta.
+\item
+  Topic control và telemetry.
+\item
+  QoS 1 là at least once.
+\item
+  Time Series options và TTL 30 ngày.
+\item
+  Email key và window 15 phút.
+\end{itemize}
+
+Không cần học thuộc:
+
+\begin{itemize}
+\tightlist
+\item
+  Toàn bộ HTML email template.
+\item
+  Tất cả Tailwind class.
+\item
+  Từng dòng setup MQTT/TLS.
+\item
+  Giá trị ngẫu nhiên trong mock telemetry.
+\end{itemize}
+
+Khi không nhớ một chi tiết, mở đúng file và giải thích theo luồng dữ
+liệu. Khả năng định vị code và lý giải quyết định quan trọng hơn việc
+đọc thuộc source.
+
+\chapter{Kịch bản demo phần Thái
+Kiệt}\label{kux1ecbch-bux1ea3n-demo-phux1ea7n-thuxe1i-kiux1ec7t}
+
+Mục tiêu của kịch bản là tách rõ ba mức bằng chứng:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Unit/integration simulation:} chạy được trên máy không cần
+  ESP32, EMQX, Atlas hay SMTP thật.
+\item
+  \textbf{Build verification:} chứng minh frontend và firmware biên dịch
+  được.
+\item
+  \textbf{Physical end-to-end:} chứng minh broker, database, email và
+  relay thật hoạt động với latency yêu cầu.
+\end{enumerate}
+
+Không dùng kết quả mức 1 để tuyên bố mức 3 đã pass.
+
+\section{1. Chuẩn bị trước
+demo}\label{1-chuux1ea9n-bux1ecb-trux1b0ux1edbc-demo}
+
+\subsection{Phần mềm}\label{phux1ea7n-mux1ec1m}
+
+\begin{itemize}
+\tightlist
+\item
+  Node.js 18 trở lên.
+\item
+  Dependencies đã cài bằng \texttt{npm\ ci} trong \texttt{backend} và
+  \texttt{frontend}.
+\item
+  PlatformIO để build/flash firmware.
+\end{itemize}
+
+\subsection{Dịch vụ thật}\label{dux1ecbch-vux1ee5-thux1eadt}
+
+\begin{itemize}
+\tightlist
+\item
+  MongoDB Atlas connection string.
+\item
+  EMQX host, username, password và CA certificate.
+\item
+  SMTP account/app password và email nhận cảnh báo.
+\end{itemize}
+
+\subsection{Phần cứng CB-03}\label{phux1ea7n-cux1ee9ng-cb-03}
+
+\begin{itemize}
+\tightlist
+\item
+  ESP32 DevKit V1.
+\item
+  Relay HL-52S, signal nối GPIO 16.
+\item
+  Fan DC dùng nguồn phù hợp, chung ground với relay/ESP32 theo sơ đồ
+  nhóm.
+\item
+  Không cấp nguồn fan trực tiếp từ GPIO ESP32.
+\end{itemize}
+
+\section{2. Demo nhanh không cần phần
+cứng}\label{2-demo-nhanh-khuxf4ng-cux1ea7n-phux1ea7n-cux1ee9ng}
+
+Mở PowerShell:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ C}\OperatorTok{:}\NormalTok{\textbackslash{}Users\textbackslash{}ASUS\textbackslash{}OneDrive\textbackslash{}Documents\textbackslash{}ChatGPT\textbackslash{}Saferoom{-}IoT\textbackslash{}backend}
+\NormalTok{npm run test}\OperatorTok{:}\NormalTok{kiet}
+\end{Highlighting}
+\end{Shaded}
+
+Lệnh này chạy test tập trung cho CB-03, NC-01, NC-03, NC-05 và kết thúc
+bằng mô phỏng fan.
+
+Kết quả bắt buộc:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{\# fail 0}
+\NormalTok{CB{-}03 PASS: unauthorized access blocked; authenticated fan ON,}
+\NormalTok{status, and fan OFF succeeded.}
+\end{Highlighting}
+\end{Shaded}
+
+Nếu có test fail, không tiếp tục tuyên bố chức năng ổn. Đọc tên subtest
+và sửa nguyên nhân trước.
+
+\section{3. Show từng phần bằng test có mục
+tiêu}\label{3-show-tux1eebng-phux1ea7n-bux1eb1ng-test-cuxf3-mux1ee5c-tiuxeau}
+
+\subsection{3.1 CB-03}\label{31-cb-03}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{npm run test}\OperatorTok{:}\NormalTok{cb03}
+\end{Highlighting}
+\end{Shaded}
+
+Luồng được chứng minh:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{request không JWT {-}\textgreater{} 401}
+\NormalTok{fan ON {-}\textgreater{} API success {-}\textgreater{} mock actuator fanOn=true}
+\NormalTok{GET status {-}\textgreater{} fanOn=true}
+\NormalTok{fan OFF {-}\textgreater{} API success}
+\end{Highlighting}
+\end{Shaded}
+
+Điểm phải nói:
+
+\begin{quote}
+Đây là simulation test cho REST, auth, MQTT abstraction và state. Nó
+chưa đo relay thật.
+\end{quote}
+
+\subsection{3.2 NC-01}\label{32-nc-01}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{node }\OperatorTok{{-}{-}}\NormalTok{test }\OperatorTok{{-}{-}}\NormalTok{test{-}name{-}pattern}\OperatorTok{=}\StringTok{"Z{-}score|hard{-}rule|gas or motion|deduplicates"}\NormalTok{ test}\OperatorTok{/}\NormalTok{anomalyEngine}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}
+\end{Highlighting}
+\end{Shaded}
+
+Các bằng chứng cần chỉ:
+
+\begin{itemize}
+\tightlist
+\item
+  30 mẫu ổn định rồi spike.
+\item
+  Window tách theo device và metric.
+\item
+  Zero variance không chia cho 0.
+\item
+  Minimum delta loại nhiễu nhỏ.
+\item
+  Gas và motion không dùng Z-score.
+\item
+  Gas/motion/humidity đi đúng hard-rule matrix.
+\item
+  Dedupe loại anomaly lặp nhanh.
+\end{itemize}
+
+\subsection{3.3 NC-03}\label{33-nc-03}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{node }\OperatorTok{{-}{-}}\NormalTok{test test}\OperatorTok{/}\NormalTok{timeSeriesService}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}\NormalTok{ test}\OperatorTok{/}\NormalTok{telemetryService}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}\NormalTok{ test}\OperatorTok{/}\NormalTok{telemetryRoutes}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}
+\end{Highlighting}
+\end{Shaded}
+
+Các bằng chứng cần chỉ:
+
+\begin{itemize}
+\tightlist
+\item
+  Tạo \texttt{sensor\_readings} với Time Series options.
+\item
+  TTL 30 ngày.
+\item
+  Fail fast khi collection sai loại.
+\item
+  Validate telemetry và topic/device mismatch.
+\item
+  Historical query lấy N mẫu mới nhất và trả chronological order.
+\end{itemize}
+
+\subsection{3.4 NC-05}\label{34-nc-05}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{node }\OperatorTok{{-}{-}}\NormalTok{test test}\OperatorTok{/}\NormalTok{emailService}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}
+\end{Highlighting}
+\end{Shaded}
+
+Các bằng chứng cần chỉ:
+
+\begin{itemize}
+\tightlist
+\item
+  HIGH gửi email.
+\item
+  Cùng key bị throttle 15 phút.
+\item
+  Device hoặc sensor khác có window riêng.
+\item
+  MEDIUM không gọi SMTP.
+\item
+  Dynamic HTML được escape.
+\end{itemize}
+
+\subsection{3.5 Integrated NC-01 -\textgreater{} CB-03 -\textgreater{}
+NC-05}\label{35-integrated-nc-01---cb-03---nc-05}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{node }\OperatorTok{{-}{-}}\NormalTok{test }\OperatorTok{{-}{-}}\NormalTok{test{-}name{-}pattern}\OperatorTok{=}\StringTok{"runs the Z{-}score spike"}\NormalTok{ test}\OperatorTok{/}\NormalTok{anomalyEngine}\OperatorTok{.}\FunctionTok{test}\OperatorTok{.}\FunctionTok{js}
+\end{Highlighting}
+\end{Shaded}
+
+Test này tạo 30 mẫu nhiệt độ ổn định rồi đưa spike 35°C. Nó kiểm tra:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Z{-}score \textgreater{} 3}
+\NormalTok{{-}\textgreater{} tạo Z\_SCORE\_EXCEEDED / HIGH}
+\NormalTok{{-}\textgreater{} publish fan ON}
+\NormalTok{{-}\textgreater{} tạo anomaly document}
+\NormalTok{{-}\textgreater{} gửi email lần đầu}
+\NormalTok{{-}\textgreater{} lần gửi cùng key tiếp theo bị throttled}
+\end{Highlighting}
+\end{Shaded}
+
+\section{4. Build verification}\label{4-build-verification}
+
+\subsection{Frontend}\label{frontend}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ C}\OperatorTok{:}\NormalTok{\textbackslash{}Users\textbackslash{}ASUS\textbackslash{}OneDrive\textbackslash{}Documents\textbackslash{}ChatGPT\textbackslash{}Saferoom{-}IoT\textbackslash{}frontend}
+\NormalTok{npm run build}
+\end{Highlighting}
+\end{Shaded}
+
+Kết quả bắt buộc là \texttt{built} và exit code 0. Cảnh báo bundle lớn
+không phải compile failure nhưng nên được ghi nhận.
+
+\subsection{Firmware}\label{firmware}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ C}\OperatorTok{:}\NormalTok{\textbackslash{}Users\textbackslash{}ASUS\textbackslash{}OneDrive\textbackslash{}Documents\textbackslash{}ChatGPT\textbackslash{}Saferoom{-}IoT\textbackslash{}firmware}
+\NormalTok{pio run}
+\end{Highlighting}
+\end{Shaded}
+
+Kết quả bắt buộc là \texttt{{[}SUCCESS{]}}. Ghi lại phần trăm RAM và
+flash để trả lời câu hỏi tài nguyên.
+
+\section{5. Demo thật CB-03 /
+TC-06}\label{5-demo-thux1eadt-cb-03--tc-06}
+
+\subsection{5.1 Cấu hình}\label{51-cux1ea5u-huxecnh}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Copy \nolinkurl{firmware/include/secrets.example.h} thành
+  \nolinkurl{firmware/include/secrets.h}.
+\item
+  Điền WiFi, EMQX host, port 8883, username, password và CA certificate.
+\item
+  Trong \nolinkurl{backend/.env}, đặt:
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{MOCK\_HARDWARE=false}
+\NormalTok{DEVICE\_ID=safebox{-}01}
+\NormalTok{MQTT\_BROKER\_URL=mqtts://\textless{}host\textgreater{}:8883}
+\NormalTok{MQTT\_USERNAME=\textless{}username\textgreater{}}
+\NormalTok{MQTT\_PASSWORD=\textless{}password\textgreater{}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{3}
+\tightlist
+\item
+  Bảo đảm backend và firmware dùng cùng \texttt{DEVICE\_ID}.
+\end{enumerate}
+
+\subsection{5.2 Chạy}\label{52-chux1ea1y}
+
+Terminal 1:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ firmware}
+\NormalTok{pio run }\OperatorTok{{-}{-}}\NormalTok{target upload}
+\NormalTok{pio device monitor}
+\end{Highlighting}
+\end{Shaded}
+
+Terminal 2:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ backend}
+\NormalTok{npm }\FunctionTok{start}
+\end{Highlighting}
+\end{Shaded}
+
+Terminal 3:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{cd}\NormalTok{ frontend}
+\NormalTok{npm run dev}
+\end{Highlighting}
+\end{Shaded}
+
+Mở \nolinkurl{http://localhost:3000}, đăng nhập và vào Overview.
+
+\subsection{5.3 Bằng chứng cần
+quay/chụp}\label{53-bux1eb1ng-chux1ee9ng-cux1ea7n-quaychux1ee5p}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Dashboard hiển thị MQTT live và device online.
+\item
+  Nhấn fan ON.
+\item
+  Network tab cho thấy POST control trả 200 và
+  \texttt{delivery=published}.
+\item
+  Serial Monitor in \texttt{{[}Fan{]}\ Relay\ state:\ ON}.
+\item
+  Relay click và fan quay.
+\item
+  Telemetry sau đó báo \texttt{fanOn=true}.
+\item
+  Lặp lại với OFF.
+\end{enumerate}
+
+\subsection{5.4 Đo latency}\label{54-ux111o-latency}
+
+Mốc bắt đầu: thời điểm nhấn nút hoặc request rời browser.
+
+Mốc kết thúc: thời điểm relay đổi trạng thái, có thể dùng video 60 fps
+hoặc timestamp đồng bộ giữa frontend và Serial Monitor.
+
+Tiêu chí TC-06:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{latency \textless{} 500 ms}
+\end{Highlighting}
+\end{Shaded}
+
+Ghi ít nhất 5 lần ON/OFF, báo median và worst case. Không chỉ đo một lần
+đẹp nhất.
+
+\section{6. Demo thật NC-03 /
+TC-02}\label{6-demo-thux1eadt-nc-03--tc-02}
+
+\subsection{6.1 Kiểm tra ingestion}\label{61-kiux1ec3m-tra-ingestion}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Chạy ESP32, EMQX và backend thật.
+\item
+  Mở MongoDB Atlas Data Explorer.
+\item
+  Theo dõi \texttt{sensor\_readings} trong 20--30 giây.
+\item
+  Xác nhận timestamp cách nhau khoảng 2 giây và deviceId đúng.
+\item
+  Xác nhận metrics và actuatorStates có đủ field bắt buộc.
+\end{enumerate}
+
+\subsection{6.2 Kiểm tra collection
+options}\label{62-kiux1ec3m-tra-collection-options}
+
+Trong Atlas hoặc mongosh, kiểm tra metadata collection. Kết quả phải
+tương đương:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{\{}
+  \DataTypeTok{"timeseries"}\FunctionTok{:} \FunctionTok{\{}
+    \DataTypeTok{"timeField"}\FunctionTok{:} \StringTok{"timestamp"}\FunctionTok{,}
+    \DataTypeTok{"metaField"}\FunctionTok{:} \StringTok{"deviceId"}\FunctionTok{,}
+    \DataTypeTok{"granularity"}\FunctionTok{:} \StringTok{"seconds"}
+  \FunctionTok{\},}
+  \DataTypeTok{"expireAfterSeconds"}\FunctionTok{:} \DecValTok{2592000}
+\FunctionTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{6.3 Kiểm tra historical
+API}\label{63-kiux1ec3m-tra-historical-api}
+
+Sau khi đăng nhập, lấy JWT và gọi:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\VariableTok{$token} \OperatorTok{=} \StringTok{\textquotesingle{}\textless{}JWT\_FROM\_LOGIN\textgreater{}\textquotesingle{}}
+\VariableTok{$headers} \OperatorTok{=}\NormalTok{ @}\OperatorTok{\{}\NormalTok{ Authorization }\OperatorTok{=} \StringTok{"Bearer }\VariableTok{$token}\StringTok{"} \OperatorTok{\}}
+\FunctionTok{Invoke{-}RestMethod}\NormalTok{ \textasciigrave{}}
+  \OperatorTok{{-}}\NormalTok{Uri }\StringTok{\textquotesingle{}http://localhost:5000/api/v1/telemetry/historical?deviceId=safebox{-}01\&limit=10\textquotesingle{}}\NormalTok{ \textasciigrave{}}
+  \OperatorTok{{-}}\NormalTok{Headers }\VariableTok{$headers}
+\end{Highlighting}
+\end{Shaded}
+
+Xác nhận response có tối đa 10 mẫu mới nhất, timestamp tăng dần.
+
+\section{7. Demo thật NC-01 /
+TC-04}\label{7-demo-thux1eadt-nc-01--tc-04}
+
+\subsection{Phương án an toàn}\label{phux1b0ux1a1ng-uxe1n-an-touxe0n}
+
+Không làm nóng DHT22 quá mức hoặc tạo điều kiện nguy hiểm. Dùng
+mock/test mode để trình bày thuật toán, hoặc dùng một script test
+telemetry kiểm soát trong môi trường demo riêng.
+
+Trình tự cần chứng minh:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Bật automatic Z-score mode.
+\item
+  Nạp 30 mẫu ổn định quanh 25°C.
+\item
+  Nạp một mẫu spike đủ lớn nhưng vẫn hợp lệ, ví dụ 35°C.
+\item
+  Kiểm tra \texttt{anomaly\_logs} có:
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{sensorType=temperature}
+\NormalTok{triggerType=Z\_SCORE\_EXCEEDED}
+\NormalTok{calculatedZScore \textgreater{} 3}
+\NormalTok{severity=HIGH}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\setcounter{enumi}{4}
+\tightlist
+\item
+  Kiểm tra Overview hiển thị anomaly.
+\item
+  Kiểm tra action fan ON được publish nếu spike hướng lên.
+\end{enumerate}
+
+Không chỉnh threshold gas local của ESP32 để giả lập Z-score; đây là hai
+cơ chế khác nhau.
+
+\section{8. Demo thật NC-05 /
+TC-05}\label{8-demo-thux1eadt-nc-05--tc-05}
+
+\subsection{8.1 Cấu hình SMTP}\label{81-cux1ea5u-huxecnh-smtp}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{EMAIL\_ENABLED=true}
+\NormalTok{SMTP\_HOST=smtp.gmail.com}
+\NormalTok{SMTP\_PORT=587}
+\NormalTok{SMTP\_SECURE=false}
+\NormalTok{SMTP\_USER=\textless{}smtp{-}user\textgreater{}}
+\NormalTok{SMTP\_PASS=\textless{}app{-}password\textgreater{}}
+\NormalTok{SMTP\_FROM=SafeRoom IoT Box \textless{}smtp{-}user\textgreater{}}
+\NormalTok{\# Chỉ dùng khi database chưa có user:}
+\NormalTok{ALERT\_RECIPIENT\_EMAIL=\textless{}optional{-}fallback\textgreater{}}
+\NormalTok{SMTP\_VERIFY\_ON\_STARTUP=true}
+\end{Highlighting}
+\end{Shaded}
+
+Không đưa \texttt{.env} hoặc app password lên màn hình quay demo.
+
+\subsection{8.2 Trình tự}\label{82-truxecnh-tux1ef1}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Đăng nhập bằng tài khoản có email profile thật, mở Settings, bật
+  \texttt{Nodemailer\ Email\ Alerts} và lưu.
+\item
+  Khởi động backend và xác nhận log
+  \texttt{{[}Email{]}\ Alerts\ enabled.}.
+\item
+  Tạo một HIGH hoặc CRITICAL anomaly trong môi trường test an toàn.
+\item
+  Ghi timestamp anomaly.
+\item
+  Xác nhận email đến địa chỉ profile và nội dung đúng device, sensor,
+  observed value, threshold.
+\item
+  Đo thời gian từ anomaly tới email; tiêu chí dưới 5 giây theo TC-05.
+\item
+  Tạo lại cùng \texttt{(deviceId,\ sensorType)} trong 15 phút.
+\item
+  Xác nhận không có email thứ hai và \texttt{actionsTaken} ghi
+  \texttt{EMAIL\_THROTTLED}.
+\item
+  Tạo anomaly khác sensor hoặc device và xác nhận vẫn gửi được.
+\end{enumerate}
+
+\section{9. Bảng ghi kết quả vật
+lý}\label{9-bux1ea3ng-ghi-kux1ebft-quux1ea3-vux1eadt-luxfd}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1700}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1100}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1700}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1700}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1600}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 10\tabcolsep) * \real{0.1700}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Test
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Lần
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Bắt đầu
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Kết thúc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Latency
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Kết quả
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+TC-06 Fan ON & 1 & & & & \\
+TC-06 Fan OFF & 1 & & & & \\
+TC-06 Fan ON & 2 & & & & \\
+TC-06 Fan OFF & 2 & & & & \\
+TC-05 Email & 1 & & & & \\
+TC-05 Throttle & 1 & & & N/A & \\
+\end{longtable}
+}
+
+\section{10. Cách xử lý khi demo
+lỗi}\label{10-cuxe1ch-xux1eed-luxfd-khi-demo-lux1ed7i}
+
+\subsection{API 401/403}\label{api-401403}
+
+\begin{itemize}
+\tightlist
+\item
+  Đăng nhập lại.
+\item
+  Kiểm tra localStorage có \texttt{safebox\_token}.
+\item
+  Không hardcode hoặc tắt auth để né lỗi.
+\end{itemize}
+
+\subsection{API 503 MQTT offline}\label{api-503-mqtt-offline}
+
+\begin{itemize}
+\tightlist
+\item
+  Kiểm tra \texttt{MOCK\_HARDWARE=false}.
+\item
+  Kiểm tra broker URL phải là \nolinkurl{mqtts://}.
+\item
+  Kiểm tra username/password và CA.
+\item
+  Kiểm tra log backend \nolinkurl{connected/subscribed}.
+\end{itemize}
+
+\subsection{Backend có MQTT nhưng device
+offline}\label{backend-cuxf3-mqtt-nhux1b0ng-device-offline}
+
+\begin{itemize}
+\tightlist
+\item
+  Kiểm tra WiFi ESP32.
+\item
+  Kiểm tra device ID hai bên.
+\item
+  Kiểm tra status topic và retained online payload.
+\end{itemize}
+
+\subsection{Fan không quay nhưng Serial báo
+ON}\label{fan-khuxf4ng-quay-nhux1b0ng-serial-buxe1o-on}
+
+\begin{itemize}
+\tightlist
+\item
+  Kiểm tra relay wiring, common ground và nguồn fan.
+\item
+  Đo GPIO 16.
+\item
+  Kiểm tra relay active HIGH hay active LOW thực tế. Code hiện giả định
+  HIGH=ON theo pinout dự án.
+\end{itemize}
+
+\subsection{Không có email}\label{khuxf4ng-cuxf3-email}
+
+\begin{itemize}
+\tightlist
+\item
+  Kiểm tra \texttt{EMAIL\_ENABLED} và đủ SMTP variables.
+\item
+  Dùng app password, không dùng password tài khoản thường.
+\item
+  Kiểm tra severity phải HIGH/CRITICAL.
+\item
+  Kiểm tra có đang trong throttle window không.
+\end{itemize}
+
+\subsection{Không có dữ liệu
+Atlas}\label{khuxf4ng-cuxf3-dux1eef-liux1ec7u-atlas}
+
+\begin{itemize}
+\tightlist
+\item
+  Kiểm tra MONGO\_URI và network access list.
+\item
+  Kiểm tra MQTT topic phải đúng \nolinkurl{safebox/{id}/telemetry}.
+\item
+  Kiểm tra backend log rejected payload do type/range/device mismatch.
+\end{itemize}
+
+\subsection{Gas cao hoặc không có
+PPM}\label{gas-cao-houx1eb7c-khuxf4ng-cuxf3-ppm}
+
+\begin{itemize}
+\tightlist
+\item
+  Nếu web hiện \texttt{First\ burn-in}, giữ MQ2 cấp nguồn trong không
+  khí sạch đủ 48 giờ; tiến độ được checkpoint vào NVS mỗi 10 phút.
+\item
+  Nếu hiện \texttt{Warming\ up}, chờ 5 phút; firmware đang dùng lại
+  \texttt{Ro} đã lưu.
+\item
+  Nếu hiện \texttt{Calibrating}, không đưa cồn/khói/bật lửa gần cảm
+  biến; firmware cần ít nhất 100 mẫu ổn định trong cửa sổ 60 giây.
+\item
+  Nếu hiện \texttt{Sensor\ fault}, đo AO sau cầu chia áp và kiểm tra
+  đúng 15 kΩ / 10 kΩ, common ground, VCC 5 V.
+\item
+  TC-03 phải đo phản hồi local bằng phần cứng. Build pass không chứng
+  minh thời gian thực tế dưới 200 ms.
+\end{itemize}
+
+\section{11. Bằng chứng dự
+phòng}\label{11-bux1eb1ng-chux1ee9ng-dux1ef1-phuxf2ng}
+
+Trước ngày vấn đáp nên chuẩn bị:
+
+\begin{itemize}
+\tightlist
+\item
+  Video TC-06 có đồng thời màn hình web, Serial Monitor và relay/fan.
+\item
+  Ảnh Atlas collection options và vài telemetry documents.
+\item
+  Email thật có timestamp và nội dung alert.
+\item
+  Terminal output \texttt{npm\ run\ test:kiet}.
+\item
+  Terminal output firmware/frontend build.
+\end{itemize}
+
+Bằng chứng quay trước là phương án dự phòng khi WiFi hoặc cloud lỗi,
+không thay thế việc hiểu và giải thích code.
+
+\end{document}

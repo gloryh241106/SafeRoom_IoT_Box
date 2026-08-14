@@ -31,8 +31,8 @@ void MqttService::begin(const char* deviceId, const char* host, uint16_t port,
 }
 
 // Stops MQTT without WiFi, otherwise processes or reconnects the client.
-void MqttService::update(bool wifiConnected) {
-    if (!wifiConnected) {
+void MqttService::update(bool networkReady) {
+    if (!networkReady) {
         if (_client.connected()) _client.disconnect();
         _tls.stop();
         return;
@@ -95,7 +95,10 @@ void MqttService::connectIfDue() {
         statusTopic.c_str(), 1, true, "{\"status\":\"offline\"}");
 
     if (!connectedNow) {
-        SAFEBOX_LOGF("[MQTT] Connection failed, state=%d\n", _client.state());
+        char tlsError[160] = {};
+        const int tlsErrorCode = _tls.lastError(tlsError, sizeof(tlsError));
+        SAFEBOX_LOGF("[MQTT] Connection failed, state=%d, TLS=%d (%s)\n",
+                     _client.state(), tlsErrorCode, tlsError);
         return;
     }
 

@@ -288,6 +288,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Configure backend and firmware MQTTS clients with the EMQX Serverless host, identity, and TLS CA `(CB-01)`
 - [x] Rotate the exposed MQTT password, update both local secret files, and verify broker authentication `(CB-01)`
 - [x] Fix MQTT.js multi-topic subscription shape and add a regression test for real broker startup `(CB-01)`
+- [x] Restore the downloaded EMQX credentials to both ignored local config files and verify real TLS/MQTT authentication `(CB-01)`
+- [x] Gate ESP32 MQTTS on verified NTP time and expose actionable TLS connection diagnostics `(CB-01)`
 - [ ] Confirm EMQX free-tier limits are not exceeded during demo `(Phase 5)`
 
 ### MQTT Topic Registry
@@ -342,6 +344,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Simplify non-obvious actuator-state and anomaly-engine code without changing system contracts
 - [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
 - [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
+- [x] Merge the Thai Kiet viva, Q&A, code walkthrough, and demo guides into one polished, verified LaTeX/PDF handbook
 
 ### 6.5 User-Managed Email Alerts
 

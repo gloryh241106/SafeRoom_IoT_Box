@@ -18,8 +18,8 @@ public:
                const char* username, const char* password, const char* caCert,
                ControlHandler controlHandler);
 
-    /** Maintains MQTT while WiFi is available. */
-    void update(bool wifiConnected);
+    /** Maintains MQTT after WiFi and certificate-validation time are ready. */
+    void update(bool networkReady);
 
     /** Reports whether the broker connection is active. */
     bool connected();
