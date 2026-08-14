@@ -1,8 +1,11 @@
+/**
+ * Query and acknowledgement routes for anomaly audit records. "Clear" is a
+ * logical resolution update; safety evidence is retained instead of deleted.
+ */
 const express = require('express');
 const router = express.Router();
 const { AnomalyLog } = require('../models/Schemas');
 
-// GET /api/v1/anomalies — Fetch anomaly logs with optional filters
 router.get('/', async (req, res) => {
   try {
     const { status, severity, sensorType, limit = 50 } = req.query;
@@ -27,7 +30,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// PATCH /api/v1/anomalies/:id/resolve — Mark anomaly log as resolved
 router.patch('/:id/resolve', async (req, res) => {
   try {
     const { id } = req.params;
@@ -53,14 +55,14 @@ router.patch('/:id/resolve', async (req, res) => {
   }
 });
 
-// DELETE /api/v1/anomalies/clear-all — Resolve all unresolved anomaly entries
+// The legacy DELETE route name is retained for UI compatibility, but no records are erased.
 router.delete('/clear-all', async (req, res) => {
   try {
     await AnomalyLog.updateMany(
       { resolved: false },
-      { resolved: true, resolvedAt: new Date(), resolvedBy: 'Admin (Delete All)' }
+      { resolved: true, resolvedAt: new Date(), resolvedBy: 'Admin (Resolve All)' }
     );
-    res.json({ success: true, message: 'All unresolved anomalies cleared' });
+    res.json({ success: true, message: 'All unresolved anomalies resolved' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

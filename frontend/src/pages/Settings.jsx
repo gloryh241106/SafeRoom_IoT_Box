@@ -1,6 +1,17 @@
+/**
+ * User preferences plus backend anomaly-engine configuration.
+ *
+ * Thresholds returned by `/control/thresholds` are backend runtime settings;
+ * they do not rewrite the ESP32's compile-time edge-safety constants.
+ */
 import React, { useState, useEffect } from 'react';
 import { User, Bell, Shield, Save, CheckCircle, Cpu } from 'lucide-react';
 import { apiFetch } from '../api';
+import {
+  DEFAULT_GAS_ALERT_THRESHOLD,
+  FIRMWARE_EDGE_GAS_THRESHOLD,
+  MAX_GAS_ALERT_THRESHOLD
+} from '../telemetryContract';
 
 export default function Settings({ user }) {
   const [emailEnabled, setEmailEnabled] = useState(user?.settings?.emailEnabled ?? true);
@@ -11,9 +22,10 @@ export default function Settings({ user }) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileSaving, setProfileSaving] = useState(false);
   
-  // Editable Safety Thresholds State
+  // Local form state mirrors the backend anomaly engine, then becomes
+  // authoritative only after a successful save response.
   const [thresholds, setThresholds] = useState({
-    gasMax: 600,
+    gasMax: DEFAULT_GAS_ALERT_THRESHOLD,
     tempMax: 45,
     tempMin: 10,
     humidityMax: 85,
@@ -23,7 +35,8 @@ export default function Settings({ user }) {
   });
   const [thresholdLoading, setThresholdLoading] = useState(false);
 
-  // Fetch initial thresholds from backend
+  // Load runtime values instead of assuming that frontend defaults still match
+  // a backend process that may already have been configured by another client.
   useEffect(() => {
     apiFetch('/api/v1/control/thresholds')
       .then((res) => res.json())
@@ -84,6 +97,7 @@ export default function Settings({ user }) {
   const handleSaveThresholds = async (e) => {
     e.preventDefault();
     setThresholdLoading(true);
+    setSaveError('');
     try {
       const res = await apiFetch('/api/v1/control/thresholds', {
         method: 'POST',
@@ -91,12 +105,13 @@ export default function Settings({ user }) {
         body: JSON.stringify(thresholds)
       });
       const json = await res.json();
-      if (json.success) {
-        setSavedMessage('Safety thresholds & anomaly mode updated successfully!');
-        setTimeout(() => setSavedMessage(''), 3000);
-      }
+      if (!res.ok || !json.success) throw new Error(json.error || 'Unable to update safety thresholds');
+      setThresholds((prev) => ({ ...prev, ...json.data }));
+      setSavedMessage('Backend thresholds & anomaly mode updated successfully!');
+      setTimeout(() => setSavedMessage(''), 3000);
     } catch (err) {
       console.error('Error saving safety thresholds:', err);
+      setSaveError(err.message);
     } finally {
       setThresholdLoading(false);
     }
@@ -144,15 +159,17 @@ export default function Settings({ user }) {
         </div>
       )}
 
-      {/* Editable Safety Rule Matrix Form */}
+      {/* These values configure backend detection; firmware edge safety is separate. */}
       <form onSubmit={handleSaveThresholds} className="glass-card p-6 rounded-lg space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600" />
-              <span>Authoritative System Safety Threshold Matrix</span>
+              <span>Backend Safety Threshold Matrix</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-1">Configure live safety limits enforced by backend anomaly engine and hardware safety triggers</p>
+            <p className="text-xs text-slate-500 mt-1">
+              Runtime limits for backend anomaly logs and actions; ESP32 gas edge safety remains compile-time.
+            </p>
           </div>
           <button
             type="submit"
@@ -164,7 +181,7 @@ export default function Settings({ user }) {
           </button>
         </div>
 
-        {/* Automatic Mode Toggle Switch */}
+        {/* Automatic mode adds statistics; it never disables hard safety bounds. */}
         <div className="flex items-center justify-between gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
@@ -173,12 +190,15 @@ export default function Settings({ user }) {
             </div>
             <p className="text-xs text-slate-500">
               {thresholds.isAutomatic
-                ? 'ON: Continuous metrics (Temp & Humidity) use statistical Z-Score anomaly engine (|Z| > threshold limit).'
-                : 'OFF: Continuous metrics use static manual upper and lower bound limits.'}
+                ? 'ON: Hard bounds stay active, with Z-Score detection added for Temperature and Humidity.'
+                : 'OFF: Hard bounds stay active; statistical Z-Score detection is disabled.'}
             </p>
           </div>
           <button
             type="button"
+            role="switch"
+            aria-checked={thresholds.isAutomatic}
+            aria-label="Enable additional Z-score anomaly detection"
             onClick={() => setThresholds({ ...thresholds, isAutomatic: !thresholds.isAutomatic })}
             className={`w-12 h-6 rounded-full transition-colors relative p-1 shrink-0 ${
               thresholds.isAutomatic ? 'bg-violet-600' : 'bg-slate-300'
@@ -192,97 +212,73 @@ export default function Settings({ user }) {
           </button>
         </div>
 
-        {/* Grid of Threshold Input Fields */}
+        {/* Gas is raw ADC; Z-score is intentionally limited to continuous DHT22 metrics. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-          {/* MQ2 Gas Threshold (Always Active Safety Bound) */}
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
-            <label className="block text-xs text-slate-600 font-semibold uppercase">MQ-2 Gas Index Max (ADC)</label>
+            <label className="block text-xs text-slate-600 font-semibold uppercase">Backend MQ-2 Raw ADC Max</label>
             <input
               type="number"
+              min="1"
+              max={MAX_GAS_ALERT_THRESHOLD}
+              step="1"
               value={thresholds.gasMax}
               onChange={(e) => setThresholds({ ...thresholds, gasMax: Number(e.target.value) })}
               className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-red-600 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
             />
-            <p className="text-[11px] text-slate-500">Triggers Local Buzzer + Red LED + Email</p>
+            <p className="text-[11px] text-slate-500">
+              Integer 1 to {MAX_GAS_ALERT_THRESHOLD}; 4095 must remain able to breach it. ESP32 edge alarm stays &gt; {FIRMWARE_EDGE_GAS_THRESHOLD} until firmware is rebuilt.
+            </p>
           </div>
 
-          {/* Temperature Max Bound */}
-          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
-            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
-          }`}>
-            <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Max Bound (°C)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
-            </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Max Bound (°C)</label>
             <input
               type="number"
               step="0.5"
-              disabled={thresholds.isAutomatic}
               value={thresholds.tempMax}
               onChange={(e) => setThresholds({ ...thresholds, tempMax: Number(e.target.value) })}
-              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
             />
-            <p className="text-[11px] text-slate-500">Manual upper limit (Fan + Email)</p>
+            <p className="text-[11px] text-slate-500">Always-active upper limit (Fan + Email)</p>
           </div>
 
-          {/* Temperature Min Bound */}
-          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
-            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
-          }`}>
-            <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Min Bound (°C)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
-            </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label className="block text-xs text-slate-600 font-semibold uppercase">Temp Min Bound (°C)</label>
             <input
               type="number"
               step="0.5"
-              disabled={thresholds.isAutomatic}
               value={thresholds.tempMin}
               onChange={(e) => setThresholds({ ...thresholds, tempMin: Number(e.target.value) })}
-              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-orange-600 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
             />
-            <p className="text-[11px] text-slate-500">Manual lower limit alert</p>
+            <p className="text-[11px] text-slate-500">Always-active lower limit alert</p>
           </div>
 
-          {/* Humidity Max Bound */}
-          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
-            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
-          }`}>
-            <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Max Bound (%)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
-            </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Max Bound (%)</label>
             <input
               type="number"
               step="1"
-              disabled={thresholds.isAutomatic}
               value={thresholds.humidityMax}
               onChange={(e) => setThresholds({ ...thresholds, humidityMax: Number(e.target.value) })}
-              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <p className="text-[11px] text-slate-500">Manual upper moisture limit</p>
+            <p className="text-[11px] text-slate-500">Always-active upper moisture limit</p>
           </div>
 
-          {/* Humidity Min Bound */}
-          <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
-            thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
-          }`}>
-            <div className="flex items-center justify-between">
-              <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Min Bound (%)</label>
-              {thresholds.isAutomatic && <span className="text-[10px] text-violet-600 font-medium">Disabled (Auto Mode)</span>}
-            </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2">
+            <label className="block text-xs text-slate-600 font-semibold uppercase">Humidity Min Bound (%)</label>
             <input
               type="number"
               step="1"
-              disabled={thresholds.isAutomatic}
               value={thresholds.humidityMin}
               onChange={(e) => setThresholds({ ...thresholds, humidityMin: Number(e.target.value) })}
-              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed"
+              className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-bold text-blue-600 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
-            <p className="text-[11px] text-slate-500">Manual lower moisture limit</p>
+            <p className="text-[11px] text-slate-500">Always-active lower moisture limit</p>
           </div>
 
-          {/* Z-Score Limit */}
+          {/* Z-score is optional because a 30-sample baseline must be populated first. */}
           <div className={`bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 transition-opacity ${
             !thresholds.isAutomatic ? 'opacity-50 cursor-not-allowed' : ''
           }`}>
@@ -303,7 +299,7 @@ export default function Settings({ user }) {
         </div>
       </form>
 
-      {/* Notification Preferences */}
+      {/* Notification preference is persisted per user, unlike runtime thresholds. */}
       <form onSubmit={handleSaveNotifications} className="glass-card p-6 rounded-lg space-y-4">
         <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
           <Bell className="w-5 h-5 text-blue-600" />
@@ -350,7 +346,7 @@ export default function Settings({ user }) {
         </button>
       </form>
 
-      {/* Profile & Security Form */}
+      {/* Identity fields are immutable here; this form changes only the password. */}
       <form onSubmit={handleSaveProfile} className="glass-card p-6 rounded-lg space-y-4">
         <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
           <User className="w-5 h-5 text-blue-600" />

@@ -1,10 +1,21 @@
+/**
+ * MQTT adapter for the ESP32/backend boundary. Incoming topic identity and JSON
+ * shape are validated before persistence; outgoing control messages are published
+ * at QoS 1 and only then reflected in the optimistic actuator snapshot.
+ */
 const mqtt = require('mqtt');
 const { processEdgeAlert } = require('./anomalyEngine');
 const { ingestTelemetry, DEVICE_ID_PATTERN } = require('./telemetryService');
 const { synchronizeActuatorStates, updateActuatorState } = require('./actuatorStateService');
+const {
+  MAX_GAS_ALERT_THRESHOLD,
+  MQ2_ADC_MAX,
+  MQ2_ADC_MIN,
+  MQ2_UNIT
+} = require('../config/sensorContract');
 
 const TOPIC_PATTERN = /^safebox\/([A-Za-z0-9_-]{1,64})\/(telemetry|alerts|status)$/;
-const ACTUATORS = new Set(['fan', 'buzzer', 'alertLed']);
+const ACTUATORS = new Set(['fan']);
 
 let mqttClient = null;
 let mqttMode = 'stopped';
@@ -16,7 +27,8 @@ function parseBoolean(value, defaultValue = false) {
 }
 
 function isMockHardware(env = process.env) {
-  return parseBoolean(env.MOCK_HARDWARE, true);
+  // Simulation is opt-in for isolated tests; production defaults to the real MQTT path.
+  return parseBoolean(env.MOCK_HARDWARE, false);
 }
 
 function parseTopic(topic) {
@@ -26,6 +38,7 @@ function parseTopic(topic) {
 }
 
 function parseJsonMessage(message) {
+  // Bound parsing work before JSON.parse to reduce memory abuse from broker messages.
   if (message.length > 64 * 1024) throw new RangeError('MQTT message exceeds 64 KiB');
   try {
     return JSON.parse(message.toString('utf8'));
@@ -44,8 +57,21 @@ function validateEdgeAlert(payload, deviceId) {
   if (payload.sensorType !== 'gasLevel') {
     throw new TypeError('edge alert sensorType must be gasLevel');
   }
-  if (!Number.isFinite(payload.observedValue) || !Number.isFinite(payload.threshold)) {
-    throw new TypeError('edge alert observedValue and threshold must be finite numbers');
+  if (payload.unit !== MQ2_UNIT) {
+    throw new TypeError(`edge alert unit must be exactly '${MQ2_UNIT}'`);
+  }
+  if (
+    !Number.isInteger(payload.observedValue)
+    || payload.observedValue < MQ2_ADC_MIN
+    || payload.observedValue > MQ2_ADC_MAX
+  ) {
+    throw new TypeError(`edge alert observedValue must be an integer MQ2 ADC index from ${MQ2_ADC_MIN} to ${MQ2_ADC_MAX}`);
+  }
+  if (!Number.isInteger(payload.threshold) || payload.threshold <= MQ2_ADC_MIN || payload.threshold > MAX_GAS_ALERT_THRESHOLD) {
+    throw new TypeError(`edge alert threshold must be an integer MQ2 ADC index from 1 to ${MAX_GAS_ALERT_THRESHOLD}`);
+  }
+  if (payload.observedValue <= payload.threshold) {
+    throw new RangeError('edge alert observedValue must be greater than threshold');
   }
   const timestamp = payload.timestamp === undefined ? new Date() : new Date(payload.timestamp);
   if (Number.isNaN(timestamp.getTime())) throw new TypeError('edge alert timestamp must be valid');
@@ -55,16 +81,19 @@ function validateEdgeAlert(payload, deviceId) {
     sensorType: 'gasLevel',
     observedValue: payload.observedValue,
     threshold: payload.threshold,
+    unit: MQ2_UNIT,
     timestamp
   };
 }
 
+/** Dispatches a decoded broker message by the channel encoded in its validated topic. */
 async function handleMqttMessage(topic, message) {
   const { deviceId, channel } = parseTopic(topic);
   const payload = parseJsonMessage(message);
 
   if (channel === 'telemetry') {
     const result = await ingestTelemetry(payload, deviceId);
+    // Only a validated and persisted device report may override optimistic command state.
     synchronizeActuatorStates(result.reading.actuatorStates);
     return result;
   }
@@ -102,6 +131,7 @@ function requireMqttConfig(env = process.env) {
   };
 }
 
+/** Starts one MQTT client, or explicitly enters mock mode without network I/O. */
 function initializeMqttService({ logger = console, connect = mqtt.connect } = {}) {
   if (isMockHardware()) {
     mqttMode = 'mock';
@@ -144,6 +174,11 @@ function initializeMqttService({ logger = console, connect = mqtt.connect } = {}
   return mqttClient;
 }
 
+/**
+ * Publishes a validated actuator command and resolves only after MQTT.js invokes
+ * its publish callback. QoS 1 acknowledges broker receipt, not physical actuation;
+ * confirmed hardware state arrives later in telemetry.
+ */
 async function publishControlCommand(deviceId, actuator, state) {
   if (!DEVICE_ID_PATTERN.test(deviceId)) throw new TypeError('Invalid deviceId');
   if (!ACTUATORS.has(actuator)) throw new TypeError(`Unsupported actuator '${actuator}'`);
@@ -160,6 +195,7 @@ async function publishControlCommand(deviceId, actuator, state) {
   }
 
   const topic = `safebox/${deviceId}/control`;
+  // Firmware accepts strings for wire compatibility even though the REST boundary uses booleans.
   const payload = JSON.stringify({ actuator, state: state ? 'on' : 'off' });
   await new Promise((resolve, reject) => {
     mqttClient.publish(topic, payload, { qos: 1, retain: false }, (error) => {
@@ -167,6 +203,7 @@ async function publishControlCommand(deviceId, actuator, state) {
       else resolve();
     });
   });
+  // This remains optimistic until handleMqttMessage receives the device snapshot.
   updateActuatorState(actuator, state);
   return { status: 'published', topic };
 }

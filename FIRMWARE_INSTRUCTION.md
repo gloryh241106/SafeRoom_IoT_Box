@@ -2,7 +2,7 @@
 
 Step-by-step guide to connect all sensors/actuators to the ESP32 DevKit V1,
 flash the firmware, and provision WiFi. Pin numbers are authoritative and come
-from `firmware/src/config/pins.h`.
+from `firmware/src/config.h`.
 
 ---
 
@@ -33,15 +33,17 @@ from `firmware/src/config/pins.h`.
 1. **Never power the fan or any high-current load from an ESP32 GPIO pin.**
    The relay output side and fan must use a separate 5 V supply; GPIO 16 only
    drives the relay input.
-2. GPIO 34 is an **input-only** pin on the ESP32 (no internal pull-up/pull-down)
-   — use an external voltage divider if the MQ2 analog output can exceed 3.3 V.
+2. GPIO 34 is an **input-only** pin on the ESP32 (no internal pull-up/pull-down).
+   The MQ2 AO connection **must** use the 15 kΩ / 10 kΩ divider in Step 5.
 3. Do not feed **5 V into any GPIO** (including sensor outputs). If a 5 V
    module outputs > 3.3 V on its signal pin, add a voltage divider first.
 4. Common ground: the ESP32 GND must be shared with every module, the relay,
    and the fan power supply.
 5. Verify each connection with the chip **unpowered**; double-check polarity on
    LEDs, the buzzer, and the relay before plugging in USB.
-6. MQ2 will idle light the first minutes after power-on — this is normal.
+6. A new or long-stored MQ2 needs the manufacturer's initial preheat period in
+   clean air. This firmware reports a relative ADC index, never an uncalibrated
+   PPM value, and does not track preheat progress in software.
 7. Use only a **normally-open momentary** contact for reset. Do not use a
    latching switch, connect EN/RST to 5 V, or hold EN/RST low continuously.
 
@@ -106,10 +108,10 @@ Complete the steps in order; after each step reference the expected check.
 |----------|-----------|
 | VCC | 3.3 V |
 | GND | GND |
-| SDA | GPIO 21 (pins.h `OLED_SDA_PIN`) |
-| SCL | GPIO 22 (pins.h `OLED_SCL_PIN`) |
+| SDA | GPIO 21 (`config.h` `PIN_OLED_SDA`) |
+| SCL | GPIO 22 (`config.h` `PIN_OLED_SCL`) |
 
-- Connect `Wire` pins exactly as above; address 0x3C is hardcoded in
+- Connect `Wire` pins exactly as above; address 0x3C is defined in
   `config.h`.
 - **Check (TC-01)**: after flashing, the OLED shows "SafeRoom IoT Box /
   Booting...". If blank, swap SDA/SCL or check the I²C address.
@@ -135,57 +137,81 @@ Complete the steps in order; after each step reference the expected check.
 | OUTPUT | GPIO 13 (interrupt-capable GPIO; `PIR_PIN`) |
 | GND | GND |
 
-- Set the **sensitivity/delay trimmer** near min, and set the PIR **repeat
-  mode** so motion holds the output high while moving.
-- `motionDetected` is latched for 10 s by firmware
-  (`config.h` `MOTION_LATCH_MS`).
-- **Check**: move your hand; telemetry `motionDetected` flips true.
+- Set the **sensitivity/delay trimmer** near minimum for a responsive demo and
+  choose the module's repeat mode according to the desired physical behavior.
+- Firmware does not add a software latch. Each telemetry snapshot copies the
+  direct GPIO 13 level, so `motionDetected` remains true only while the
+  HC-SR501 OUT pin itself is HIGH.
+- **Check**: move your hand; telemetry `motionDetected` follows the module OUT
+  pin without an extra 10-second hold from firmware.
 
 ### Step 5 — MQ2 gas sensor (analog) → GPIO 34
 
-| MQ2 breakout | ESP32 |
-|--------------|-------|
-| VCC | 5 V |
-| GND | GND |
-| AO (analog out) | GPIO 34 (`MQ2_PIN`, ADC1_CH6) |
-| DO / heater | leave unused (heater is internal, powered via VCC) |
+| MQ2 breakout | Connection |
+|--------------|------------|
+| VCC | ESP32 5 V / VIN |
+| GND | Common GND |
+| AO | 15 kΩ resistor to GPIO 34; 10 kΩ from GPIO 34 to GND |
+| DO | Leave unused |
 
-- **Voltage-safe note**: if your 5 V VCC module can raise AO above ~3.3 V at
-  high gas, insert a divider so the max is ≤ 3.3 V (see below). Most boards
-  idle at 0.1–0.9 V and only approach the rail in extreme smoke, but the
-  divider protects the ADC.
-- Optional divider (if used): 
+- **Required voltage divider**: do not connect a possible 5 V AO signal
+  directly to the ESP32 ADC. The firmware reports the divided GPIO 34 reading
+  as a raw ADC index and does not reverse-calculate module voltage or PPM.
 
   ```
-  AO (5 V board) ── 10 kΩ ──●── GPIO 34
-                           │
-                           20 kΩ → │GND
+  MQ2 AO ── 15 kΩ ──●── GPIO 34 (ADC1_CH6)
+                    │
+                   10 kΩ
+                    │
+                   GND
   ```
 
-- The firmware calls `analogRead(GPIO34)` once per sample and reports that
-  direct **ADC gas index (0–4095)** as both `gasLevel` and `gasRaw`.
+- The firmware explicitly selects 12-bit ADC resolution, calls
+  `analogRead(GPIO34)` once per sample, and reports that direct **raw ADC count
+  (0–4095)** as both `gasLevel` and `gasRaw`.
 - There is no PPM interpolation, boot calibration, median filter, EMA, or
   software warm-up delay. The manufacturer's initial preheat requirement of
   at least 48 hours still applies to meaningful physical measurements.
-- **Check**: `gasValid=true` after the first sample and `gasLevel` equals
-  `gasRaw`; natural fluctuations are expected because the value is unfiltered.
+- Firmware raises a local alarm above `600`. Once active, the alarm clears
+  only below `500`; this
+  hysteresis prevents buzzer/LED chatter around the trigger boundary. Tune
+  these raw project thresholds only after logging clean-air and safe test-smoke
+  readings on the assembled hardware; do not relabel them as PPM.
+- **Check**: `gasValid=true` means the firmware task has acquired a sample, and
+  `gasLevel` equals `gasRaw`; it is not an electrical health diagnosis. Natural
+  fluctuations are expected because the value is unfiltered.
 
 ### Step 6 — Active buzzer module → GPIO 19 (digital signal)
 
 | Active buzzer module | ESP32 |
 |----------------------|-------|
 | `S`, `SIG`, or `IN` | GPIO 19 (`BUZZER_PIN`) |
-| `+` or `VCC` | 3.3 V for a 3.3 V module; otherwise use the module's rated supply |
+| `+` or `VCC` | 3.3 V — the module is powered at 3.3 V so its low-trigger input is fully OFF at the GPIO's 3.3 V HIGH level (verified on hardware). A 5 V supply also works but then the module needs the NPN driver stage below to reach a real 5 V OFF level |
 | `-` or `GND` | GND |
 
 - The active buzzer module contains its own oscillator. Firmware enables its
-  signal pin digitally and keeps the existing 500 ms intermittent alarm
-  pattern; it does not generate a 2 kHz LEDC tone.
-- `config.h` defaults to an active-HIGH input (`BUZZER_ACTIVE_LOW=false`). Set it
-  to `true` if the module is active-LOW. If using a 5 V module, verify that its
-  input accepts 3.3 V logic and never connect 5 V directly to GPIO 19.
-- **Check (TC-03)**: immediate buzzer + red LED + OLED "GAS!" scream within
-  < 200 ms when the gas threshold is crossed even with WiFi off.
+  signal pin digitally while a gas alarm is active; it does not generate a
+  2 kHz LEDC tone.
+- The module is **low level trigger** (active-LOW): SIG LOW means ON. Powered
+  at 3.3 V, GPIO 19 HIGH (3.3 V) fully turns it OFF, so `config.h` sets
+  `BUZZER_ACTIVE_LOW=true` and SIG is wired directly to GPIO 19. Never connect
+  5 V directly to GPIO 19.
+- If a louder 5 V supply is preferred, drive SIG through an NPN driver stage
+  (GPIO 19 → 1 kΩ → base, emitter → GND, collector → SIG, 10 kΩ pull-up
+  SIG → 5 V), which inverts the logic and requires `BUZZER_ACTIVE_LOW=false`.
+- Firmware suppresses alarm decisions for the first 30 s while the cold MQ2
+  heater settles (readings are published as `gasValid=false` during that
+  window), then requires three consecutive 50 ms MQ2 samples above 600 before
+  enabling the buzzer. The alarm clears after three samples below 500, or after
+  5 s sustained below 600, so an oscillating clean-air baseline cannot keep the
+  buzzer stuck on.
+- If the buzzer clicks before `setup()` starts, add a **10 kΩ pull-up from SIG
+  to 3.3 V**. Do not pull SIG up to 5 V because ESP32 GPIOs are not 5 V tolerant.
+- **Pending physical check (TC-03)**: measure buzzer + red LED + OLED "GAS!"
+  response below 200 ms both offline and while Save WiFi/MQTTS is busy. Firmware
+  now samples and actuates from a pinned priority-4 FreeRTOS task, so synchronous
+  network calls are outside the time-critical path; a successful build is not a
+  substitute for the oscilloscope/video timing measurement.
 
 ### Step 7 — LEDs → GPIO 17 & 18
 
@@ -195,8 +221,9 @@ Complete the steps in order; after each step reference the expected check.
 | Red (alert) | via 220–330 Ω → GPIO 18 | GND | `ALERT_LED_PIN` |
 
 - Wire like: `GPIO17 → Resistor → LED an → LED cath → GND`. HIGH = on.
-- **Check**: green LED is on when WiFi connected; red LED flashes/during the
-  gas alert; red reflects remote commands otherwise.
+- **Check**: green LED is on when WiFi connected; red LED (and buzzer) turn on
+  only while the local gas alarm is active — they are edge-only outputs with no
+  remote web control.
 
 ### Step 8 — DC Fan / HL-52S Relay → GPIO 16
 
@@ -224,8 +251,8 @@ feed 5 V to VCC, the ESP32's 3.3 V HIGH may not fully cut off the optocoupler
 2. VCC → 3.3 V (logic/optocoupler side).
 3. JD-VCC → external 5 V (coil side, common the two grounds).
 
-The firmware defaults to **active-low** (`config.h` `RELAY_ACTIVE_LOW = true`), so
-`relay.on()` pulls GPIO 16 LOW and energizes the coil; boot writes HIGH, keeping
+The firmware defaults to **active-low** (`config.h` `FAN_RELAY_ACTIVE_LOW = true`), so
+`setFan(true)` pulls GPIO 16 LOW and energizes the coil; boot writes HIGH, keeping
 the relay open (fan off).
 
 - **Check (TC-06)**: toggling the fan on the Overview page flips IN1 level and
@@ -298,8 +325,12 @@ Use `firmware/include/secrets.example.h` → copy to `firmware/include/secrets.h
 #define MQTT_CA_CERT "…PEM…"
 ```
 
-WiFi credentials are NOT compiled; provisioned in runtime through the captive
-portal (§8). `secrets.h` is git-ignored — never commit it.
+Router credentials are NOT compiled; they are provisioned at runtime through
+the captive portal (§8). For a simple coursework demo, `Safebox-AP` uses the
+fixed password `12345678`, declared once as `WIFI_AP_PASSWORD` in
+`firmware/src/config.h`. This fixed credential must be changed before
+using the design outside a controlled classroom environment.
+`secrets.h` is git-ignored—never commit it.
 
 ---
 
@@ -414,26 +445,41 @@ DEVICE_ID=safebox-01
 
 ### Expected cloud behavior on first boot
 
-- ESP32: `[MQTT] Connected.` and `[MQTT] Telemetry published (QoS 0).` every
-  2 s in `pio device monitor`
+- ESP32: `[MQTT] Connected` appears after a successful session; verify the
+  2-second telemetry on EMQX/Atlas because the simplified firmware does not log
+  every publish.
 - Backend: `[MQTT] Connected and subscribed to telemetry, alerts, and status
-  topics.` and every 2 s one MongoDB insert
+  topics.` appears; verify inserts in MongoDB rather than expecting a log line
+  for every message.
 - EMQX Overview: **2 clients** connected (ESP32 + backend)
 
 ---
 
-## 8. Provisioning & First Boot (TC-01)
+## 8. Provisioning, Runtime Network Switching & First Boot (TC-01)
 
-1. Flash and power the board. Serial prints the boot banner.
-2. If no stored NVS credentials: ESP32 starts **SoftAP `Safebox-AP`**
-   (captive portal at `http://192.168.4.1`); OLED shows "AP Mode: Safebox-AP".
-3. Connect your phone/PC to `Safebox-AP`, open `192.168.4.1`, pick your
-   office/test WiFi SSID, enter its password →
-   credentials are saved to **NVS**, the ESP32 reboots into Station.
-4. On connect: OLED shows "Connected / IP: x.x.x.x" and the green LED lights.
-   The device publishes `safebox/{id}/status` {"status":"online"} (retained).
-5. `pio device monitor` shows `[WiFi] Connected. IP: …`,
-   `[MQTT] Connected.`, and distinct `[MQTT] Telemetry published` lines.
+1. Flash and power the board. Sensor/edge-safety updates begin immediately;
+   station connection is not allowed to own a 30-second boot wait.
+2. ESP32 tries the latest router credentials saved in NVS. If that attempt
+   fails, WiFiManager opens **SoftAP `Safebox-AP`** at `192.168.4.1`.
+3. Connect a phone/PC to `Safebox-AP` with password `12345678`, open
+   `http://192.168.4.1`, select the
+   office/test router, enter its password, and save.
+4. WiFiManager writes the router credentials to NVS and ESP32 joins the new
+   network **without rebooting**. A direct network-A → network-B switch closes
+   the old MQTT/TLS socket before reconnecting through the new station IP.
+5. OLED shows the current station SSID/IP when connected; the green LED follows
+   station connectivity. The setup AP closes after a successful save.
+6. The device publishes `safebox/{id}/status` `{"status":"online"}` (QoS 0,
+   retained); its offline LWT is QoS 1 retained. Inspect EMQX/Atlas to confirm
+   two-second telemetry.
+7. Power-cycle the box and verify the last selected router is loaded from NVS.
+   If that router is unavailable, verify `Safebox-AP` appears again.
+
+The standard WiFiManager portal is processed from the normal Arduino loop by
+calling `_manager.process()`. Saving an SSID and making an MQTTS connection can
+still block `loopTask`, but the independent priority-4 MQ2 task directly owns
+ADC sampling, buzzer/LED arbitration, and the serialized OLED transition.
+TC-03 must still measure this exact scenario on hardware.
 
 ---
 
@@ -441,7 +487,7 @@ DEVICE_ID=safebox-01
 
 | TC | What to check | Indicator |
 |----|---------------|-----------|
-| TC-01 | Provisioning → SoftAP portal → NVS → OLED IP | Portal opens; IP persists across reboots |
+| TC-01 | Saved WiFi fails → setup AP → NVS save → OLED IP | `Safebox-AP` uses `12345678`; router persists across reboots |
 | TC-02 | 2 s telemetry to EMQX → MongoDB | `pio device monitor` shows publishes; backend stores docs |
 | TC-03 | Offline gas breach < 200 ms (WiFi off) | buzzer + red LED + "GAS!" OLED, no network |
 | TC-04 | Temp spike → Z-score AnomalyLog + alert | dashboard anomaly panel shows the log |
@@ -456,9 +502,11 @@ DEVICE_ID=safebox-01
 |---------|--------------|-----|
 | OLED stays black | I²C wiring/address not 0x3C, or `begin()` fails silently | Recheck SDA/SCL; test an I²C scan sketch (expect 0x3C) |
 | DHT reads NaN | Missing pull-up; wrong data pin | Add pull-up; verify GPIO 4 |
-| Gas always 0/empty | Sensor still heating (2 min warmup); AO divider wrong | Wait; rewire divider |
-| No WiFi portal | Config already saved; connect to your AP instead | To re-provision: connect to `Safebox-AP` during the 30 s connect window or wipe NVS via `pio run -t erase` |
-| Fan not switching | Relay module logic mismatch (HL-52S is active-low) | keep `config.h` `RELAY_ACTIVE_LOW = true`; check the JD-VCC jumper (see Step 8) |
+| Gas is fixed at 0 | AO wiring/divider fault, missing common ground, or genuinely minimum ADC input | Recheck the 15 kΩ / 10 kΩ divider, common ground, and GPIO 34; `0` is a legal ADC value, not an automatic fault flag |
+| Suspected gas sensor fault | AO open/short, wrong divider, or implausibly fixed ADC | Rewire the required divider and verify with a meter; `gasValid` only means a sample was acquired |
+| Saved SSID ends in `_5G`; device remains offline | Original ESP32 supports 2.4 GHz WiFi only | Join `Safebox-AP` with `12345678`, then select the router's 2.4 GHz SSID |
+| No `Safebox-AP` | ESP32 is already connected to its saved router, firmware is not running, or SoftAP failed | Check the OLED/Serial log first; if WiFi is already connected the setup AP is intentionally closed |
+| Fan not switching | Relay module logic mismatch (HL-52S is active-low) | keep `config.h` `FAN_RELAY_ACTIVE_LOW = true`; check the JD-VCC jumper (see Step 8) |
 | Serial only shows boot | `SAFEBOX_DEBUG=0` | Build with `-DSAFEBOX_DEBUG=1` |
 | No `[MQTT] Connected.` | Wrong host/port/creds in `secrets.h` | Recheck §7 Step 2; test with MQTTX first |
 | MQTTS TLS handshake fail | Missing/wrong CA PEM; port not 8883 | Re-download CA from EMQX overview; paste full PEM incl. BEGIN/END |
@@ -475,8 +523,8 @@ DEVICE_ID=safebox-01
 | GPIO | Function | Module | Direction |
 |-----|----------|--------|-----------|
 | 4 | DHT22 Data | temperature/humidity | input (with 4.7–10 kΩ pull-up) |
-| 13 | PIR OUT | motion | input (RISING interrupt) |
-| 34 | MQ2 AO | relative gas index (0–4095 ADC) | analog input (ADC1_CH6) |
+| 13 | PIR OUT | raw motion HIGH/LOW | digital input (no software latch) |
+| 34 | MQ2 AO | raw 12-bit ADC count (0–4095) | analog input (ADC1_CH6) |
 | 16 | Relay IN1 (HL-52S) | fan ON | output (active-low: LOW = ON; boots open) |
 | 17 | Green LED | status LED | output |
 | 18 | Red LED | alert LED | output |

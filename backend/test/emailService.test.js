@@ -1,3 +1,4 @@
+/** Covers SMTP severity filtering, recipient privacy, formatting, and throttling. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

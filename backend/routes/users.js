@@ -1,10 +1,13 @@
+/**
+ * Authenticated profile settings. Updates use dotted paths so toggling email
+ * notifications cannot replace the user's other nested threshold settings.
+ */
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { User } = require('../models/Schemas');
 const { authenticateToken } = require('./auth');
 
-// GET /api/v1/users/profile — Fetch current user profile
 router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-passwordHash');
@@ -15,7 +18,7 @@ router.get('/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH /api/v1/users/profile — Update password & user settings
+// Kept as POST for compatibility with the current frontend API contract.
 router.post('/profile', authenticateToken, async (req, res) => {
   try {
     const { newPassword, settings } = req.body;

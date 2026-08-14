@@ -18,9 +18,9 @@ Overview.jsx
   -> control.js
   -> mqttService.publishControlCommand()
   -> MQTT topic
-  -> MqttManager.handleMessage()
-  -> WebsiteControl.handleCommand()
-  -> Relay.set()
+  -> SafeboxMqttClient.handleMessage()
+  -> RemoteControl.handleCommand()
+  -> FanRelay.set()
   -> digitalWrite(GPIO 16 theo RELAY_ACTIVE_LOW)
 ```
 
@@ -211,10 +211,10 @@ if (channel === 'telemetry') {
 
 ### 2.6 Firmware nhận MQTT
 
-File: [`firmware/src/mqtt/mqtt_manager.cpp`](../firmware/src/mqtt/mqtt_manager.cpp)
+File: [`firmware/src/connectivity/mqtt_client.cpp`](../firmware/src/connectivity/mqtt_client.cpp)
 
 ```cpp
-void MqttManager::handleMessage(byte* payload, unsigned int length) {
+void SafeboxMqttClient::handleMessage(byte* payload, unsigned int length) {
   JsonDocument doc;
   if (deserializeJson(doc, payload, length)) return;
 
@@ -227,14 +227,14 @@ void MqttManager::handleMessage(byte* payload, unsigned int length) {
 }
 ```
 
-`MqttManager` subscribe topic control, parse JSON và đổi state sang boolean. JSON lỗi bị bỏ qua và kết quả hợp lệ được chuyển sang module điều khiển website.
+`SafeboxMqttClient` subscribe topic control, parse JSON và đổi state sang boolean. JSON lỗi bị bỏ qua và kết quả hợp lệ được chuyển sang feature điều khiển từ xa.
 
-File: [`firmware/src/control/website_control.cpp`](../firmware/src/control/website_control.cpp)
+File: [`firmware/src/features/remote_control.cpp`](../firmware/src/features/remote_control.cpp)
 
 ```cpp
-void WebsiteControl::handleCommand(const char* actuator, bool state) {
+void RemoteControl::handleCommand(const char* actuator, bool state) {
   if (strcmp(actuator, "fan") == 0) {
-    _fan.set(state);
+    _fan.set(state); // fan is remote-only
   } else if (strcmp(actuator, "buzzer") == 0) {
     _remoteBuzzer = state;
     if (!_safetyOverride) _buzzer.set(state);
@@ -245,7 +245,7 @@ void WebsiteControl::handleCommand(const char* actuator, bool state) {
 }
 ```
 
-`WebsiteControl` giữ quạt ở phạm vi remote-only và không cho lệnh remote buzzer/LED ghi đè cảnh báo khí. `Relay` xử lý riêng polarity; với HL-52S mặc định `RELAY_ACTIVE_LOW=true`, GPIO 16 LOW là ON và HIGH là OFF.
+`RemoteControl` giữ quạt ở phạm vi remote-only và không cho lệnh remote buzzer/LED ghi đè cảnh báo khí. `FanRelay` xử lý riêng polarity; với HL-52S mặc định `RELAY_ACTIVE_LOW=true`, GPIO 16 LOW là ON và HIGH là OFF.
 
 ## 3. NC-01 - Z-score và rule engine
 
@@ -558,6 +558,22 @@ Timestamp vẫn được lưu và xử lý nội bộ theo UTC. Riêng template 
 | `telemetryRoutes.test.js` | Latest-N query và chronological response |
 | `timeSeriesService.test.js` | Collection options và fail-fast |
 | `scripts/testCb03Mock.js` | REST fan ON/status/OFF có JWT trong simulation mode |
+
+## 6.1 Hợp đồng MQ2 cần biết khi giải thích telemetry
+
+Firmware đọc trực tiếp `analogRead(GPIO34)` và gửi cùng giá trị tương đối dưới
+hai trường `metrics.gasLevel` và `metrics.gasRaw`. Đơn vị được khai báo rõ là
+`adc_index`; hệ thống không gọi giá trị chưa hiệu chuẩn này là PPM.
+
+`telemetryService.js` yêu cầu chỉ số nguyên `0..4095`, kiểm tra
+`gasUnit=adc_index`, hai alias phải bằng nhau và giữ `gasValid`. Cờ này thể hiện
+producer có cho phép dùng mẫu hay không, không phải chẩn đoán điện. Anomaly engine
+bỏ qua `gasValid=false`; mẫu hợp lệ vượt ngưỡng runtime tạo cảnh báo luật cứng.
+
+Đường an toàn cục bộ nằm trong FreeRTOS task priority 4: mỗi 100 ms đọc MQ2 rồi
+trực tiếp cập nhật còi, LED đỏ và OLED qua lock, độc lập với loop WiFi/MQTT. TC-03
+vẫn phải đo trên phần cứng cả offline và khi network đang bận; build thành công
+không tự chứng minh thời gian phản hồi.
 
 ## 7. Điều nên và không nên học thuộc
 

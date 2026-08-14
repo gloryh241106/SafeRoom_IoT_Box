@@ -1,11 +1,26 @@
+/**
+ * Live operations page for one Safebox device.
+ *
+ * Sensor values come from persisted ESP32 telemetry, while broker/LWT state is
+ * queried separately. Actuator changes are optimistic commands and are later
+ * reconciled by the next device-authored telemetry snapshot.
+ */
 import React, { useState, useEffect } from 'react';
-import { Thermometer, Droplets, Flame, Activity, Fan, Bell, ShieldAlert, ShieldCheck, Trash2 } from 'lucide-react';
+import { Thermometer, Droplets, Flame, Activity, Fan, Bell, ShieldAlert, ShieldCheck, CheckCheck } from 'lucide-react';
 import { apiFetch } from '../api';
+import {
+  DEFAULT_GAS_ALERT_THRESHOLD,
+  FIRMWARE_EDGE_GAS_THRESHOLD,
+  MQ2_ADC_MAX,
+  MQ2_ADC_MIN,
+  formatMetric,
+  getRawGasValue,
+  hasValidRawGasValue,
+  rawGasProgressPercent
+} from '../telemetryContract';
 
 const ACTUATOR_STATE_FIELDS = {
-  fan: 'fanOn',
-  buzzer: 'buzzerActive',
-  alertLed: 'alertLedActive'
+  fan: 'fanOn'
 };
 
 export default function Overview() {
@@ -17,8 +32,10 @@ export default function Overview() {
   const [connectionState, setConnectionState] = useState('connecting');
   const [controlFeedback, setControlFeedback] = useState(null);
   const [hardwareMode, setHardwareMode] = useState('unknown');
+  const [gasThreshold, setGasThreshold] = useState(DEFAULT_GAS_ALERT_THRESHOLD);
 
-  // Fetch telemetry and anomalies
+  // A successful telemetry read alone does not prove that the MQTT device is
+  // online, so the control status/LWT response participates in connection state.
   const fetchData = async () => {
     try {
       const telRes = await apiFetch('/api/v1/telemetry/latest');
@@ -50,12 +67,36 @@ export default function Overview() {
   };
 
   useEffect(() => {
+    let active = true;
+
+    // Backend anomaly thresholds are runtime configuration. Failure to load
+    // them must not stop live telemetry, so the documented fallback remains.
+    const fetchBackendGasThreshold = async () => {
+      try {
+        const res = await apiFetch('/api/v1/control/thresholds');
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || 'Threshold request failed');
+        if (active && Number.isFinite(json.data?.gasMax)) setGasThreshold(json.data.gasMax);
+      } catch (error) {
+        console.warn('Using fallback gas threshold:', error.message);
+      }
+    };
+
+    fetchBackendGasThreshold();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     fetchData();
+    // Three seconds stays inside the project's 2-5 second REST polling baseline.
     const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // Handle manual actuator toggle
+  // Apply the requested state immediately for responsive controls. The next
+  // telemetry poll replaces it with the state reported by the physical device.
   const handleActuatorToggle = async (actuator, currentState) => {
     setPendingActuator(actuator);
     setControlFeedback(null);
@@ -100,7 +141,8 @@ export default function Overview() {
     }
   };
 
-  // Delete all unresolved anomalies from view and backend
+  // The endpoint preserves audit history: "clear" resolves records instead of
+  // deleting them from MongoDB, even though this view removes them immediately.
   const handleDeleteAllAnomalies = async () => {
     try {
       const res = await apiFetch('/api/v1/anomalies/clear-all', {
@@ -124,10 +166,39 @@ export default function Overview() {
     );
   }
 
-  const metrics = telemetry?.metrics || { temperature: 0, humidity: 0, gasLevel: null, gasValid: false, motionDetected: false };
-  const actuators = telemetry?.actuatorStates || { fanOn: false, buzzerActive: false, alertLedActive: false };
-  const gasValid = metrics.gasValid !== false && Number.isFinite(metrics.gasLevel);
-  const gasAlarm = gasValid && metrics.gasLevel > 600;
+  if (!telemetry) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Overview Dashboard</h2>
+          <p className="text-sm text-slate-500">Live environmental telemetry and remote actuator command center</p>
+        </div>
+        <div className="glass-card rounded-lg p-8 text-center space-y-3" role="status">
+          <ShieldAlert className="w-10 h-10 text-amber-500 mx-auto" />
+          <h3 className="text-lg font-bold text-slate-950">No telemetry received</h3>
+          <p className="text-sm text-slate-600 max-w-xl mx-auto">
+            SafeboxManager has no ESP32 sensor reading to display. Check the device and MQTT connection, then retry.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              fetchData();
+            }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-md transition-colors"
+          >
+            Retry telemetry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+const metrics = telemetry.metrics;
+  const actuators = telemetry.actuatorStates;
+  const rawGasValue = getRawGasValue(metrics);
+  const gasValid = hasValidRawGasValue(metrics);
+  const gasAlarm = gasValid && rawGasValue > gasThreshold;
   const connectionLabel = connectionState === 'connecting'
     ? 'Connecting'
     : connectionState === 'online'
@@ -148,7 +219,7 @@ export default function Overview() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Connection health combines backend reachability with MQTT/LWT state. */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-950 tracking-tight">Overview Dashboard</h2>
@@ -174,9 +245,8 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Live Metric Cards Grid */}
+      {/* Formatting below is presentation-only; telemetry state stays untouched. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Temperature Card */}
         <div className="glass-card p-5 rounded-lg space-y-3">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Temperature</span>
@@ -185,7 +255,7 @@ export default function Overview() {
             </div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-slate-950">{metrics.temperature}°C</div>
+            <div className="text-3xl font-bold text-slate-950">{formatMetric(metrics.temperature)}°C</div>
             <p className="text-xs text-slate-500 mt-1">DHT22 Digital Sensor</p>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -193,7 +263,6 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* Humidity Card */}
         <div className="glass-card p-5 rounded-lg space-y-3">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-semibold uppercase tracking-wider">Humidity</span>
@@ -202,7 +271,7 @@ export default function Overview() {
             </div>
           </div>
           <div>
-            <div className="text-3xl font-bold text-slate-950">{metrics.humidity}%</div>
+            <div className="text-3xl font-bold text-slate-950">{formatMetric(metrics.humidity)}%</div>
             <p className="text-xs text-slate-500 mt-1">Relative Room Moisture</p>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
@@ -210,7 +279,7 @@ export default function Overview() {
           </div>
         </div>
 
-        {/* Gas Level Card */}
+        {/* MQ-2 stays a raw 12-bit ADC count; no PPM conversion is implied. */}
         <div className={`glass-card p-5 rounded-lg border transition-colors space-y-3 ${
           gasAlarm ? 'border-red-300 !bg-red-50' : 'border-slate-200'
         }`}>
@@ -222,20 +291,22 @@ export default function Overview() {
           </div>
           <div>
             {gasValid ? (
-              <div className="text-3xl font-bold text-slate-950">{metrics.gasLevel} <span className="text-sm font-normal text-slate-500">index</span></div>
+              <div className="text-3xl font-bold text-slate-950">{rawGasValue} <span className="text-sm font-normal text-slate-500">raw ADC</span></div>
             ) : (
-              <div className="text-xl font-bold text-amber-600">WARMING UP</div>
+              <div className="text-xl font-bold text-amber-600">INVALID READING</div>
             )}
             <p className="text-xs text-slate-500 mt-1">
-              MQ-2 ADC {Number.isFinite(metrics.gasRaw) ? metrics.gasRaw : 'n/a'} · alarm &gt; 600
+              MQ-2 12-bit range {MQ2_ADC_MIN}–{MQ2_ADC_MAX}
+            </p>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Backend alarm &gt; {gasThreshold} · ESP32 edge &gt; {FIRMWARE_EDGE_GAS_THRESHOLD} (compile-time)
             </p>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-            <div className={`h-full ${gasAlarm ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${gasValid ? Math.min(100, (metrics.gasLevel / 800) * 100) : 0}%` }}></div>
+            <div className={`h-full ${gasAlarm ? 'bg-red-500' : 'bg-amber-500'}`} style={{ width: `${gasValid ? rawGasProgressPercent(rawGasValue) : 0}%` }}></div>
           </div>
         </div>
 
-        {/* Motion Card */}
         <div className={`glass-card p-5 rounded-lg border transition-colors space-y-3 ${
           metrics.motionDetected ? 'border-emerald-300 !bg-emerald-50' : 'border-slate-200'
         }`}>
@@ -258,7 +329,7 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Remote Actuator Controls */}
+      {/* Commands are optimistic; telemetry remains authoritative after publish. */}
       <div className="glass-card p-6 rounded-lg space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-lg font-bold text-slate-950 flex items-center gap-2">
@@ -282,8 +353,7 @@ export default function Overview() {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* DC Fan Toggle */}
+<div className="grid grid-cols-1 gap-4">
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
             <div className="space-y-1">
               <span className="text-sm font-semibold text-slate-950">CB-03 | DC Fan Relay</span>
@@ -301,48 +371,10 @@ export default function Overview() {
               {pendingActuator === 'fan' ? 'SENDING' : actuators.fanOn ? 'ON' : 'OFF'}
             </button>
           </div>
-
-          {/* Buzzer Toggle */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <span className="text-sm font-semibold text-slate-950">Active Buzzer Alarm</span>
-              <p className="text-xs text-slate-500">GPIO 19 PWM LEDC</p>
-            </div>
-            <button
-              disabled={pendingActuator !== null || connectionState !== 'online'}
-              onClick={() => handleActuatorToggle('buzzer', actuators.buzzerActive)}
-              className={`min-w-20 px-4 py-2 rounded-md text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                actuators.buzzerActive
-                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              {pendingActuator === 'buzzer' ? 'SENDING' : actuators.buzzerActive ? 'ACTIVE' : 'OFF'}
-            </button>
-          </div>
-
-          {/* Alert LED Toggle */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <span className="text-sm font-semibold text-slate-950">Alert LED (Red)</span>
-              <p className="text-xs text-slate-500">GPIO 18 Digital Output</p>
-            </div>
-            <button
-              disabled={pendingActuator !== null || connectionState !== 'online'}
-              onClick={() => handleActuatorToggle('alertLed', actuators.alertLedActive)}
-              className={`min-w-20 px-4 py-2 rounded-md text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                actuators.alertLedActive
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
-              }`}
-            >
-              {pendingActuator === 'alertLed' ? 'SENDING' : actuators.alertLedActive ? 'ON' : 'OFF'}
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Active Unresolved Anomalies Table / Panel */}
+      {/* Clearing resolves records server-side so the historical audit trail remains. */}
       {anomalies.length > 0 && (
         <div className="glass-card rounded-lg p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -354,8 +386,8 @@ export default function Overview() {
               onClick={handleDeleteAllAnomalies}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-md text-xs font-semibold transition-colors"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete All</span>
+              <CheckCheck className="w-3.5 h-3.5" />
+              <span>Resolve All</span>
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

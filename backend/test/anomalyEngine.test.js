@@ -1,3 +1,4 @@
+/** Covers statistical boundaries, hard rules, dedupe, and anomaly side effects. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
@@ -9,7 +10,8 @@ const {
   setControlPublisher,
   updateThresholds
 } = require('../services/anomalyEngine');
-const { AnomalyLog } = require('../models/Schemas');
+const { AnomalyLog, User } = require('../models/Schemas');
+const { MAX_GAS_ALERT_THRESHOLD } = require('../config/sensorContract');
 const {
   resetEmailServiceForTests,
   sendAlertEmail,
@@ -78,13 +80,44 @@ test('does not apply Z-score analysis to gas or motion values', () => {
   });
 });
 
+test('keeps the MQ2 alert threshold integer and below the maximum ADC sample', () => {
+  assert.equal(
+    updateThresholds({ gasMax: MAX_GAS_ALERT_THRESHOLD }).gasMax,
+    MAX_GAS_ALERT_THRESHOLD
+  );
+  assert.throws(() => updateThresholds({ gasMax: 4095 }), /integer between 1 and 4094/);
+  assert.throws(() => updateThresholds({ gasMax: 600.5 }), /integer between 1 and 4094/);
+  assert.equal(updateThresholds({ gasMax: 600 }).gasMax, 600);
+});
+
+test('uses the same MQ2 threshold ceiling in the persisted user schema', () => {
+  const createUser = (gasMax) => new User({
+    username: `threshold-${gasMax}`,
+    email: `threshold-${gasMax}@example.test`,
+    passwordHash: 'not-used-by-schema-validation',
+    settings: { thresholds: { gasMax } }
+  });
+
+  assert.equal(createUser(MAX_GAS_ALERT_THRESHOLD).validateSync(), undefined);
+  assert.match(
+    createUser(4095).validateSync().errors['settings.thresholds.gasMax'].message,
+    /more than maximum allowed value \(4094\)/
+  );
+  assert.match(
+    createUser(600.5).validateSync().errors['settings.thresholds.gasMax'].message,
+    /integer ADC index/
+  );
+});
+
 test('deduplicates rapid repeated anomalies for the same device, sensor, and trigger', async () => {
   const originalCreate = AnomalyLog.create;
+  const originalUpdate = AnomalyLog.findByIdAndUpdate;
   const createdDocuments = [];
   AnomalyLog.create = async (document) => {
     createdDocuments.push(document);
     return document;
   };
+  AnomalyLog.findByIdAndUpdate = async () => null;
 
   try {
     const telemetry = {
@@ -104,6 +137,7 @@ test('deduplicates rapid repeated anomalies for the same device, sensor, and tri
     assert.equal(createdDocuments[0].triggerType, 'HARD_THRESHOLD_BREACH');
   } finally {
     AnomalyLog.create = originalCreate;
+    AnomalyLog.findByIdAndUpdate = originalUpdate;
   }
 });
 
@@ -125,12 +159,14 @@ test('does not trigger a gas anomaly while the MQ2 startup reading is invalid', 
 
 test('applies the hard-rule matrix for gas, armed motion, and humidity', async () => {
   const originalCreate = AnomalyLog.create;
+  const originalUpdate = AnomalyLog.findByIdAndUpdate;
   const createdDocuments = [];
   const publishedCommands = [];
   AnomalyLog.create = async (document) => {
     createdDocuments.push(document);
     return document;
   };
+  AnomalyLog.findByIdAndUpdate = async () => null;
   setControlPublisher(async (deviceId, actuator, state) => {
     publishedCommands.push({ deviceId, actuator, state });
     return { status: 'mocked' };
@@ -159,16 +195,16 @@ test('applies the hard-rule matrix for gas, armed motion, and humidity', async (
         { sensorType: 'motionDetected', triggerType: 'HARD_THRESHOLD_BREACH', severity: 'HIGH' }
       ]
     );
-    assert.deepEqual(publishedCommands, [
-      { deviceId: 'device-a', actuator: 'alertLed', state: true }
-    ]);
+    assert.deepEqual(publishedCommands, []);
   } finally {
     AnomalyLog.create = originalCreate;
+    AnomalyLog.findByIdAndUpdate = originalUpdate;
   }
 });
 
 test('runs the Z-score spike through fan control, anomaly logging, and email throttling', async () => {
   const originalCreate = AnomalyLog.create;
+  const originalUpdate = AnomalyLog.findByIdAndUpdate;
   const originalEnvironment = {
     EMAIL_ENABLED: process.env.EMAIL_ENABLED,
     SMTP_HOST: process.env.SMTP_HOST,
@@ -190,7 +226,13 @@ test('runs the Z-score spike through fan control, anomaly logging, and email thr
     ALERT_RECIPIENT_EMAIL: 'owner@example.test'
   });
   AnomalyLog.create = async (document) => {
-    createdDocuments.push(document);
+    const stored = { _id: `id-${createdDocuments.length}`, ...document };
+    createdDocuments.push(stored);
+    return stored;
+  };
+  AnomalyLog.findByIdAndUpdate = async (id, update) => {
+    const document = createdDocuments.find((entry) => entry._id === id);
+    if (document) Object.assign(document, update);
     return document;
   };
   setControlPublisher(async (deviceId, actuator, state) => {
@@ -246,6 +288,7 @@ test('runs the Z-score spike through fan control, anomaly logging, and email thr
     assert.equal((await sendAlertEmail(createdDocuments[0])).status, 'throttled');
   } finally {
     AnomalyLog.create = originalCreate;
+    AnomalyLog.findByIdAndUpdate = originalUpdate;
     for (const [key, value] of Object.entries(originalEnvironment)) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;

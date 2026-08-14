@@ -1,31 +1,63 @@
+/**
+ * Persistent data contracts shared by MQTT ingestion, REST queries, anomaly
+ * logging, and user settings. Time-Series collection creation is intentionally
+ * handled by timeSeriesService rather than by Mongoose's normal auto-create.
+ */
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
+const {
+  DEFAULT_GAS_ALERT_THRESHOLD,
+  MAX_GAS_ALERT_THRESHOLD,
+  MQ2_ADC_MAX,
+  MQ2_ADC_MIN,
+  MQ2_UNIT
+} = require('../config/sensorContract');
 
-// 1. SensorReading Schema (Time-Series)
+// One document is the complete, atomic device snapshot published in a telemetry message.
 const SensorReadingSchema = new Schema({
   timestamp: { type: Date, required: true, default: Date.now },
   deviceId: { type: String, required: true, index: true },
   metrics: {
     temperature: { type: Number, required: true },
     humidity: { type: Number, required: true },
-    gasLevel: { type: Number, required: true },
-    gasRaw: { type: Number, default: null },
+    // gasLevel is a compatibility field name; its value remains a raw 12-bit ADC index.
+    gasLevel: {
+      type: Number,
+      required: true,
+      min: MQ2_ADC_MIN,
+      max: MQ2_ADC_MAX,
+      validate: { validator: Number.isInteger, message: 'gasLevel must be an integer ADC index' }
+    },
+    gasRaw: {
+      type: Number,
+      default: null,
+      min: MQ2_ADC_MIN,
+      max: MQ2_ADC_MAX,
+      // null is retained for telemetry persisted before gasRaw was introduced.
+      validate: {
+        validator: (value) => value == null || Number.isInteger(value),
+        message: 'gasRaw must be an integer ADC index'
+      }
+    },
     gasValid: { type: Boolean, default: true },
-    gasUnit: { type: String, enum: ['adc_index'], default: 'adc_index' },
+    gasUnit: { type: String, enum: [MQ2_UNIT], default: MQ2_UNIT },
     lightIntensity: { type: Number, default: null },
     motionDetected: { type: Boolean, required: true }
   },
   actuatorStates: {
     fanOn: { type: Boolean, required: true, default: false },
     buzzerActive: { type: Boolean, required: true, default: false },
-    alertLedActive: { type: Boolean, required: true, default: false }
+    alertLedActive: { type: Boolean, required: true, default: false },
+    // Device-reported local MQ2 safety override holding buzzer/LED outputs.
+    gasAlarmActive: { type: Boolean, default: false }
   }
 }, {
+  // A regular Mongoose collection would not have the required MongoDB Time-Series options.
   autoCreate: false,
   autoIndex: false
 });
 
-// 2. AnomalyLog Schema
+// Anomaly records retain both the decision input and every attempted side effect for auditability.
 const AnomalyLogSchema = new Schema({
   deviceId: { type: String, required: true, index: true },
   timestamp: { type: Date, default: Date.now, index: true },
@@ -49,7 +81,7 @@ const AnomalyLogSchema = new Schema({
   resolvedBy: { type: String, default: null }
 });
 
-// 3. User Schema
+// Thresholds are stored per profile, while the current runtime engine holds one process-global set.
 const UserSchema = new Schema({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true, trim: true, lowercase: true },
@@ -57,7 +89,13 @@ const UserSchema = new Schema({
   settings: {
     emailEnabled: { type: Boolean, default: true },
     thresholds: {
-      gasMax: { type: Number, default: 600 },
+      gasMax: {
+        type: Number,
+        default: DEFAULT_GAS_ALERT_THRESHOLD,
+        min: 1,
+        max: MAX_GAS_ALERT_THRESHOLD,
+        validate: { validator: Number.isInteger, message: 'gasMax must be an integer ADC index' }
+      },
       tempMax: { type: Number, default: 45 },
       tempMin: { type: Number, default: 10 },
       humidityMax: { type: Number, default: 85 },

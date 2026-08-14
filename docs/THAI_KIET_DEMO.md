@@ -366,6 +366,16 @@ Không đưa `.env` hoặc app password lên màn hình quay demo.
 - Kiểm tra MQTT topic phải đúng `safebox/{id}/telemetry`.
 - Kiểm tra backend log rejected payload do type/range/device mismatch.
 
+### Gas cao hoặc chỉ số không hợp lệ
+
+- Firmware và web hiển thị chỉ số ADC tương đối, không hiển thị PPM chưa hiệu chuẩn.
+- Nếu web hiện `INVALID READING`, đo AO sau cầu chia áp và kiểm tra đúng
+  15 kΩ / 10 kΩ, common ground, VCC 5 V và GPIO 34.
+- Nếu chỉ số luôn cao, kiểm tra điện áp AO bằng đồng hồ và thử trong không khí
+  sạch; không chỉnh số trong phần mềm để ép về một giá trị mong muốn.
+- TC-03 phải đo phản hồi local bằng phần cứng. Build pass không chứng minh thời
+  gian thực tế dưới 200 ms.
+
 ## 11. Bằng chứng dự phòng
 
 Trước ngày vấn đáp nên chuẩn bị:

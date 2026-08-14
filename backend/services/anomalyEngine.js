@@ -1,12 +1,21 @@
+/**
+ * Stateful anomaly decision engine. Hard safety bounds are always evaluated;
+ * automatic mode additionally evaluates temperature and humidity Z-scores.
+ * Rolling baselines and dedupe reservations are process-local by design.
+ */
 const { AnomalyLog } = require('../models/Schemas');
 const { sendAlertEmail } = require('./emailService');
+const {
+  DEFAULT_GAS_ALERT_THRESHOLD,
+  MAX_GAS_ALERT_THRESHOLD
+} = require('../config/sensorContract');
 
 const WINDOW_SIZE = 30;
 const DEDUPE_WINDOW_MS = Number(process.env.ANOMALY_DEDUPE_WINDOW_MS || 60_000);
 const MIN_DELTA = { temperature: 1.0, humidity: 2.0 };
 const NUMERIC_THRESHOLD_KEYS = ['gasMax', 'tempMax', 'tempMin', 'humidityMax', 'humidityMin', 'zScoreLimit'];
 const DEFAULT_THRESHOLDS = Object.freeze({
-  gasMax: 600,
+  gasMax: DEFAULT_GAS_ALERT_THRESHOLD,
   tempMax: 45,
   tempMin: 10,
   humidityMax: 85,
@@ -33,11 +42,17 @@ function getRollingBuffer(deviceId, sensorType) {
 }
 
 function meanAndStdDev(values) {
+  // Population standard deviation describes the complete 30-reading baseline window.
   const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
   const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length;
   return { mean, stdDev: Math.sqrt(variance) };
 }
 
+/**
+ * Scores one new sample against the preceding window for the same device/sensor.
+ * Cold-start samples only fill the baseline. A minimum physical delta is required
+ * in addition to |Z| so tiny low-variance noise cannot become an alert.
+ */
 function evaluateZScore(deviceId, sensorType, value) {
   if (!Object.hasOwn(MIN_DELTA, sensorType)) {
     return { ready: false, zScore: null, isAnomaly: false };
@@ -47,7 +62,7 @@ function evaluateZScore(deviceId, sensorType, value) {
   const buffer = getRollingBuffer(deviceId, sensorType);
   let result = { ready: false, zScore: null, mean: null, stdDev: null, isAnomaly: false };
 
-  // Evaluate the new sample against the previous 30 readings, then roll it into the baseline.
+  // Evaluate against the previous 30 readings so a spike cannot dilute its own baseline.
   if (buffer.length === WINDOW_SIZE) {
     const { mean, stdDev } = meanAndStdDev(buffer);
     if (stdDev === 0) {
@@ -78,6 +93,7 @@ function getThresholds() {
   return { ...systemThresholds };
 }
 
+// Apply a partial update atomically: validate the complete candidate before replacing live state.
 function updateThresholds(updates = {}) {
   const next = { ...systemThresholds };
 
@@ -95,7 +111,10 @@ function updateThresholds(updates = {}) {
 
   if (next.tempMin >= next.tempMax) throw new RangeError('tempMin must be lower than tempMax');
   if (next.humidityMin >= next.humidityMax) throw new RangeError('humidityMin must be lower than humidityMax');
-  if (next.gasMax <= 0 || next.zScoreLimit <= 0) throw new RangeError('gasMax and zScoreLimit must be positive');
+  if (!Number.isInteger(next.gasMax) || next.gasMax <= 0 || next.gasMax > MAX_GAS_ALERT_THRESHOLD) {
+    throw new RangeError(`gasMax must be an integer between 1 and ${MAX_GAS_ALERT_THRESHOLD} ADC counts`);
+  }
+  if (next.zScoreLimit <= 0) throw new RangeError('zScoreLimit must be positive');
 
   systemThresholds = next;
   return getThresholds();
@@ -111,6 +130,7 @@ function dedupeKey(candidate) {
 }
 
 async function executeActions(candidate) {
+  // Actions are best-effort: their outcome is recorded without discarding the anomaly itself.
   const actionsTaken = ['LOGGED'];
 
   if (candidate.autoFan) {
@@ -119,15 +139,6 @@ async function executeActions(candidate) {
       actionsTaken.push(result.status === 'mocked' ? 'FAN_ON_SIMULATED' : 'FAN_ON_COMMAND_PUBLISHED');
     } catch (error) {
       actionsTaken.push(`FAN_ON_COMMAND_FAILED: ${error.message}`);
-    }
-  }
-
-  if (candidate.activateAlertLed) {
-    try {
-      const result = await controlPublisher(candidate.deviceId, 'alertLed', true);
-      actionsTaken.push(result.status === 'mocked' ? 'ALERT_LED_SIMULATED' : 'ALERT_LED_COMMAND_PUBLISHED');
-    } catch (error) {
-      actionsTaken.push(`ALERT_LED_COMMAND_FAILED: ${error.message}`);
     }
   }
 
@@ -143,17 +154,22 @@ async function executeActions(candidate) {
   return actionsTaken;
 }
 
+/**
+ * Runs actions, persists their outcomes, and returns null when an equivalent
+ * anomaly is already reserved inside the short dedupe window.
+ */
 async function createAnomalyIfNew(candidate) {
   const key = dedupeKey(candidate);
   const now = Date.now();
   const lastCreatedAt = anomalyDedupMap.get(key);
   if (lastCreatedAt !== undefined && now - lastCreatedAt < DEDUPE_WINDOW_MS) return null;
 
-  // Reserve the key before asynchronous actions to prevent concurrent duplicate writes.
+  // Reserve before awaiting network I/O to close the race between concurrent MQTT messages.
   anomalyDedupMap.set(key, now);
   try {
-    const actionsTaken = await executeActions(candidate);
-    return await AnomalyLog.create({
+    // Persist first so dashboards show the alert immediately; a slow or failing
+    // email/fan side effect must never delay or hide the anomaly record.
+    const anomaly = await AnomalyLog.create({
       deviceId: candidate.deviceId,
       timestamp: candidate.timestamp || new Date(),
       sensorType: candidate.sensorType,
@@ -162,9 +178,16 @@ async function createAnomalyIfNew(candidate) {
       calculatedZScore: candidate.calculatedZScore ?? null,
       thresholdLimit: candidate.thresholdLimit,
       severity: candidate.severity,
-      actionsTaken,
+      actionsTaken: ['LOGGED'],
       resolved: false
     });
+
+    // Side effects run best-effort after persistence and are appended for audit.
+    const actionsTaken = await executeActions(candidate);
+    if (actionsTaken.length > 1) {
+      await AnomalyLog.findByIdAndUpdate(anomaly._id, { actionsTaken });
+    }
+    return anomaly;
   } catch (error) {
     if (anomalyDedupMap.get(key) === now) anomalyDedupMap.delete(key);
     throw error;
@@ -185,6 +208,7 @@ function hardThresholdCandidate(deviceId, timestamp, sensorType, observedValue, 
 
 function buildGasCandidate({ deviceId, timestamp, metrics }) {
   if (metrics.gasValid === false) return null;
+  if (!Number.isFinite(metrics.gasLevel)) return null;
   if (metrics.gasLevel <= systemThresholds.gasMax) return null;
   return hardThresholdCandidate(
     deviceId,
@@ -230,17 +254,14 @@ function buildTemperatureCandidate({ deviceId, timestamp, metrics }, statistics)
 
 function buildMotionCandidate({ deviceId, timestamp, metrics }) {
   if (!metrics.motionDetected || !systemArmedState) return null;
-  return {
-    ...hardThresholdCandidate(
-      deviceId,
-      timestamp,
-      'motionDetected',
-      true,
-      'Armed system motion',
-      'HIGH'
-    ),
-    activateAlertLed: true
-  };
+  return hardThresholdCandidate(
+    deviceId,
+    timestamp,
+    'motionDetected',
+    true,
+    'Armed system motion',
+    'HIGH'
+  );
 }
 
 function buildHumidityCandidate({ deviceId, timestamp, metrics }, statistics) {
@@ -277,7 +298,7 @@ async function processTelemetryForAnomalies(telemetryDoc) {
   const context = { deviceId, timestamp, metrics };
   const temperatureStats = evaluateZScore(deviceId, 'temperature', metrics.temperature);
   const humidityStats = evaluateZScore(deviceId, 'humidity', metrics.humidity);
-  // Hard rules remain active in every mode; automatic mode adds Z-score candidates.
+  // Hard rules remain active in every mode; automatic mode only adds statistical candidates.
   const candidates = [
     buildGasCandidate(context),
     buildTemperatureCandidate(context, temperatureStats),
@@ -289,6 +310,7 @@ async function processTelemetryForAnomalies(telemetryDoc) {
   return created.filter(Boolean);
 }
 
+// Edge alerts are already decided locally by firmware and therefore bypass Z-score evaluation.
 async function processEdgeAlert(alert) {
   return createAnomalyIfNew({
     deviceId: alert.deviceId,

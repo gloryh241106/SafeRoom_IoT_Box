@@ -1,3 +1,4 @@
+/** Verifies optimistic actuator state and authoritative telemetry reconciliation. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 

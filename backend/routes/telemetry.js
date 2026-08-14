@@ -1,3 +1,7 @@
+/**
+ * Read-only telemetry API over MongoDB Time-Series data. Query field names are
+ * mapped through an allow-list rather than interpolated directly into projections.
+ */
 const express = require('express');
 const router = express.Router();
 const { SensorReading } = require('../models/Schemas');
@@ -6,6 +10,7 @@ const SENSOR_FIELDS = new Map([
   ['temperature', 'metrics.temperature'],
   ['humidity', 'metrics.humidity'],
   ['gasLevel', 'metrics.gasLevel'],
+  ['gasRaw', 'metrics.gasRaw'],
   ['lightIntensity', 'metrics.lightIntensity'],
   ['motionDetected', 'metrics.motionDetected']
 ]);
@@ -17,7 +22,6 @@ function parseDateQuery(value, name) {
   return date;
 }
 
-// GET /api/v1/telemetry/latest — Fetch latest sensor reading
 router.get('/latest', async (req, res) => {
   try {
     const deviceId = req.query.deviceId || process.env.DEVICE_ID || 'safebox-01';
@@ -33,7 +37,6 @@ router.get('/latest', async (req, res) => {
   }
 });
 
-// GET /api/v1/telemetry/historical — Fetch time-series historical data
 router.get('/historical', async (req, res) => {
   try {
     const deviceId = req.query.deviceId || process.env.DEVICE_ID || 'safebox-01';
@@ -71,6 +74,7 @@ router.get('/historical', async (req, res) => {
       });
     }
     const readings = await databaseQuery;
+    // MongoDB selects the newest bounded window efficiently; the API returns chart-friendly order.
     readings.reverse();
 
     res.json({

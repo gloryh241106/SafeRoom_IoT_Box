@@ -1,3 +1,4 @@
+/** Public sign-in page that hands verified session data back to the App shell. */
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Shield, Lock, User, ArrowRight } from 'lucide-react';
@@ -9,12 +10,14 @@ export default function Login({ onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  /** Exchange credentials for the JWT/user pair required by App authentication. */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      // Login is public and therefore deliberately bypasses authenticated apiFetch.
       const res = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

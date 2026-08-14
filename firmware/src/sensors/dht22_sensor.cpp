@@ -1,25 +1,16 @@
 #include "dht22_sensor.h"
 
-Dht22Sensor::Dht22Sensor(uint8_t pin) : _sensor(pin, DHT22) {}
+// Creates a DHT22 driver on the selected GPIO.
+Dht22Sensor::Dht22Sensor(uint8_t pin) : _dht(pin, DHT22) {}
 
+// Starts the library without taking a measurement.
 void Dht22Sensor::begin() {
-    _sensor.begin();
+    _dht.begin();
 }
 
-bool Dht22Sensor::read() {
-    float nextTemperature = _sensor.readTemperature();
-    float nextHumidity = _sensor.readHumidity();
-    if (isnan(nextTemperature) || isnan(nextHumidity)) return false;
-
-    _temperature = nextTemperature;
-    _humidity = nextHumidity;
-    return true;
-}
-
-float Dht22Sensor::temperature() const {
-    return _temperature;
-}
-
-float Dht22Sensor::humidity() const {
-    return _humidity;
+// Reads both values and treats NaN as a failed sample.
+bool Dht22Sensor::read(float& temperature, float& humidity) {
+    temperature = _dht.readTemperature();
+    humidity = _dht.readHumidity();
+    return !isnan(temperature) && !isnan(humidity);
 }

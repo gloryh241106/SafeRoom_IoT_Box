@@ -1,3 +1,4 @@
+/** Verifies bounded Time-Series queries and chronological API output. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
@@ -86,6 +87,40 @@ test('returns the newest limited readings in chronological order', async () => {
       body.data.map((reading) => reading.timestamp),
       ['2026-08-06T00:00:04.000Z', '2026-08-06T00:00:06.000Z']
     );
+  } finally {
+    SensorReading.find = originalFind;
+  }
+});
+
+test('accepts both gasRaw and legacy gasLevel historical selectors', async () => {
+  const originalFind = SensorReading.find;
+  const selectedFields = [];
+
+  SensorReading.find = () => ({
+    sort() { return this; },
+    limit() { return this; },
+    select(value) {
+      selectedFields.push(value);
+      return this;
+    },
+    then(resolve, reject) {
+      return Promise.resolve([]).then(resolve, reject);
+    }
+  });
+
+  try {
+    for (const sensor of ['gasRaw', 'gasLevel']) {
+      const query = new URLSearchParams({ sensor });
+      const response = await fetch(`${baseUrl}/api/v1/telemetry/historical?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      assert.equal(response.status, 200);
+    }
+
+    assert.deepEqual(selectedFields, [
+      { timestamp: 1, deviceId: 1, 'metrics.gasRaw': 1 },
+      { timestamp: 1, deviceId: 1, 'metrics.gasLevel': 1 }
+    ]);
   } finally {
     SensorReading.find = originalFind;
   }

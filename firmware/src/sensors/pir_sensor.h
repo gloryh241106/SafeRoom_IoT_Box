@@ -2,20 +2,18 @@
 
 #include <Arduino.h>
 
+/** Reads the HIGH/LOW motion state from the PIR sensor. */
 class PirSensor {
 public:
-    PirSensor(uint8_t pin, uint32_t latchMs);
+    /** Stores the GPIO connected to PIR OUT. */
+    explicit PirSensor(uint8_t pin);
+
+    /** Configures the PIR pin as an input. */
     void begin();
-    void update(uint32_t nowMs);
-    bool detected() const;
+
+    /** Returns true while the PIR output is HIGH. */
+    bool motionDetected() const;
 
 private:
-    static void IRAM_ATTR onRising();
-
     uint8_t _pin;
-    uint32_t _latchMs;
-    uint32_t _lastMotionMs = 0;
-    bool _detected = false;
-    volatile bool _triggered = false;
-    static PirSensor* _instance;
 };
