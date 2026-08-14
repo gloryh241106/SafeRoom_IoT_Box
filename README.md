@@ -200,7 +200,7 @@ For a physical relay and fan test:
 
 Expected result: the dashboard shows `MQTT live`, the serial monitor prints `[Fan] Relay state: ON` or `OFF`, GPIO 16 changes level, and the relay switches the fan. With the default `RELAY_ACTIVE_LOW=1`, boot writes GPIO 16 HIGH so the relay remains open and the fan stays off.
 
-The backend keeps optimistic MQTT command state in `actuatorStateService.js`, then replaces it with the next validated device telemetry snapshot. This isolates actuator-state ownership from the mock telemetry generator and makes the requested-versus-confirmed state flow easier to explain and test.
+The backend keeps optimistic MQTT command state in `actuatorStateService.js`, then replaces it with the next validated device telemetry snapshot. This isolates actuator-state ownership from simulated local state and makes the requested-versus-confirmed state flow easier to explain and test.
 
 ### 4. Frontend Setup
 In a new terminal:

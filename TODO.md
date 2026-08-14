@@ -85,6 +85,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 2.3 Telemetry Ingestion & API
 
 - [x] Mock telemetry generator (`mockTelemetryGenerator.js`) simulating DHT22, PIR, MQ2 every 2s `(CB-01)`
+- [x] Remove mock telemetry generator (`mockTelemetryGenerator.js`) and disable all backend mock telemetry generation `(CB-01)`
 - [x] `GET /api/v1/telemetry/latest` — returns most recent document for device `(CB-01)`
 - [x] `GET /api/v1/telemetry/historical?from=&to=&sensor=` — historical query `(NC-03)`
 - [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`

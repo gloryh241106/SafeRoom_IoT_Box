@@ -3,14 +3,12 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
 
-const { startMockTelemetryGenerator, stopMockTelemetryGenerator } = require('./services/mockTelemetryGenerator');
 const { initializeEmailService, setEmailRecipientProvider } = require('./services/emailService');
 const { getAlertRecipientResolution } = require('./services/userNotificationService');
 const { setControlPublisher } = require('./services/anomalyEngine');
 const {
   getMqttStatus,
   initializeMqttService,
-  isMockHardware,
   publishControlCommand,
   stopMqttService
 } = require('./services/mqttService');
@@ -76,9 +74,6 @@ async function startServer() {
 
   setControlPublisher(publishControlCommand);
   initializeMqttService();
-  if (isMockHardware()) {
-    startMockTelemetryGenerator(process.env.DEVICE_ID || 'safebox-01');
-  }
 
   await new Promise((resolve) => {
     httpServer = app.listen(PORT, () => {
@@ -90,7 +85,6 @@ async function startServer() {
 }
 
 async function stopServer() {
-  stopMockTelemetryGenerator();
   await stopMqttService();
   if (httpServer) {
     await new Promise((resolve, reject) => httpServer.close((error) => error ? reject(error) : resolve()));
