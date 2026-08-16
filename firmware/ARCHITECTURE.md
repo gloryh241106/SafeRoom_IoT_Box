@@ -52,8 +52,8 @@ runs every 50 ms and performs this sequence:
 
 ```text
 analogRead(GPIO34)
-  -> raw > 600: buzzer ON + red LED ON, then OLED warning
-  -> raw < 500: buzzer/LED safety override OFF
+  -> raw > active alarm threshold: buzzer ON + red LED ON, then OLED warning
+  -> raw < active clear threshold: buzzer/LED safety override OFF
   -> hand one pending alert value to main.cpp for MQTT delivery
 ```
 

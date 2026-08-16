@@ -168,12 +168,14 @@ Complete the steps in order; after each step reference the expected check.
 - The firmware explicitly selects 12-bit ADC resolution, calls
   `analogRead(GPIO34)` once per sample, and reports that direct **raw ADC count
   (0–4095)** as both `gasLevel` and `gasRaw`.
-- There is no PPM interpolation, boot calibration, median filter, EMA, or
-  software warm-up delay. The manufacturer's initial preheat requirement of
-  at least 48 hours still applies to meaningful physical measurements.
-- Firmware raises a local alarm above `600`. Once active, the alarm clears
-  only below `500`; this
-  hysteresis prevents buzzer/LED chatter around the trigger boundary. Tune
+- There is no PPM interpolation, boot calibration, median filter, or EMA. The
+  firmware suppresses alarm decisions for 30 seconds after startup, while the
+  manufacturer's initial preheat requirement of at least 48 hours still applies
+  to meaningful physical measurements.
+- Firmware raises a local alarm above the active alarm threshold and uses a clear
+  threshold 100 ADC counts lower. The current source defaults are `1200` and
+  `1100`; Settings can update both values through retained MQTT configuration.
+  This hysteresis prevents buzzer/LED chatter around the trigger boundary. Tune
   these raw project thresholds only after logging clean-air and safe test-smoke
   readings on the assembled hardware; do not relabel them as PPM.
 - **Check**: `gasValid=true` means the firmware task has acquired a sample, and
@@ -200,9 +202,10 @@ Complete the steps in order; after each step reference the expected check.
   SIG → 5 V), which inverts the logic and requires `BUZZER_ACTIVE_LOW=false`.
 - Firmware suppresses alarm decisions for the first 30 s while the cold MQ2
   heater settles (readings are published as `gasValid=false` during that
-  window), then requires three consecutive 50 ms MQ2 samples above 600 before
-  enabling the buzzer. The alarm clears after three samples below 500, or after
-  5 s sustained below 600, so an oscillating clean-air baseline cannot keep the
+  window), then requires three consecutive 50 ms MQ2 samples above the active
+  alarm threshold before enabling the buzzer. The alarm clears after three
+  samples below the active clear threshold, or after 5 s sustained below the
+  active alarm threshold, so an oscillating clean-air baseline cannot keep the
   buzzer stuck on.
 - If the buzzer clicks before `setup()` starts, add a **10 kΩ pull-up from SIG
   to 3.3 V**. Do not pull SIG up to 5 V because ESP32 GPIOs are not 5 V tolerant.
