@@ -1,120 +1,167 @@
-# BÁO CÁO CUỐI KỲ
+# UNIVERSITY OF SCIENCE, VNU-HCM
 
-## SafeRoom IoT Box - Hộp giám sát phòng và cảnh báo an toàn
+## FACULTY OF INFORMATION TECHNOLOGY
 
-**Nhóm thực hiện:** Nhóm 6  
-**Môn học:** Vật lý cho Công nghệ thông tin  
-**Học kỳ:** HK3/2025-2026
+### PHYSICS FOR INFORMATION TECHNOLOGY
 
-> Mục 2.1 (Trang bìa) không được soạn trong bản nháp này theo yêu cầu của người dùng.
+<br>
 
-## 2.2. Danh sách các chức năng có trong sản phẩm
+# FINAL PROJECT REPORT
 
-**Lưu ý theo yêu cầu báo cáo:** Nhóm sinh viên chỉ được phép Thêm/Xóa/Cập nhật tối đa 01 chức năng so với Thuyết minh đồ án.
+## SafeRoom IoT Box
 
-Bảng dưới đây được đối chiếu với thuyết minh ban đầu và mã nguồn hiện tại. Cả 12 chức năng vẫn giữ nguyên phạm vi đã đăng ký, do đó không có chức năng nào được khai báo là thêm mới, xóa hoặc cập nhật. Những nội dung cần đo kiểm trên phần cứng được trình bày đúng theo thiết kế hiện có và chỉ được xem là đã kiểm chứng sau khi nhóm bổ sung bằng chứng TC-01 đến TC-06.
+### Indoor Monitoring and Safety Alert System
 
-| ID | Thông tin chức năng | Sinh viên thực hiện | Có Cập nhật/Thêm mới/Xóa đi so với Thuyết minh dự án? |
+<br>
+
+**Project Group:** Group 6<br>
+**Semester:** HK3/2025-2026
+
+<br>
+
+| Student | Student ID |
+|---|---:|
+| Phùng Bảo Khang | 24127052 |
+| Thái Kiệt | 24127069 |
+| Nguyễn Huy Hoàng | 24127378 |
+
+<br>
+
+**Instructor:** Cao Xuân Nam
+
+<br>
+
+**Ho Chi Minh City, August 2026**
+
+---
+
+## 2.2. Product Function List
+
+According to the final-report rules, the group may add, remove, or update no more than one function compared with the original project proposal. The product retains all 12 registered functions. No function has been added or removed. **NC-02 is declared as the single updated function** because its local gas-alert threshold can now be configured from the Settings page and synchronized to the ESP32 through MQTT. This update extends the original implementation while preserving the registered purpose of NC-02.
+
+Hardware-dependent behavior is described according to the current design and source code. It must only be presented as experimentally verified after the group attaches the corresponding TC-01 to TC-06 evidence.
+
+| ID | Function and processing flow | Assigned student | Change from the proposal |
 |---|---|---|---|
-| **Chức năng căn bản** |  |  |  |
-| **CB-01** | **Đo nhiệt độ và độ ẩm.** Thiết bị/dịch vụ: DHT22, ESP32, EMQX, Express.js, MongoDB và React. DHT22 đo nhiệt độ, độ ẩm; ESP32 gửi telemetry qua MQTTS; backend kiểm tra và lưu dữ liệu; trang Overview lấy dữ liệu mới nhất qua REST API để hiển thị. | **Nguyễn Huy Hoàng** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **CB-02** | **Phát hiện chuyển động.** Thiết bị/dịch vụ: PIR HC-SR501, ESP32, EMQX, Express.js và React. ESP32 đọc trực tiếp trạng thái HIGH/LOW của PIR, gửi cùng gói telemetry và trang Overview hiển thị trạng thái có/không có chuyển động. | **Phùng Bảo Khang** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **CB-03** | **Điều khiển quạt từ website.** Thiết bị/dịch vụ: React, Express.js, EMQX, ESP32, relay HL-52S và quạt DC. Người dùng bật/tắt quạt trên Overview; backend publish lệnh đến topic điều khiển; ESP32 nhận lệnh và đóng/ngắt relay. Buzzer và LED đỏ không phải thiết bị điều khiển từ xa. | **Thái Kiệt** | **Không.** Phạm vi đúng với thuyết minh là điều khiển quạt. |
-| **Chức năng nâng cao** |  |  |  |
-| **NC-01** | **Phát hiện dữ liệu bất thường bằng Z-score.** Dịch vụ: Express.js và MongoDB. Backend duy trì cửa sổ 30 mẫu riêng theo thiết bị và đại lượng; Z-score chỉ áp dụng cho nhiệt độ, độ ẩm với điều kiện `\|Z\| > 3.0`. Khí và chuyển động sử dụng luật/ngưỡng cứng. Sự kiện được lưu vào `anomaly_logs`; hệ thống có cơ chế lọc dao động nhỏ và chống ghi lặp ngắn hạn. | **Thái Kiệt** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-02** | **Phát hiện và cảnh báo khí/khói tại thiết bị.** Thiết bị: MQ2, ESP32, OLED SSD1306, LED đỏ và buzzer. ESP32 đọc giá trị ADC thô `0-4095`; sau thời gian làm nóng, ba mẫu liên tiếp vượt ngưỡng 600 kích hoạt buzzer, LED đỏ và cảnh báo OLED bằng tác vụ an toàn cục bộ, không chờ phản hồi mạng. | **Nguyễn Huy Hoàng** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-03** | **Lưu trữ dữ liệu cảm biến và lịch sử hoạt động theo thời gian.** Dịch vụ: MongoDB Atlas Time Series và Mongoose. Collection `sensor_readings` dùng `timestamp` làm `timeField`, `deviceId` làm `metaField`, độ chi tiết giây và thời gian lưu 30 ngày. Collection `anomaly_logs` lưu lịch sử bất thường. | **Thái Kiệt** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-04** | **Xem dữ liệu lịch sử dưới dạng biểu đồ trên website.** Dịch vụ: MongoDB, Express.js, React và Recharts. Dashboard hỗ trợ các khoảng 1 giờ, 6 giờ, 24 giờ, 7 ngày; hiển thị biểu đồ nhiệt độ, độ ẩm, khí theo thời gian; có làm mới và xuất CSV. | **Phùng Bảo Khang** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-05** | **Cảnh báo tự động qua email.** Dịch vụ: Nodemailer/SMTP. Backend gửi email cho tài khoản đã bật thông báo khi phát hiện bất thường mức HIGH hoặc CRITICAL; giới hạn gửi lặp 15 phút theo cặp `(deviceId, sensorType)`. | **Thái Kiệt** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-06** | **Chatbot truy vấn thông tin hệ thống.** Dịch vụ: bộ định tuyến điều kiện tự xây dựng trong Express.js và giao diện chat React. Hệ thống nhận câu hỏi về `status`, `gas`, `motion`, `temperature`, `humidity`, `anomalies`, `help`, truy vấn dữ liệu tương ứng và trả kết quả về trang Chatbot. | **Phùng Bảo Khang** | **Không.** Giữ nguyên chatbot theo điều kiện, không bổ sung LLM ngoài phạm vi. |
-| **NC-07** | **Đăng ký và đăng nhập tài khoản.** Dịch vụ: React, Express.js, MongoDB, bcryptjs và JWT. Backend kiểm tra dữ liệu, băm mật khẩu, xác thực người dùng và cấp JWT; các API nghiệp vụ được bảo vệ bằng middleware xác thực. | **Nguyễn Huy Hoàng** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-08** | **Xây dựng website quản lý sản phẩm.** Dịch vụ: React, Vite, Tailwind CSS, React Router và Express.js. Website gồm các trang Đăng nhập, Đăng ký, Overview, Dashboard, Chatbot và Settings; frontend giao tiếp với backend qua REST API và thăm dò telemetry định kỳ. | **Phùng Bảo Khang** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
-| **NC-09** | **Cấu hình WiFi cho thiết bị.** Thiết bị/thư viện: ESP32 và WiFiManager. Khi chưa có mạng phù hợp, thiết bị mở captive portal `Safebox-AP` tại `192.168.4.1`; người dùng nhập WiFi 2.4 GHz, ESP32 lưu thông tin vào NVS, kết nối lại và hiển thị SSID/IP trên OLED. | **Nguyễn Huy Hoàng** | **Không.** Giữ nguyên chức năng trong thuyết minh. |
+| **Basic functions** |  |  |  |
+| **CB-01** | **Temperature and humidity measurement.** The DHT22 measures room temperature and humidity. The ESP32 publishes validated telemetry through MQTTS to EMQX. The Express.js backend validates and stores the readings in MongoDB, and the Overview page retrieves the latest snapshot through the REST API. | **Nguyễn Huy Hoàng** | **No change.** The registered end-to-end input-to-web flow is preserved. |
+| **CB-02** | **Motion detection.** The ESP32 reads the HIGH/LOW output of the PIR HC-SR501, includes the motion state in telemetry, and publishes it through EMQX. The Overview page displays whether motion is currently detected. | **Phùng Bảo Khang** | **No change.** The registered motion-monitoring flow is preserved. |
+| **CB-03** | **Website-based fan control.** A user switches the fan on or off from the Overview page. The backend publishes the command to <code>safebox/{deviceId}/control</code>; the ESP32 receives it and switches the HL-52S relay. The buzzer and red alert LED are local safety outputs and cannot be controlled remotely. | **Thái Kiệt** | **No change.** The registered remote output is the fan only. |
+| **Advanced functions** |  |  |  |
+| **NC-01** | **Z-score anomaly detection.** The backend maintains an isolated rolling baseline of 30 previous samples for each device and continuous metric. When Automatic Mode is enabled, Z-score detection is applied only to temperature and humidity. The default limit is &#124;Z&#124; > 3.0 and can be configured in Settings. A minimum physical delta filters low-variance noise. Gas and motion use hard rules instead of Z-score. Accepted events are recorded in <code>anomaly_logs</code>, with a short deduplication window to suppress rapid duplicates. | **Thái Kiệt** | **No change.** This remains the registered self-built data-analysis function. |
+| **NC-02** | **Local gas/smoke detection and warning.** The MQ-2 is represented as a raw 12-bit ADC index from 0 to 4095, not as uncalibrated PPM. After the 30-second startup stabilization period, three consecutive samples above the active alarm threshold trigger the buzzer, red LED, and OLED warning locally in approximately 150 ms without waiting for the network. The current source default is 1200 ADC, with a clear threshold of 1100 ADC. Settings can update the threshold, and the backend publishes the latest alarm/clear pair to <code>safebox/{deviceId}/config</code> as retained MQTT configuration. The ESP32 still performs every safety decision locally. | **Nguyễn Huy Hoàng** | **Updated.** Added user-configurable gas thresholds synchronized from the web backend to the ESP32; the original local warning function is unchanged. |
+| **NC-03** | **Time-based sensor and activity storage.** MongoDB Atlas stores telemetry in the <code>sensor_readings</code> Time Series collection, using <code>timestamp</code> as the <code>timeField</code>, <code>deviceId</code> as the <code>metaField</code>, second-level granularity, and a 30-day retention period. The standard <code>anomaly_logs</code> collection stores anomaly history. | **Thái Kiệt** | **No change.** The registered cloud time-series storage function is preserved. |
+| **NC-04** | **Historical web charts.** The Dashboard queries MongoDB data through the backend and provides 1-hour, 6-hour, 24-hour, and 7-day selectors for temperature, humidity, and raw gas charts. Each request displays at most the newest 1,000 readings within the selected period. The page also provides Refresh and CSV Export actions. | **Phùng Bảo Khang** | **No change.** The registered cloud-to-chart function is preserved. |
+| **NC-05** | **Automatic email alerts.** When SMTP is configured, the backend sends Nodemailer alerts for HIGH or CRITICAL anomalies to registered accounts that have not disabled email notifications. Repeated successful deliveries are limited to one email per 15-minute window for each <code>(deviceId, sensorType)</code> pair. | **Thái Kiệt** | **No change.** The registered email-notification function is preserved. |
+| **NC-06** | **System query chatbot.** A conditional keyword router implemented in Express.js accepts queries about <code>status</code>, <code>gas</code>, <code>motion</code>, <code>temperature</code>, <code>humidity</code>, <code>anomalies</code>, and <code>help</code>. It retrieves the corresponding system data and returns a response to the React Chatbot page. No external language model is used. | **Phùng Bảo Khang** | **No change.** The registered conditional chatbot is preserved. |
+| **NC-07** | **Account registration and login.** React sends registration and login requests to Express.js. The backend validates input, stores bcrypt password hashes in MongoDB, verifies credentials, issues JWTs, and protects business API prefixes with authentication middleware. | **Nguyễn Huy Hoàng** | **No change.** The registered database-backed authentication function is preserved. |
+| **NC-08** | **Custom product-management website.** The React, Vite, and Tailwind CSS application contains Login, Register, Overview, Dashboard, Chatbot, and Settings pages. It communicates with the Express.js backend through authenticated REST APIs, and Overview polls live telemetry every three seconds. | **Phùng Bảo Khang** | **No change.** The registered custom website remains within its original scope. |
+| **NC-09** | **Device WiFi provisioning.** If no saved network is available, WiFiManager opens the <code>Safebox-AP</code> captive portal at <code>192.168.4.1</code>. The user selects a 2.4 GHz WiFi network, the ESP32 stores the credentials in NVS, reconnects, and displays the connected SSID and IP address on the OLED. | **Nguyễn Huy Hoàng** | **No change.** The registered WiFiManager provisioning function is preserved. |
 
-## 2.3. Ảnh chụp sản phẩm
+## 2.3. Product Photographs
 
-Hình ảnh trong mục này phải là ảnh sản phẩm thật hoặc ảnh lắp mạch Wokwi. Bản nháp chưa có tệp ảnh nguồn nên các vị trí dưới đây được giữ chỗ; nhóm phải thay bằng ảnh thật trước khi xuất PDF.
+All figures in this section must use photographs of the physical product or captures of the complete Wokwi circuit. Replace every evidence placeholder below before submitting the final PDF.
 
-### Hình 1. Toàn cảnh sản phẩm SafeRoom IoT Box
+### Figure 1. Complete SafeRoom IoT Box
 
-> **CHÈN ẢNH SẢN PHẨM TẠI ĐÂY.** Ảnh cần thấy rõ vỏ hộp, màn hình OLED, vùng lấy mẫu của DHT22, PIR HC-SR501, MQ2, quạt và các đèn trạng thái.
+> **REQUIRED BEFORE SUBMISSION:** Insert a clear photograph showing the enclosure, OLED, DHT22 sampling area, PIR HC-SR501, MQ-2, DC fan, and red alert LED.
 
-**Chú thích thiết bị:**
+**Visible components:**
 
-1. **OLED SSD1306 0.96 inch:** hiển thị trạng thái mạng và cảnh báo khí cục bộ.
-2. **DHT22:** đo nhiệt độ và độ ẩm phòng.
-3. **PIR HC-SR501:** phát hiện chuyển động.
-4. **MQ2:** lấy mẫu khí/khói dưới dạng chỉ số ADC thô.
-5. **Quạt DC:** thiết bị được bật/tắt từ website thông qua relay.
-6. **LED xanh:** hiển thị trạng thái kết nối/hoạt động bình thường.
-7. **LED đỏ:** cảnh báo khí cục bộ.
-8. **Buzzer:** phát âm báo khi đường an toàn khí được kích hoạt.
+1. **SSD1306 0.96-inch OLED:** displays network information and local gas warnings.
+2. **DHT22:** measures room temperature and humidity.
+3. **PIR HC-SR501:** detects motion.
+4. **MQ-2:** provides the raw gas/smoke ADC index.
+5. **DC fan:** switched from the website through the relay.
+6. **Red LED:** indicates an active local gas alarm.
+7. **Buzzer:** sounds while the local gas safety alarm is active.
 
-### Hình 2. Bên trong hộp và bộ điều khiển trung tâm
+If a green LED is physically wired directly to the power rail, label it only as a **power indicator**. It is not controlled by the current firmware and must not be described as a network-status LED.
 
-> **CHÈN ẢNH BÊN TRONG HỘP TẠI ĐÂY.** Ảnh cần thấy rõ ESP32 DevKit V1, dây nguồn, bus I2C, dây tín hiệu cảm biến và dây điều khiển các thiết bị đầu ra.
+### Figure 2. Internal Wiring and ESP32 Controller
 
-**Chú thích thiết bị:**
+> **REQUIRED BEFORE SUBMISSION:** Insert a photograph that clearly shows the ESP32 DevKit V1, power wiring, shared ground, I2C bus, sensor signals, and actuator-control wiring.
 
-- **ESP32 DevKit V1:** thu thập cảm biến, thực thi cảnh báo an toàn tại thiết bị và giao tiếp MQTTS.
-- **GPIO 4:** DHT22.
-- **GPIO 13:** PIR HC-SR501.
-- **GPIO 34:** MQ2 (ADC1).
-- **GPIO 16:** relay quạt.
-- **GPIO 18:** LED đỏ (cảnh báo).
-- **GPIO 19:** buzzer.
+**Authoritative pinout:**
+
+- **GPIO 4:** DHT22 data.
+- **GPIO 13:** PIR HC-SR501 output.
+- **GPIO 34:** MQ-2 analog output (<code>ADC1_CH6</code>).
+- **GPIO 16:** fan relay signal.
+- **GPIO 18:** red alert LED.
+- **GPIO 19:** active buzzer.
 - **GPIO 21/22:** OLED I2C SDA/SCL.
 
-### Hình 3. Cụm relay HL-52S và quạt DC
+### Figure 3. HL-52S Relay and DC Fan Assembly
 
-> **CHÈN ẢNH RELAY/QUẠT TẠI ĐÂY.** Ảnh cần ghi rõ chân tín hiệu relay nối GPIO 16, nguồn ngoài cho quạt và dây GND chung. Không cấp nguồn cho quạt từ chân GPIO của ESP32.
+> **REQUIRED BEFORE SUBMISSION:** Insert a photograph showing the relay signal connected to GPIO 16, the external fan supply, and the common ground. The fan must not be powered from an ESP32 GPIO pin.
 
-### Hình 4. Trạng thái cảnh báo khí tại thiết bị
+### Figure 4. Local Gas-Alarm State
 
-> **CHÈN ẢNH CẢNH BÁO TẠI ĐÂY.** Ảnh cần thể hiện OLED ghi cảnh báo khí, LED đỏ sáng và buzzer được kích hoạt. Nếu có thể, đặt đồng hồ đo thời gian hoặc khung video TC-03 bên cạnh để chứng minh phản hồi ngoại tuyến.
+> **REQUIRED BEFORE SUBMISSION:** Insert a photograph showing the OLED gas warning, illuminated red LED, and active buzzer. Include the raw ADC reading and active threshold where possible. A timer or TC-03 video frame should demonstrate that the offline response occurs within the required 200 ms after confirmation begins.
 
-## 2.4. Ảnh chụp website
+## 2.4. Website Screenshots
 
-Mỗi hình phải ghi rõ tên chức năng được thể hiện. Bản nháp chưa có ảnh chụp từ phiên chạy thật; nhóm phải thay toàn bộ vị trí giữ chỗ dưới đây trước khi nộp.
+Every figure must identify the demonstrated function. Replace all placeholders with screenshots from an actual running session before submitting the final PDF.
 
-### Hình 5. Trang Đăng nhập - Chức năng NC-07
+### Figure 5. Login Page - NC-07
 
-> **CHÈN ẢNH TRANG ĐĂNG NHẬP TẠI ĐÂY.** Ảnh thể hiện trường tên đăng nhập, mật khẩu, kiểm tra dữ liệu và liên kết đến trang Đăng ký.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot showing the username-or-email field, password field, validation result, and Register link.
 
-### Hình 6. Trang Đăng ký - Chức năng NC-07
+### Figure 6. Registration Page - NC-07
 
-> **CHÈN ẢNH TRANG ĐĂNG KÝ TẠI ĐÂY.** Ảnh thể hiện các trường tên người dùng, email, mật khẩu và kết quả tạo tài khoản.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot showing the username, email, password fields, and a successful account-creation result.
 
-### Hình 7. Trang Overview - Chức năng CB-01, CB-02, CB-03, NC-01 và NC-02
+### Figure 7. Overview Page - CB-01, CB-02, CB-03, NC-01, and NC-02
 
-> **CHÈN ẢNH TRANG OVERVIEW TẠI ĐÂY.** Ảnh nên có dữ liệu telemetry thật: nhiệt độ, độ ẩm, khí ADC, chuyển động, trạng thái MQTT, trạng thái quạt và danh sách bất thường. Chú thích nút điều khiển quạt là CB-03; không ghi buzzer/LED đỏ là điều khiển từ xa.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot containing real telemetry: temperature, humidity, raw gas ADC index, motion, MQTT/device connection state, fan state, and recent anomalies. Label the fan control as CB-03. Do not describe the buzzer or red LED as remotely controllable.
 
-### Hình 8. Trang Dashboard - Chức năng NC-03 và NC-04
+### Figure 8. Dashboard Page - NC-03 and NC-04
 
-> **CHÈN ẢNH TRANG DASHBOARD TẠI ĐÂY.** Ảnh thể hiện ba biểu đồ Temperature, Humidity, Gas Level, bộ chọn 1h/6h/24h/7d, nút Refresh và Export CSV.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot showing the Temperature, Humidity, and Raw Gas charts; the 1h/6h/24h/7d selector; Refresh; and Export CSV. State that each query is capped at 1,000 readings.
 
-### Hình 9. Trang Chatbot - Chức năng NC-06
+### Figure 9. Chatbot Page - NC-06
 
-> **CHÈN ẢNH TRANG CHATBOT TẠI ĐÂY.** Ảnh cần có ít nhất một câu hỏi của người dùng và phản hồi tương ứng, ví dụ truy vấn trạng thái hệ thống hoặc giá trị khí hiện tại.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot containing at least one user question and its corresponding response, such as a system-status query or the current raw gas reading.
 
-### Hình 10. Trang Settings - Chức năng NC-01, NC-05 và NC-07
+### Figure 10. Settings Page - NC-01, NC-02, NC-05, and NC-07
 
-> **CHÈN ẢNH TRANG SETTINGS TẠI ĐÂY.** Ảnh thể hiện thông tin tài khoản, đổi mật khẩu, bật/tắt email cảnh báo, các ngưỡng an toàn và chế độ Automatic Z-score.
+> **REQUIRED BEFORE SUBMISSION:** Insert a screenshot showing account information, password change, email-notification preference, safety thresholds, the current firmware gas threshold, and the Automatic Mode switch for Z-score detection.
 
-## 2.5. Điểm đồ án do sinh viên tự đánh giá
+### Verification Evidence Checklist
 
-Dựa trên phân công trong Thuyết minh đồ án và quy định chấm điểm của đồ án cuối kỳ, nhóm tạm đề xuất bảng điểm dưới đây. Cả ba thành viên phải xác nhận lại trước khi xuất bản nộp chính thức.
+| Test | Required evidence | Current review status |
+|---|---|---|
+| **TC-01 - WiFi Provisioning** | Photograph/video of <code>Safebox-AP</code>, <code>192.168.4.1</code>, saved credentials after reboot, and OLED SSID/IP. | **Hardware evidence required.** |
+| **TC-02 - Telemetry Pipeline** | Timestamped ESP32, EMQX, backend, and MongoDB evidence showing the 2-second telemetry flow. | **Live infrastructure evidence required.** |
+| **TC-03 - Edge Safety Autonomy** | Timed offline test showing the buzzer, red LED, and OLED response in under 200 ms after confirmation begins. | **Hardware measurement required.** |
+| **TC-04 - Z-score Engine** | Thirty-sample baseline followed by a temperature spike, resulting anomaly record, and frontend alert. | **Backend logic tests pass; live evidence required.** |
+| **TC-05 - Nodemailer** | Delivered HIGH/CRITICAL email in under 5 seconds and proof that a repeat is throttled for 15 minutes. | **Automated email/throttle tests pass; live SMTP evidence required.** |
+| **TC-06 - Remote Fan Override** | Website action and timed relay response below 500 ms. | **Authenticated mock CB-03 flow passes; hardware timing evidence required.** |
 
-| STT | Tên thành viên | Điểm cơ bản | Điểm nâng cao | Điểm làm nhóm | Điểm báo cáo | Tổng |
+**Latest software verification snapshot:**
+
+- Backend full suite: **53/53 tests passed**.
+- Focused Thái Kiệt suite: **44/44 tests passed**, followed by **CB-03 PASS**.
+- Frontend production build: **passed**; Vite reported a non-blocking JavaScript bundle-size warning.
+- Firmware build: **not verified in the current review environment** because the PlatformIO <code>pio</code> command was unavailable.
+
+## 2.5. Student Self-Assessment
+
+The table below follows the function assignments in the proposal. The advanced-function score is capped at 4.0 points per student. The totals assume a comprehension coefficient of **K = 100%**; the official score remains subject to each student's oral-defense performance under the course formula:
+
+**Final Project Score = (Basic Function Score + Teamwork Score + Advanced Function Score + Report Score) x K**
+
+| No. | Student | Basic functions | Advanced functions | Teamwork | Final report | Provisional total |
 |---:|---|---:|---:|---:|---:|---:|
 | 1 | **Phùng Bảo Khang** | 4.0 | 4.0 | 1.0 | 1.0 | **10.0** |
 | 2 | **Thái Kiệt** | 4.0 | 4.0 | 1.0 | 1.0 | **10.0** |
 | 3 | **Nguyễn Huy Hoàng** | 4.0 | 4.0 | 1.0 | 1.0 | **10.0** |
 
-**Căn cứ phân công:**
+**Assignment basis:**
 
-- **Phùng Bảo Khang:** CB-02; NC-04, NC-06, NC-08.
-- **Thái Kiệt:** CB-03; NC-01, NC-03, NC-05.
-- **Nguyễn Huy Hoàng:** CB-01; NC-02, NC-07, NC-09.
+- **Phùng Bảo Khang:** CB-02; NC-04, NC-06, and NC-08.
+- **Thái Kiệt:** CB-03; NC-01, NC-03, and NC-05.
+- **Nguyễn Huy Hoàng:** CB-01; NC-02, NC-07, and NC-09.
 
-**Tên file PDF dự kiến:** `06_24127052_24127069_24127378_FINAL.PDF`.
+**Required final PDF filename:** <code>06_24127052_24127069_24127378_FINAL.PDF</code>.

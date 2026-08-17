@@ -16,7 +16,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 ### 1.1 Sensor Wiring & Reading
 
 - [x] Standardize every firmware sensor reading as an uncalibrated raw snapshot and pass the snapshot object unchanged into telemetry packaging
-- [x] Keep the MQ2 raw ADC contract at 12-bit 0–4095, alarm above 600, and hysteresis clear below 500 without presenting the value as calibrated PPM
+- [x] Keep the MQ2 raw ADC contract at 12-bit 0–4095, alarm above the active configurable threshold, and hysteresis clear 100 counts below it without presenting the value as calibrated PPM
 - [x] Correct MQ2 ADC logic so normal ADC changes are not clamped to a constant 200 PPM; expose raw and relative gas indices honestly
 - [x] Simplify MQ2 firmware reading to one direct GPIO 34 ADC sample with no interpolation, median, EMA, or boot calibration
 - [x] Simplify the complete ESP32 firmware into one readable main flow with direct hardware I/O while preserving WiFiManager, MQTTS, telemetry, remote control, and offline edge safety
@@ -52,18 +52,18 @@ Use `[x]` for completed items, `[ ]` for pending.
 
 ### 1.4 Edge-Local Safety Logic
 
-- [x] If sampled MQ2 `gasLevel > 600` ADC index → activate Buzzer + Alert LED + OLED warning from the independent high-priority safety task `(NC-02)`
+- [x] If sampled MQ2 `gasLevel` exceeds the active alarm threshold → activate Buzzer + Alert LED + OLED warning from the independent high-priority safety task `(NC-02)`
 - [x] Report the local gas safety override separately as `gasAlarmActive` in telemetry `(superseded: buzzer/alert-LED web toggles removed; buzzer and LED are edge-only)`
 - [x] Auto-turn-off remote buzzer and alert LED after 30 s when no local gas alarm is active, so a lost web OFF command cannot leave them running indefinitely `(superseded: all remote buzzer/LED control removed)`
 - [x] Publish edge alert to `safebox/{deviceId}/alerts` (QoS 0; PubSubClient publish limitation) on gas breach `(NC-02)`
 - [x] Keep the code-level edge-safety path active during WiFi credential-save and MQTT/TLS calls by isolating MQ2 sampling, buzzer/LED arbitration, and OLED transitions in a priority-4 FreeRTOS task `(TC-03; physical timing still pending)`
-- [x] Fix the buzzer module: extend the MQ2 warm-up window to 30 s so the cold-heater ADC spike cannot fire the alarm at boot, publish warm-up gas as `gasValid=false` so no cloud alert fires, and add a 5 s below-600 auto-clear so a baseline inside the 500–600 band cannot leave the buzzer stuck on
+- [x] Fix the buzzer module: extend the MQ2 warm-up window to 30 s so the cold-heater ADC spike cannot fire the alarm at boot, publish warm-up gas as `gasValid=false` so no cloud alert fires, and add a 5 s below-active-alarm auto-clear so a baseline near the configured boundary cannot leave the buzzer stuck on
 - [x] Settle the buzzer driver: the low-trigger module powered at 3.3 V turns fully OFF at the GPIO's 3.3 V HIGH, so wire SIG → GPIO 19 directly, VCC → 3.3 V, GND → GND, and keep `BUZZER_ACTIVE_LOW=true` (5 V supply would need an NPN driver stage with `false`)
-- [x] Remove remote buzzer/alert-LED control end to end (web buttons, control API, MQTT control, firmware remote state, backend motion auto-alert LED): buzzer and LED are driven only by the local edge gas alarm (gas > 600), with the OLED warning as the sole local display
+- [x] Remove remote buzzer/alert-LED control end to end (web buttons, control API, MQTT control, firmware remote state, backend motion auto-alert LED): buzzer and LED are driven only by the local edge gas alarm (gas above the active threshold), with the OLED warning as the sole local display
 - [x] Protect the coursework captive portal with the fixed 8-character WPA2 password `12345678`
 - [ ] Verify captive redirect, permanent AP reachability, and runtime router switching on Android/iOS/Windows hardware `(TC-01)`
 - [ ] Make per-sensor telemetry validity independent so a DHT checksum failure does not hide healthy MQ2, PIR, or actuator state
-- [x] OLED renders the full raw MQ2 GAS warning (>600) and basic provisioning/connection status without presentation-time sensor conversion `(NC-02)`
+- [x] OLED renders the full raw MQ2 GAS warning above the active configurable threshold and basic provisioning/connection status without presentation-time sensor conversion `(NC-02)`
 - [x] Push the saved gas edge threshold live to the ESP32 over MQTT (`safebox/{deviceId}/config`, retained QoS 1): firmware keeps runtime alarm/clear thresholds in `GasSafety` (defaults from config.h), the buzzer/LED/OLED auto-clear against the new level, and edge alerts report the runtime threshold `(Settings)`
 
 ### 1.5 WiFiManager Provisioning
