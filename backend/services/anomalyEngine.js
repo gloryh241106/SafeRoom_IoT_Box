@@ -328,6 +328,11 @@ async function processTelemetryForAnomalies(telemetryDoc) {
   const context = { deviceId, timestamp, metrics };
   const temperatureStats = evaluateZScore(deviceId, 'temperature', metrics.temperature);
   const humidityStats = evaluateZScore(deviceId, 'humidity', metrics.humidity);
+  // DISARMED pauses anomaly evaluation while rolling baselines keep updating,
+  // so re-arming cannot produce a false spike from a stale window. Physical
+  // edge alerts (processEdgeAlert) are hardware safety events and are never
+  // suppressed by this switch.
+  if (!systemArmedState) return [];
   // Hard rules remain active in every mode; automatic mode only adds statistical candidates.
   const candidates = [
     buildGasCandidate(context),

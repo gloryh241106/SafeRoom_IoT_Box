@@ -11,7 +11,7 @@
 
 The codebase is in **excellent health**:
 - **Backend**: **45/45 unit/integration tests pass** via Node test runner.
-- **Viva Scope (Thai Kiet)**: **42/42 tests pass + CB-03 PASS** via `npm run test:kiet`.
+- **Viva Scope (Thai Kiet)**: **46/46 tests pass + CB-03 PASS** via `npm run test:kiet`.
 - **Frontend**: **2/2 contract tests pass** and **production build succeeds** (`vite build` -> clean bundle).
 - **Telemetry Integrity**: Strict hardware MQTT ingestion — mock telemetry generation is 100% removed (`mockTelemetryGenerator.js` deleted and unhooked).
 - **Audit Findings**: All previous High (H1–H4) and Medium (M1–M6) findings, as well as re-audit items (N1–N3, N5–N6), are **100% resolved and verified**.
@@ -56,7 +56,7 @@ The codebase is in **excellent health**:
 | Check | Command | Result |
 |---|---|---|
 | Backend Unit & Integration Tests | `cd backend && npm test` | **45/45 pass** (Z-score engine, dedup, min-delta, email throttle, UTC+7 rendering, HTML escaping, CB-03 auth, MQTT topic-map, per-user thresholds, time-series validation) |
-| Focused Viva Suite & CB-03 Simulation | `cd backend && npm run test:kiet` | **42/42 pass + `CB-03 PASS`** (authenticated fan ON → status → OFF) |
+| Focused Viva Suite & CB-03 Simulation | `cd backend && npm run test:kiet` | **46/46 pass + `CB-03 PASS`** (authenticated fan ON → status → OFF) |
 | Frontend Contract Suite | `cd frontend && npm test` | **2/2 pass** (raw ADC contract, invalid snapshot rejection) |
 | Frontend Production Build | `cd frontend && npm run build` | **Success** (clean Vite production bundle) |
 | Telemetry Pipeline Integrity | Static inspection | **Strict hardware MQTT ingestion** — 0 synthetic telemetry ticks |

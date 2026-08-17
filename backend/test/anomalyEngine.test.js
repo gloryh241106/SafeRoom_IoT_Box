@@ -8,6 +8,7 @@ const {
   processTelemetryForAnomalies,
   resetAnomalyEngineForTests,
   setControlPublisher,
+  setSystemArmed,
   updateThresholds
 } = require('../services/anomalyEngine');
 const { AnomalyLog, User } = require('../models/Schemas');
@@ -155,6 +156,78 @@ test('does not trigger a gas anomaly while the MQ2 startup reading is invalid', 
   };
 
   assert.deepEqual(await processTelemetryForAnomalies(telemetry), []);
+});
+
+test('suppresses every anomaly candidate while the system is DISARMED', async () => {
+  const originalCreate = AnomalyLog.create;
+  AnomalyLog.create = async (document) => {
+    throw new Error('AnomalyLog.create must not run while DISARMED');
+  };
+  setSystemArmed(false);
+
+  try {
+    const created = await processTelemetryForAnomalies({
+      deviceId: 'device-disarmed',
+      timestamp: new Date('2026-08-13T00:00:00.000Z'),
+      metrics: {
+        temperature: 25,
+        humidity: 90,
+        gasLevel: 700,
+        motionDetected: true
+      }
+    });
+
+    assert.deepEqual(created, []);
+  } finally {
+    AnomalyLog.create = originalCreate;
+  }
+});
+
+test('resumes anomaly evaluation after the system is re-armed', async () => {
+  const originalCreate = AnomalyLog.create;
+  const originalUpdate = AnomalyLog.findByIdAndUpdate;
+  const createdDocuments = [];
+  AnomalyLog.create = async (document) => {
+    const stored = { _id: `id-${createdDocuments.length}`, ...document };
+    createdDocuments.push(stored);
+    return stored;
+  };
+  AnomalyLog.findByIdAndUpdate = async (id, update) => {
+    const document = createdDocuments.find((entry) => entry._id === id);
+    if (document) Object.assign(document, update);
+    return document;
+  };
+  setSystemArmed(false);
+  const disarmedResult = await processTelemetryForAnomalies({
+    deviceId: 'device-rearmed',
+    timestamp: new Date('2026-08-13T00:00:00.000Z'),
+    metrics: {
+      temperature: 25,
+      humidity: 60,
+      gasLevel: 700,
+      motionDetected: false
+    }
+  });
+  assert.deepEqual(disarmedResult, []);
+
+  setSystemArmed(true);
+  try {
+    const created = await processTelemetryForAnomalies({
+      deviceId: 'device-rearmed',
+      timestamp: new Date('2026-08-13T00:00:01.000Z'),
+      metrics: {
+        temperature: 25,
+        humidity: 60,
+        gasLevel: 700,
+        motionDetected: false
+      }
+    });
+    assert.equal(created.length, 1);
+    assert.equal(createdDocuments[0].triggerType, 'HARD_THRESHOLD_BREACH');
+  } finally {
+    AnomalyLog.create = originalCreate;
+    AnomalyLog.findByIdAndUpdate = originalUpdate;
+  }
 });
 
 test('applies the hard-rule matrix for gas, armed motion, and humidity', async () => {

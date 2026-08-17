@@ -7,6 +7,7 @@ process.env.MOCK_HARDWARE = 'true';
 process.env.JWT_SECRET = 'auth-middleware-test-secret';
 
 const { app } = require('../server');
+const { setSystemArmed } = require('../services/anomalyEngine');
 
 let server;
 let baseUrl;
@@ -23,6 +24,8 @@ test.after(async () => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
 });
+
+test.beforeEach(() => setSystemArmed(true));
 
 test('protects every non-authenticated API prefix', async () => {
   const requests = [
@@ -63,4 +66,42 @@ test('allows an authenticated CB-03 command and rejects an invalid token', async
   assert.equal(body.success, true);
   assert.equal(body.delivery, 'mocked');
   assert.equal(body.currentActuatorStates.fanOn, true);
+});
+
+test('rejects physical actuator commands while DISARMED but keeps the re-arm toggle available', async () => {
+  const token = jwt.sign(
+    { id: 'auth-test-user', username: 'auth-test' },
+    process.env.JWT_SECRET
+  );
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+
+  setSystemArmed(false);
+  const blocked = await fetch(`${baseUrl}/api/v1/control/actuator`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ deviceId: 'safebox-01', actuator: 'fan', state: true })
+  });
+  const blockedBody = await blocked.json();
+  assert.equal(blocked.status, 403);
+  assert.match(blockedBody.error, /DISARMED/);
+
+  // The systemArmed toggle is the only actuator accepted while DISARMED.
+  const rearmed = await fetch(`${baseUrl}/api/v1/control/actuator`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ actuator: 'systemArmed', state: true })
+  });
+  const rearmedBody = await rearmed.json();
+  assert.equal(rearmed.status, 200);
+  assert.equal(rearmedBody.systemArmed, true);
+
+  const fan = await fetch(`${baseUrl}/api/v1/control/actuator`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ deviceId: 'safebox-01', actuator: 'fan', state: true })
+  });
+  assert.equal(fan.status, 200);
 });

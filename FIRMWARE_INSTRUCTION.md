@@ -84,7 +84,6 @@ Complete the steps in order; after each step reference the expected check.
 | PIR OUT | 13 | left column, 13th pin (just above GND) |
 | MQ2 analog | 34 | left column, 4th pin |
 | Relay IN | 16 (RX2) | right column, 6th pin |
-| Green LED | 17 (TX2) | right column, 7th pin |
 | Red LED | 18 | right column, 9th pin |
 | Buzzer | 19 | right column, 10th pin |
 | OLED SDA | 21 | right column, 11th pin |

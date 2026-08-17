@@ -2,7 +2,9 @@
  * Authenticated runtime control API. Fan commands cross the MQTT boundary;
  * the buzzer and alert LED are edge-only outputs driven by the local gas
  * alarm, so they are not remotely controllable. Armed state and thresholds
- * remain backend process state.
+ * remain backend process state. While the system is DISARMED, physical
+ * actuator commands are rejected with 403; only the systemArmed toggle
+ * itself is accepted so the system can be re-armed from the dashboard.
  */
 const express = require('express');
 const router = express.Router();
@@ -103,6 +105,10 @@ router.post('/actuator', async (req, res) => {
 
     if (!ALLOWED_ACTUATORS.has(actuator)) {
       return res.status(400).json({ success: false, error: `Unsupported actuator '${actuator}'` });
+    }
+
+    if (!isSystemArmed()) {
+      return res.status(403).json({ success: false, error: 'System is DISARMED; remote actuator control is disabled' });
     }
 
     const targetState = parseActuatorState(state);

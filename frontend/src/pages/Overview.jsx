@@ -5,7 +5,7 @@
  * queried separately. Actuator changes are optimistic commands and are later
  * reconciled by the next device-authored telemetry snapshot.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Thermometer, Droplets, Flame, Activity, Fan, Bell, ShieldAlert, ShieldCheck, CheckCheck } from 'lucide-react';
 import { apiFetch } from '../api';
 import {
@@ -27,24 +27,27 @@ export default function Overview() {
   const [telemetry, setTelemetry] = useState(null);
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [systemArmed, setSystemArmed] = useState(true);
+const [systemArmed, setSystemArmed] = useState(true);
   const [pendingActuator, setPendingActuator] = useState(null);
   const [connectionState, setConnectionState] = useState('connecting');
   const [controlFeedback, setControlFeedback] = useState(null);
   const [hardwareMode, setHardwareMode] = useState('unknown');
   const [gasThreshold, setGasThreshold] = useState(DEFAULT_GAS_ALERT_THRESHOLD);
   const [firmwareGasThreshold, setFirmwareGasThreshold] = useState(FIRMWARE_EDGE_GAS_THRESHOLD);
+  // Tracks whether a telemetry snapshot was ever displayed so DISARMED freezes
+  // live values without hiding the first snapshot behind a false no-data state.
+  const hasTelemetryRef = useRef(false);
 
-  // A successful telemetry read alone does not prove that the MQTT device is
+// A successful telemetry read alone does not prove that the MQTT device is
   // online, so the control status/LWT response participates in connection state.
   const fetchData = async () => {
     try {
       const telRes = await apiFetch('/api/v1/telemetry/latest');
       const telJson = await telRes.json();
       if (!telRes.ok || !telJson.success) throw new Error(telJson.error || 'Telemetry request failed');
-      setTelemetry(telJson.data);
+      const telData = telJson.data;
 
-      const statusRes = await apiFetch(`/api/v1/control/status?deviceId=${encodeURIComponent(telJson.data.deviceId)}`);
+      const statusRes = await apiFetch(`/api/v1/control/status?deviceId=${encodeURIComponent(telData.deviceId)}`);
       const statusJson = await statusRes.json();
       if (!statusRes.ok || !statusJson.success) throw new Error(statusJson.error || 'Device status request failed');
 
@@ -55,7 +58,15 @@ export default function Overview() {
       }
       const mqtt = statusJson.mqtt;
       const deviceOnline = mqtt.mode === 'mock' || (mqtt.brokerConnected && mqtt.device?.status === 'online');
-      setSystemArmed(Boolean(statusJson.systemArmed));
+      const disarmed = statusJson.systemArmed === false;
+      setSystemArmed(!disarmed);
+      // While DISARMED the live cards freeze on the last armed snapshot; the
+      // first snapshot is still rendered so the page never shows a false
+      // "no telemetry" state.
+      if (!disarmed || !hasTelemetryRef.current) {
+        setTelemetry(telData);
+        hasTelemetryRef.current = true;
+      }
       setHardwareMode(mqtt.mode);
       setConnectionState(deviceOnline ? 'online' : 'degraded');
     } catch (err) {
@@ -101,9 +112,16 @@ const json = await res.json();
 
   // Apply the requested state immediately for responsive controls. The next
   // telemetry poll replaces it with the state reported by the physical device.
-  const handleActuatorToggle = async (actuator, currentState) => {
+const handleActuatorToggle = async (actuator, currentState) => {
     setPendingActuator(actuator);
     setControlFeedback(null);
+    // The systemArmed toggle itself must stay usable while DISARMED so the
+    // system can be re-armed; every physical actuator is blocked instead.
+    if (actuator !== 'systemArmed' && !systemArmed) {
+      setControlFeedback({ type: 'error', message: 'System is DISARMED; remote actuator control is disabled' });
+      setPendingActuator(null);
+      return;
+    }
     try {
       const targetState = !currentState;
       const res = await apiFetch('/api/v1/control/actuator', {
@@ -240,6 +258,15 @@ const gasAlarm = gasValid && rawGasValue > gasThreshold;
         </div>
       </div>
 
+      {/* DISARMED freezes live telemetry and blocks remote control; only the
+          armed toggle remains available so monitoring can be resumed. */}
+      {!systemArmed && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          <strong>System DISARMED</strong> — live telemetry is frozen and remote actuator control is disabled.
+          Re-arm the system to resume monitoring.
+        </div>
+      )}
+
       {/* Formatting below is presentation-only; telemetry state stays untouched. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-card p-5 rounded-lg space-y-3">
@@ -352,10 +379,10 @@ const gasAlarm = gasValid && rawGasValue > gasThreshold;
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
             <div className="space-y-1">
               <span className="text-sm font-semibold text-slate-950">CB-03 | DC Fan Relay</span>
-              <p className="text-xs text-slate-500">GPIO 16 (relay, active-low)</p>
+              <p className="text-xs text-slate-500">GPIO 16 (relay, active-low){!systemArmed ? ' — locked while DISARMED' : ''}</p>
             </div>
             <button
-              disabled={pendingActuator !== null || connectionState !== 'online'}
+              disabled={pendingActuator !== null || connectionState !== 'online' || !systemArmed}
               onClick={() => handleActuatorToggle('fan', actuators.fanOn)}
               className={`min-w-20 px-4 py-2 rounded-md text-xs font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 actuators.fanOn

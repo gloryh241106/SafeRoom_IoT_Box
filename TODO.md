@@ -120,6 +120,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] `POST /api/v1/control/actuator` — accepts `{deviceId, actuator, state}` `(CB-03)`
 - [x] Publish real MQTT command to `safebox/{deviceId}/control` (QoS 1) `(CB-03)`
 - [x] Synchronize backend actuator status after successful MQTT commands and confirmed device telemetry `(CB-03)`
+- [x] Reject remote fan commands with HTTP 403 while the system is DISARMED (backend gate; the `systemArmed` toggle itself stays available so the system can be re-armed)
 
 ### 2.5 Anomaly Detection Engine (NC-01)
 
@@ -135,6 +136,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Edge case: rapid repeated anomalies → deduplication `(NC-01)`
 - [x] Subscribe to `safebox/+/alerts` for edge alerts → create `EDGE_SAFETY_TRIGGER` entries `(NC-01)`
 - [x] Δ_min_sense filter to prevent micro-fluctuation false positives `(NC-01)`
+- [x] Pause anomaly evaluation while the system is DISARMED; Z-score baselines keep rolling so re-arming cannot produce a false spike from a stale window `(System Armed)`
 
 ### 2.6 Anomaly Logs API
 
@@ -230,6 +232,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Anomaly list panel with severity color coding `(NC-01)`
 - [x] "Resolve All" anomalies button that preserves the anomaly audit trail `(NC-01)`
 - [x] Replace zero-valued telemetry fallbacks with an explicit no-data state `(CB-01)`
+- [x] Freeze live telemetry cards and disable the fan toggle while the system is DISARMED, with a visible DISARMED banner on Overview `(System Armed)`
 
 ### 4.4 Dashboard Page (NC-04)
 
@@ -350,7 +353,12 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
 - [x] Merge the Thai Kiet viva, Q&A, code walkthrough, and demo guides into one polished, verified LaTeX/PDF handbook
 
-### 6.5 User-Managed Email Alerts
+### 6.5 Nguyen Huy Hoang Viva Preparation
+
+- [x] Create a responsibility and code map for CB-01, NC-02, NC-07, and NC-09
+- [x] Create detailed viva Q&A knowledge base (scope, flows, contracts, thresholds, file map, evidence, cheat sheet) for Nguyen Huy Hoang's scope
+
+### 6.6 User-Managed Email Alerts
 
 - [x] Use each account's profile email for alerts and persist the email-enabled preference from Settings
 - [x] Resolve enabled user recipients from MongoDB when sending HIGH/CRITICAL anomaly emails

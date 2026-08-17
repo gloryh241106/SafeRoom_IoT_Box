@@ -41,8 +41,8 @@ constexpr uint32_t EDGE_ALERT_RETRY_MS = 3000;
 // 100 counts below it) from the Settings "BACKEND MQ-2 Raw ADC Max" field when
 // thresholds are saved. The defaults below are the initial value; a firmware
 // rebuild + reflash is required for a changed threshold to take effect.
-constexpr uint16_t GAS_ALARM_THRESHOLD_RAW = 1200;
-constexpr uint16_t GAS_CLEAR_THRESHOLD_RAW = 1100;
+constexpr uint16_t GAS_ALARM_THRESHOLD_RAW = 3000;
+constexpr uint16_t GAS_CLEAR_THRESHOLD_RAW = 2900;
 constexpr uint8_t GAS_CONFIRM_SAMPLES = 3;
 // While the alarm is active, this many consecutive samples below the alarm
 // threshold (100 x 50 ms = 5 s) also clear it. A clean-air baseline that
