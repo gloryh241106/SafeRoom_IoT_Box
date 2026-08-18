@@ -2,6 +2,8 @@
  * Historical telemetry explorer and client-side CSV exporter.
  * The API returns newest bounded samples in chronological order; the UI never
  * recalibrates sensor values and represents invalid MQ-2 samples as chart gaps.
+ * Ranges above 1h are sub-sampled server-side to 1000 evenly spaced points
+ * (last sample per bucket); the 1h view graphs full resolution.
  */
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -26,18 +28,24 @@ export default function Dashboard() {
   const [timeRange, setTimeRange] = useState('24h');
   const [loading, setLoading] = useState(true);
 
-  /** Request the selected wall-clock window; the API caps one response at 1000 samples. */
+  /** Request the selected wall-clock window. The 1h view keeps full resolution
+   * (2s cadence ≈ 1800 samples, API cap 3600); longer ranges are sub-sampled to
+   * 1000 time-uniform points so the whole window is visible, not just its tail. */
   const fetchHistoricalData = async () => {
     setLoading(true);
     try {
       const to = new Date();
       const from = new Date(to.getTime() - TIME_RANGE_MS[timeRange]);
-      const query = new URLSearchParams({
+      const params = new URLSearchParams({
         from: from.toISOString(),
-        to: to.toISOString(),
-        limit: '1000'
+        to: to.toISOString()
       });
-      const res = await apiFetch(`/api/v1/telemetry/historical?${query}`);
+      if (timeRange === '1h') {
+        params.set('limit', '3600');
+      } else {
+        params.set('maxPoints', '1000');
+      }
+      const res = await apiFetch(`/api/v1/telemetry/historical?${params}`);
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const formatted = json.data.map((item) => ({
@@ -60,7 +68,8 @@ export default function Dashboard() {
     fetchHistoricalData();
   }, [timeRange]);
 
-  // Export exactly the samples currently graphed. Raw values are not rounded or
+  // Export exactly the samples currently graphed (sub-sampled to 1000 points
+  // for 6h/24h/7d; full resolution for 1h). Raw values are not rounded or
   // converted, and invalid gas samples remain empty cells instead of zeroes.
   const handleExportCSV = () => {
     if (data.length === 0) return;

@@ -125,3 +125,147 @@ test('accepts both gasRaw and legacy gasLevel historical selectors', async () =>
     SensorReading.find = originalFind;
   }
 });
+
+test('sub-samples with maxPoints using last-of-bucket representatives', async () => {
+  const originalAggregate = SensorReading.aggregate;
+  const captured = {};
+  const representatives = [
+    { timestamp: new Date('2026-08-06T00:00:04.000Z'), metrics: { temperature: 27 } },
+    { timestamp: new Date('2026-08-06T00:00:06.000Z'), metrics: { temperature: 28 } }
+  ];
+
+  SensorReading.aggregate = (pipeline) => {
+    captured.pipeline = pipeline;
+    return {
+      then(resolve, reject) {
+        return Promise.resolve([...representatives]).then(resolve, reject);
+      }
+    };
+  };
+
+  try {
+    const query = new URLSearchParams({
+      deviceId: 'safebox-01',
+      from: '2026-08-06T00:00:00.000Z',
+      to: '2026-08-06T00:10:00.000Z',
+      maxPoints: '1000'
+    });
+    const response = await fetch(`${baseUrl}/api/v1/telemetry/historical?${query}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.subSampled, true);
+    assert.deepEqual(
+      body.data.map((reading) => reading.timestamp),
+      ['2026-08-06T00:00:04.000Z', '2026-08-06T00:00:06.000Z']
+    );
+
+    const matchStage = captured.pipeline[0];
+    assert.deepEqual(matchStage.$match.deviceId, 'safebox-01');
+    assert.equal(matchStage.$match.timestamp.$gte.toISOString(), '2026-08-06T00:00:00.000Z');
+    assert.equal(matchStage.$match.timestamp.$lte.toISOString(), '2026-08-06T00:10:00.000Z');
+    assert.deepEqual(captured.pipeline[1], { $sort: { timestamp: 1 } });
+
+    // 10-minute window / 1000 points -> 600 ms buckets, last sample per bucket.
+    const groupStage = captured.pipeline[2].$group;
+    assert.deepEqual(groupStage.rep, { $last: '$$ROOT' });
+    const bucketMs = 600;
+    assert.deepEqual(groupStage._id, {
+      $subtract: [
+        { $toLong: '$timestamp' },
+        { $mod: [{ $toLong: '$timestamp' }, bucketMs] }
+      ]
+    });
+
+    assert.deepEqual(captured.pipeline[3], { $replaceRoot: { newRoot: '$rep' } });
+    assert.deepEqual(captured.pipeline[4], { $sort: { timestamp: 1 } });
+  } finally {
+    SensorReading.aggregate = originalAggregate;
+  }
+});
+
+test('sub-sampling keeps the sensor projection and chronological output', async () => {
+  const originalAggregate = SensorReading.aggregate;
+  const captured = {};
+  const readings = [{ timestamp: new Date('2026-08-06T00:00:06.000Z'), metrics: { temperature: 28 } }];
+
+  SensorReading.aggregate = (pipeline) => {
+    captured.pipeline = pipeline;
+    return {
+      then(resolve, reject) {
+        return Promise.resolve([...readings]).then(resolve, reject);
+      }
+    };
+  };
+
+  try {
+    const query = new URLSearchParams({
+      sensor: 'temperature',
+      from: '2026-08-06T00:00:00.000Z',
+      to: '2026-08-06T00:10:00.000Z',
+      maxPoints: '10'
+    });
+    const response = await fetch(`${baseUrl}/api/v1/telemetry/historical?${query}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert.equal(response.status, 200);
+
+    const projectStage = captured.pipeline[captured.pipeline.length - 1];
+    assert.deepEqual(projectStage, {
+      $project: { timestamp: 1, deviceId: 1, 'metrics.temperature': 1 }
+    });
+  } finally {
+    SensorReading.aggregate = originalAggregate;
+  }
+});
+
+test('rejects invalid maxPoints and accepts the raised limit cap', async () => {
+  const originalFind = SensorReading.find;
+  const originalAggregate = SensorReading.aggregate;
+  SensorReading.find = () => ({
+    sort() { return this; },
+    limit() { return this; },
+    select() { return this; },
+    then(resolve, reject) {
+      return Promise.resolve([]).then(resolve, reject);
+    }
+  });
+  SensorReading.aggregate = () => ({
+    then(resolve, reject) {
+      return Promise.resolve([]).then(resolve, reject);
+    }
+  });
+
+  try {
+    for (const bad of ['0', '-1', '1001', 'abc', '1.5']) {
+      const query = new URLSearchParams({
+        from: '2026-08-06T00:00:00.000Z',
+        to: '2026-08-06T00:10:00.000Z',
+        maxPoints: bad
+      });
+      const response = await fetch(`${baseUrl}/api/v1/telemetry/historical?${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const body = await response.json();
+      assert.equal(response.status, 400);
+      assert.match(body.error, /maxPoints must be an integer between 1 and 1000/);
+    }
+
+    const missingWindow = await fetch(`${baseUrl}/api/v1/telemetry/historical?maxPoints=1000`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert.equal(missingWindow.status, 400);
+    assert.match((await missingWindow.json()).error, /maxPoints requires both from and to/);
+
+    const fullRes = await fetch(`${baseUrl}/api/v1/telemetry/historical?limit=3600`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    assert.equal(fullRes.status, 200);
+    assert.equal((await fullRes.json()).subSampled, false);
+  } finally {
+    SensorReading.find = originalFind;
+    SensorReading.aggregate = originalAggregate;
+  }
+});

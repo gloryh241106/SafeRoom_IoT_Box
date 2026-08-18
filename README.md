@@ -255,7 +255,7 @@ When no ESP32 telemetry exists, Overview and the chatbot report an explicit no-d
 | `POST` | `/api/v1/auth/login` | User authentication & JWT issuance |
 | `GET` | `/api/v1/auth/me` | Fetch authenticated user profile |
 | `GET` | `/api/v1/telemetry/latest` | Get latest live sensor reading |
-| `GET` | `/api/v1/telemetry/historical` | Query the newest bounded time-series samples, returned in chronological order |
+| `GET` | `/api/v1/telemetry/historical` | Query bounded time-series samples in chronological order. Default `limit` (max 3600) returns the newest full-resolution samples; passing `maxPoints` (1–1000, requires `from`+`to`) instead sub-samples the whole window to evenly spaced points, keeping the LAST sample per bucket (`subSampled: true` in the response) |
 | `POST` | `/api/v1/control/actuator` | Actuate the remote `fan` or toggle the backend `systemArmed` switch (buzzer/alert LED are edge-only, not remotely controllable; fan commands are rejected with HTTP 403 while the system is DISARMED) |
 | `GET` | `/api/v1/control/status` | Get MQTT/device connection and actuator status |
 | `GET` | `/api/v1/control/thresholds` | Fetch current system safety thresholds |

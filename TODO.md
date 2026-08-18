@@ -114,6 +114,8 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Replace mock generator with real MQTT client subscribing to `safebox/+/telemetry` `(CB-01)`
 - [x] On MQTT message: validate payload, write to `sensor_readings` via `SensorReading.create()` `(CB-01)`
 - [x] Return the newest bounded historical samples in chronological order and add route regression coverage `(NC-03)`
+- [x] Add optional `maxPoints` sub-sampling to `GET /api/v1/telemetry/historical` — time-uniform bucket aggregation taking the LAST sample per bucket, plus regression tests
+- [x] Raise `limit` cap on `GET /api/v1/telemetry/historical` so the 1-hour view can fetch full resolution (2s cadence ≈ 1800 samples)
 
 ### 2.4 Remote Actuator Control
 
@@ -240,6 +242,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Make time-range presets 1h, 6h, 24h, 7d send matching `from`/`to` query parameters `(NC-04)`
 - [x] Fetch from `GET /api/v1/telemetry/historical` `(NC-04)`
 - [x] CSV export (download chart data) `(NC-04)`
+- [x] Dashboard requests `maxPoints=1000` time-uniform sub-sampling for 6h/24h/7d ranges; 1h keeps full resolution
 - [x] Refresh button `(NC-04)`
 - [ ] Custom date picker for time range `(NC-04)`
 - [ ] Chart interactions: zoom, responsive sizing `(NC-04)`

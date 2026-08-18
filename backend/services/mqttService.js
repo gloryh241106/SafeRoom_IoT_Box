@@ -144,6 +144,7 @@ function initializeMqttService({ logger = console, connect = mqtt.connect } = {}
   mqttMode = 'connecting';
   mqttClient = connect(brokerUrl, options);
 
+  // Subscribed to all for demo purposes, need specific box ID(s) later
   mqttClient.on('connect', () => {
     mqttMode = 'connected';
     mqttClient.subscribe({
