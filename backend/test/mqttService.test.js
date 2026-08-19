@@ -5,6 +5,7 @@ const { EventEmitter } = require('node:events');
 
 const {
   initializeMqttService,
+  publishControlCommand,
   publishThresholdConfig,
   stopMqttService
 } = require('../services/mqttService');
@@ -61,7 +62,7 @@ test('real MQTT startup subscribes with the MQTT.js topic-map shape', async (t) 
   );
 });
 
-test('publishes a retained threshold config so reconnecting devices receive it', async (t) => {
+test('keeps retained threshold and non-retained fan command wire contracts distinct', async (t) => {
   const originalEnv = {
     MOCK_HARDWARE: process.env.MOCK_HARDWARE,
     MQTT_BROKER_URL: process.env.MQTT_BROKER_URL,
@@ -104,6 +105,30 @@ test('publishes a retained threshold config so reconnecting devices receive it',
     gasAlarmThreshold: 850,
     gasClearThreshold: 750
   });
+
+  const controlResult = await publishControlCommand('safebox-01', 'fan', true);
+  assert.equal(controlResult.status, 'published');
+  assert.equal(controlResult.topic, 'safebox/safebox-01/control');
+  assert.deepEqual(published[1], {
+    topic: 'safebox/safebox-01/control',
+    payload: JSON.stringify({ actuator: 'fan', state: 'on' }),
+    options: { qos: 1, retain: false }
+  });
+});
+
+test('throws a stable MQTT_OFFLINE error for a real fan command without a broker', async (t) => {
+  const originalMock = process.env.MOCK_HARDWARE;
+  t.after(() => {
+    if (originalMock === undefined) delete process.env.MOCK_HARDWARE;
+    else process.env.MOCK_HARDWARE = originalMock;
+  });
+
+  await stopMqttService();
+  process.env.MOCK_HARDWARE = 'false';
+  await assert.rejects(
+    publishControlCommand('safebox-01', 'fan', false),
+    (error) => error.code === 'MQTT_OFFLINE' && /not connected/.test(error.message)
+  );
 });
 
 test('reports mocked or offline delivery and rejects invalid threshold configs', async () => {

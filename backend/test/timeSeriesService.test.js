@@ -22,9 +22,15 @@ function validCollectionInfo() {
 test('creates the sensor collection with Time Series and 30-day retention options', async () => {
   let collectionInfo = null;
   let createOptions = null;
+  let metadataReads = 0;
   const db = {
     listCollections() {
-      return { async next() { return collectionInfo; } };
+      return {
+        async next() {
+          metadataReads += 1;
+          return collectionInfo;
+        }
+      };
     },
     async createCollection(name, options) {
       assert.equal(name, 'sensor_readings');
@@ -37,6 +43,7 @@ test('creates the sensor collection with Time Series and 30-day retention option
   assert.deepEqual(createOptions.timeseries, TIME_SERIES_OPTIONS);
   assert.equal(createOptions.expireAfterSeconds, EXPIRE_AFTER_SECONDS);
   assert.equal(result.collection, 'sensor_readings');
+  assert.equal(metadataReads, 2);
 });
 
 test('fails fast when an existing collection is not a Time Series collection', () => {

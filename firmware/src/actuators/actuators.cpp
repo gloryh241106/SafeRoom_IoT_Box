@@ -30,10 +30,15 @@ void Actuators::begin() {
     portEXIT_CRITICAL(&_mux);
 }
 
+// Study map (CB-03): logical fan state is protected by the same spinlock used by
+// the safety task, then applyLocked() maps it to the configured relay polarity.
 // Applies the website fan command to the relay.
 void Actuators::setFan(bool on) {
+    // GasSafety runs in another FreeRTOS task, so protect the shared snapshot/output state.
     portENTER_CRITICAL(&_mux);
+    // Store logical intent; do not expose active-low electrical details to callers.
     _fanOn = on;
+    // Re-apply all outputs consistently while the lock is held.
     applyLocked();
     portEXIT_CRITICAL(&_mux);
 }
@@ -60,6 +65,7 @@ ActuatorState Actuators::snapshot() const {
 
 // Maps logical ON/OFF to active-high or active-low GPIO levels.
 void Actuators::writeOutput(uint8_t pin, bool on, bool activeLow) {
+    // active-low ON -> LOW, active-low OFF -> HIGH; active-high does the opposite.
     digitalWrite(pin, (on != activeLow) ? HIGH : LOW);
 }
 

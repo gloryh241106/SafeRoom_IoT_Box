@@ -116,6 +116,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Return the newest bounded historical samples in chronological order and add route regression coverage `(NC-03)`
 - [x] Add optional `maxPoints` sub-sampling to `GET /api/v1/telemetry/historical` — time-uniform bucket aggregation taking the LAST sample per bucket, plus regression tests
 - [x] Raise `limit` cap on `GET /api/v1/telemetry/historical` so the 1-hour view can fetch full resolution (2s cadence ≈ 1800 samples)
+- [x] Anchor `maxPoints` buckets at `fromDate` and include both time-window endpoints so unaligned ranges cannot return `maxPoints + 1` samples
 
 ### 2.4 Remote Actuator Control
 
@@ -181,7 +182,7 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Connect UserSchema.settings.thresholds subdocument with anomalyEngine threshold persistence and load (M3)
 - [x] Map client validation errors (TypeError / RangeError) to HTTP 400 status in POST /api/v1/users/profile to match the control thresholds route (N1)
 - [x] Persist settings.thresholds exactly once on POST /api/v1/users/profile (N5)
-- [x] Trim ACTUATOR_STATE_FIELDS to the remotely controllable fan actuator only (N6)
+- [x] Limit actuator state handling to the remotely controllable fan actuator only (N6)
 
 ---
 
@@ -355,6 +356,15 @@ Use `[x]` for completed items, `[ ]` for pending.
 - [x] Re-run backend tests, CB-03 simulation, frontend build, and firmware build after the viva-focused refactor
 - [x] Refresh Thai Kiet viva documentation for the modular firmware architecture pulled on 2026-08-13
 - [x] Merge the Thai Kiet viva, Q&A, code walkthrough, and demo guides into one polished, verified LaTeX/PDF handbook
+- [x] Create a verified Thai Kiet ownership report that separates Codex-assisted code, original team code, and later cross-team changes
+- [x] Add learning-oriented comments at the decision points of CB-03, NC-01, NC-03, and NC-05 without changing runtime behavior
+- [x] Refresh the Thai Kiet file map and walkthrough for the current firmware modules and System Armed behavior
+- [x] Expand the Thai Kiet walkthrough with line-by-line annotations for every decision function in CB-03, NC-01, NC-03, and NC-05
+- [x] Add detailed inline learning comments inside only the Thai Kiet-owned code paths and re-run regression verification
+- [x] Create a zero-prerequisite Thai Kiet code guide that identifies every called function as project code, language built-in, framework API, or library API
+- [x] Add beginner call-chain explanations for CB-03, NC-01, NC-03, and NC-05 and link the guide into the documented reading order
+- [x] Refactor CB-03, NC-01, NC-03, and NC-05 for lower branching and easier viva study without changing runtime contracts
+- [x] Update Thai Kiet learning documents for the behavior-preserving simplification (PDF intentionally unchanged)
 
 ### 6.5 Nguyen Huy Hoang Viva Preparation
 

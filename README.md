@@ -100,7 +100,6 @@ SafeRoom_IoT_Box/
 ├── docs/                     # Architecture, code walkthrough, viva Q&A, demo guide
 ├── .agents/skills/           # Agent domain skills (esp32, iot-backend, safebox-frontend)
 ├── TODO.md                   # Master task registry and integration checklist
-├── EVALUATE.md               # Evidence-based rubric, source audit, gaps, and 10-point checklist
 ├── AGENTS.md                 # Agent guidelines and project rules
 └── README.md                 # Project documentation
 ```
@@ -273,8 +272,10 @@ When no ESP32 telemetry exists, Overview and the chatbot report an explicit no-d
 
 The following documents map Thai Kiet's proposal responsibilities (`CB-03`, `NC-01`, `NC-03`, and `NC-05`) to the implemented code and verification evidence:
 
+- [Code ownership and learning report](docs/THAI_KIET_CODE_OWNERSHIP_REPORT.md)
+- [Zero-prerequisite function and library guide](docs/THAI_KIET_BEGINNER_CODE_GUIDE.md)
 - [Scope, architecture, and defense summary](docs/THAI_KIET_VIVA.md)
-- [Line-by-line code walkthrough](docs/THAI_KIET_CODE_WALKTHROUGH.md)
+- [Annotated line-by-line code walkthrough](docs/THAI_KIET_CODE_WALKTHROUGH.md#thai-kiet-line-by-line)
 - [Oral-defense questions and model answers](docs/THAI_KIET_QA.md)
 - [Repeatable software and hardware demo guide](docs/THAI_KIET_DEMO.md)
 - [Merged dark-theme PDF handbook](output/pdf/Cam_nang_Thai_Kiet_SafeRoom.pdf) with its [editable LaTeX source](output/pdf/Cam_nang_Thai_Kiet_SafeRoom.tex)
@@ -304,7 +305,7 @@ npm test
 npm run build
 ```
 
-The full backend suite currently contains 56 passing tests covering JWT route protection, authenticated CB-03 control, DISARMED fan-command rejection and re-arm flow, DISARMED anomaly suppression with resume after re-arming, MQTT topic-map subscription, newest-first Time Series selection, the 30-sample Z-score baseline, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation (including rejection of non-remote actuators), explicit chatbot no-data responses, the integer MQ2 ADC telemetry contract, malformed edge-alert rejection, invalid-sample false-alert suppression, Time Series creation, user-managed email preferences, profile-recipient selection, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs 46 focused backend tests and then the isolated CB-03 actuator simulation, which must exit with `CB-03 PASS`; the frontend contract suite contains 2 tests. Hardware timing, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md). The rubric-oriented gap analysis is maintained in [EVALUATE.md](EVALUATE.md).
+The full backend suite currently contains 62 passing tests covering JWT route protection, authenticated CB-03 control, REST boolean/on-off normalization, DISARMED fan-command rejection and re-arm flow, DISARMED anomaly suppression with resume after re-arming, MQTT topic-map subscription, retained-config versus non-retained fan-command contracts, stable MQTT-offline errors, newest-first Time Series selection, bounded historical sub-sampling, the 30-sample Z-score baseline, zero variance, minimum sensor delta, per-device buffers, actuator-state reconciliation (including rejection of non-remote actuators), explicit chatbot no-data responses, the integer MQ2 ADC telemetry contract, malformed edge-alert rejection, invalid-sample false-alert suppression, Time Series creation, user-managed email preferences, profile-recipient selection and BCC privacy, SMTP severity filtering, Vietnam-time email rendering, HTML escaping, and the 15-minute email throttle. It also verifies the integrated Z-score spike -> fan command -> anomaly log -> email path. `npm run test:kiet` runs 58 focused backend tests and then the isolated CB-03 actuator simulation, which must exit with `CB-03 PASS`; the frontend contract suite contains 2 tests. Hardware timing, EMQX, Atlas, frontend-alert, and SMTP end-to-end checks remain tracked in [TODO.md](TODO.md).
 
 Current dependency audit status: backend reports 0 vulnerabilities. Frontend production build succeeds, while `npm audit` reports advisories in the Vite/esbuild and React Router dependency lines; the required migration and regression pass remains tracked in `TODO.md` rather than applying forced major upgrades during feature work.
 

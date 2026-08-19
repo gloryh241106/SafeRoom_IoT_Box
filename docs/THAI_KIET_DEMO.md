@@ -201,7 +201,7 @@ Mở `http://localhost:3000`, đăng nhập và vào Overview.
 1. Dashboard hiển thị MQTT live và device online.
 2. Nhấn fan ON.
 3. Network tab cho thấy POST control trả 200 và `delivery=published`.
-4. Serial Monitor in `[Fan] Relay state: ON`.
+4. Serial Monitor in `[Control] fan=ON`.
 5. Relay click và fan quay.
 6. Telemetry sau đó báo `fanOn=true`.
 7. Lặp lại với OFF.
@@ -219,6 +219,17 @@ latency < 500 ms
 ```
 
 Ghi ít nhất 5 lần ON/OFF, báo median và worst case. Không chỉ đo một lần đẹp nhất.
+
+### 5.5 Chứng minh System Armed không phá edge safety
+
+1. Nhấn DISARMED và xác nhận nút fan bị khóa.
+2. Gửi thử POST fan bằng API client; backend phải trả 403, không chỉ dựa vào UI.
+3. Xác nhận telemetry card giữ snapshot cũ và anomaly telemetry mới không được tạo.
+4. Tạo điều kiện test MQ2 theo quy trình an toàn của nhóm; buzzer/LED/OLED local vẫn phải hoạt động.
+5. Re-arm, xác nhận fan điều khiển lại được và mẫu đầu tiên không tạo spike giả do baseline cũ.
+
+Điểm phải nói: DISARMED là backend/UX gate cho remote control và telemetry anomaly,
+không phải công tắc vô hiệu hóa cảnh báo khí cục bộ.
 
 ## 6. Demo thật NC-03 / TC-02
 
@@ -258,6 +269,16 @@ Invoke-RestMethod `
 ```
 
 Xác nhận response có tối đa 10 mẫu mới nhất, timestamp tăng dần.
+
+Để chứng minh chế độ giảm mẫu cho một cửa sổ dài, gọi thêm:
+
+```powershell
+Invoke-RestMethod `
+  -Uri 'http://localhost:5000/api/v1/telemetry/historical?deviceId=safebox-01&from=2026-08-01T00:00:00.000Z&to=2026-08-02T00:00:00.000Z&maxPoints=1000' `
+  -Headers $headers
+```
+
+Xác nhận `subSampled = $true`, số phần tử không vượt 1000 và timestamp tăng dần.
 
 ## 7. Demo thật NC-01 / TC-04
 

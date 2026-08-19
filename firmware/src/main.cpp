@@ -95,15 +95,20 @@ void showNetworkStatus() {
  * Applies a command already parsed by MqttService.
  * Only the fan is remotely controllable; the buzzer and alert LED are driven
  * exclusively by the local edge gas alarm. Unknown actuators are ignored.
+ * Study map (CB-03): network callback -> actuator allow-list -> Actuators::setFan().
  */
 void handleControl(const char* actuator, bool state) {
+    // strcmp returns zero only for the one remotely allowed actuator name.
     if (strcmp(actuator, "fan") == 0) {
+        // Pass the desired final state to the thread-safe hardware abstraction.
         actuators.setFan(state);
     } else {
+        // Never route remote commands to buzzer/LED; GasSafety owns those outputs.
         SAFEBOX_LOGF("[Control] Unknown actuator: %s\n", actuator);
         return;
     }
 
+    // This log proves firmware handled the command, but still is not fan RPM feedback.
     SAFEBOX_LOGF("[Control] %s=%s\n", actuator, state ? "ON" : "OFF");
 }
 

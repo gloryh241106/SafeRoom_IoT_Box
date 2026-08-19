@@ -1,6 +1,10 @@
 /**
  * Read-only telemetry API over MongoDB Time-Series data. Query field names are
  * mapped through an allow-list rather than interpolated directly into projections.
+ *
+ * Study map (NC-03): limit mode returns the latest full-resolution window;
+ * maxPoints mode covers a requested range with bounded time buckets. Both
+ * branches return chronological chart order.
  */
 const express = require('express');
 const router = express.Router();
@@ -38,6 +42,7 @@ router.get('/latest', async (req, res) => {
 
 router.get('/historical', async (req, res) => {
   try {
+    // Parse all untrusted query strings before constructing a MongoDB query.
     const deviceId = req.query.deviceId || process.env.DEVICE_ID || 'safebox-01';
     const { from, to, sensor, limit = 100 } = req.query;
     const maxPoints = req.query.maxPoints === undefined ? null : Number(req.query.maxPoints);
@@ -61,6 +66,7 @@ router.get('/historical', async (req, res) => {
       return res.status(400).json({ success: false, error: 'from must be earlier than or equal to to' });
     }
 
+    // Device equality is always present; time bounds are added only when supplied.
     const query = { deviceId };
 
     if (fromDate || toDate) {
@@ -75,17 +81,22 @@ router.get('/historical', async (req, res) => {
     if (maxPoints !== null && fromDate && toDate) {
       // Time-uniform sub-sampling: split the window into <= maxPoints equal
       // buckets and keep the LAST sample of each bucket (most recent reading).
-      const bucketMs = Math.max(1, Math.ceil((toDate.getTime() - fromDate.getTime()) / maxPoints));
+      // Anchor buckets at fromDate and count both inclusive endpoints so an
+      // unaligned window cannot leak a maxPoints + 1 result.
+      const fromMs = fromDate.getTime();
+      const bucketMs = Math.max(1, Math.ceil((toDate.getTime() - fromMs + 1) / maxPoints));
       const pipeline = [
         { $match: query },
         { $sort: { timestamp: 1 } },
         {
           $group: {
             _id: {
-              $subtract: [
-                { $toLong: '$timestamp' },
-                { $mod: [{ $toLong: '$timestamp' }, bucketMs] }
-              ]
+              $floor: {
+                $divide: [
+                  { $subtract: [{ $toLong: '$timestamp' }, fromMs] },
+                  bucketMs
+                ]
+              }
             },
             rep: { $last: '$$ROOT' }
           }
@@ -101,16 +112,19 @@ router.get('/historical', async (req, res) => {
       readings = await SensorReading.aggregate(pipeline);
       subSampled = true;
     } else {
+      // DESC + limit selects the newest N documents, not the oldest N in the range.
       let databaseQuery = SensorReading.find(query)
         .sort({ timestamp: -1 })
         .limit(parsedLimit);
       if (sensor) {
+        // SENSOR_FIELDS is an allow-list, so user input never becomes an arbitrary projection path.
         databaseQuery = databaseQuery.select({
           timestamp: 1,
           deviceId: 1,
           [SENSOR_FIELDS.get(sensor)]: 1
         });
       }
+      // Execute only after filters, ordering, limit, and optional projection are complete.
       readings = await databaseQuery;
       // MongoDB selects the newest bounded window efficiently; the API returns chart-friendly order.
       readings.reverse();

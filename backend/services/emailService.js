@@ -2,11 +2,13 @@
  * Nodemailer adapter for HIGH/CRITICAL anomaly notifications. Recipient selection
  * is injected by server.js, while a process-local throttle limits each
  * (deviceId, sensorType) pair to one successfully sent email per 15 minutes.
+ *
+ * Study map (NC-05): severity gate -> SMTP config -> profile recipients ->
+ * throttle check -> escaped message -> send -> commit throttle after success.
  */
 const nodemailer = require('nodemailer');
 
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000;
-const ALERT_SEVERITIES = new Set(['HIGH', 'CRITICAL']);
 const EMAIL_TIME_ZONE = 'Asia/Ho_Chi_Minh';
 const emailThrottleMap = new Map();
 
@@ -21,8 +23,10 @@ function parseBoolean(value, defaultValue = false) {
 }
 
 function getEmailConfig(env = process.env) {
+  // Host/user/password form one atomic credential set; partial config is unusable.
   const requiredValues = [env.SMTP_HOST, env.SMTP_USER, env.SMTP_PASS];
   const credentialsComplete = requiredValues.every(Boolean);
+  // With no explicit switch, complete credentials enable email automatically.
   const enabled = parseBoolean(env.EMAIL_ENABLED, credentialsComplete);
 
   if (enabled && !credentialsComplete) {
@@ -31,6 +35,7 @@ function getEmailConfig(env = process.env) {
     );
   }
 
+  // Environment values are strings, so normalize and bound the TCP port explicitly.
   const port = Number(env.SMTP_PORT || 587);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('SMTP_PORT must be an integer between 1 and 65535.');
@@ -40,9 +45,11 @@ function getEmailConfig(env = process.env) {
     enabled,
     host: env.SMTP_HOST,
     port,
+    // Port 465 defaults to implicit TLS; 587 normally upgrades through STARTTLS.
     secure: parseBoolean(env.SMTP_SECURE, port === 465),
     user: env.SMTP_USER,
     password: env.SMTP_PASS,
+    // This recipient is bootstrap fallback only; persisted user profiles take precedence.
     recipient: env.ALERT_RECIPIENT_EMAIL || null,
     from: env.SMTP_FROM || `SafeRoom IoT Box <${env.SMTP_USER || 'alerts@safebox.local'}>`
   };
@@ -62,6 +69,21 @@ function getTransporter(config = getEmailConfig()) {
     });
   }
   return transporter;
+}
+
+function shouldSendAlertEmail(severity) {
+  return severity === 'HIGH' || severity === 'CRITICAL';
+}
+
+function normalizeRecipients(values) {
+  if (!Array.isArray(values)) throw new TypeError('Email recipient provider must return an array');
+  return [...new Set(values.map((value) => String(value).trim()).filter(Boolean))];
+}
+
+function buildRecipientHeaders(recipients, senderAddress) {
+  if (recipients.length === 1) return { to: recipients[0] };
+  // Keep subscriber addresses private when the alert is delivered to multiple accounts.
+  return { to: senderAddress, bcc: recipients };
 }
 
 function escapeHtml(value) {
@@ -146,18 +168,23 @@ async function initializeEmailService({ verify = false } = {}) {
  * which records it in actionsTaken without suppressing future retries.
  */
 async function sendAlertEmail(alert) {
+  // Normalize caller input so "high" and "HIGH" share one rule.
   const severity = String(alert.severity || '').toUpperCase();
-  if (!ALERT_SEVERITIES.has(severity)) return { status: 'ignored', reason: 'severity' };
+  // MEDIUM/LOW anomalies remain in MongoDB but never contact SMTP.
+  if (!shouldSendAlertEmail(severity)) return { status: 'ignored', reason: 'severity' };
 
+  // Read current environment and lazily obtain one cached Nodemailer transporter.
   const config = getEmailConfig();
   const activeTransporter = getTransporter(config);
   if (!activeTransporter) return { status: 'disabled' };
 
+  // server.js injects the provider that reads User.email and emailEnabled.
   const providedRecipients = await recipientProvider(config);
-  if (!Array.isArray(providedRecipients)) throw new TypeError('Email recipient provider must return an array');
-  const recipients = [...new Set(providedRecipients.map((value) => String(value).trim()).filter(Boolean))];
+  // Trim, remove blanks, and de-duplicate before constructing SMTP headers.
+  const recipients = normalizeRecipients(providedRecipients);
   if (recipients.length === 0) return { status: 'skipped', reason: 'no_recipients' };
 
+  // Different devices or sensor types receive independent 15-minute windows.
   const throttleKey = `${alert.deviceId}:${alert.sensorType}`;
   const now = nowProvider();
   const lastSent = emailThrottleMap.get(throttleKey);
@@ -165,11 +192,10 @@ async function sendAlertEmail(alert) {
     return { status: 'throttled', lastSentAt: new Date(lastSent) };
   }
 
+  // The builder escapes dynamic HTML and formats the display timestamp as UTC+7.
   const message = buildAlertMessage({ ...alert, severity });
-  const recipientHeaders = recipients.length === 1
-    ? { to: recipients[0] }
-    // Keep subscriber addresses private when the alert is delivered to multiple accounts.
-    : { to: config.user, bcc: recipients };
+  const recipientHeaders = buildRecipientHeaders(recipients, config.user);
+  // Await the SMTP adapter; a rejection throws and intentionally skips throttle commit.
   const result = await activeTransporter.sendMail({
     from: config.from,
     ...recipientHeaders,

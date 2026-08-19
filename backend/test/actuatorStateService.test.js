@@ -11,7 +11,7 @@ const {
 
 test.beforeEach(() => resetActuatorStatesForTests());
 
-test('maps MQTT actuator names to telemetry state fields', () => {
+test('updates the directly supported fan state', () => {
   updateActuatorState('fan', true);
 
   assert.deepEqual(getCurrentActuatorStates(), {

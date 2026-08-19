@@ -8,7 +8,7 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "test:cb03": "node scripts/testCb03Mock.js",
-    "test:kiet": "node --test test/actuatorStateService.test.js test/anomalyEngine.test.js test/chatbotRoutes.test.js test/emailService.test.js test/telemetryService.test.js test/telemetryRoutes.test.js test/timeSeriesService.test.js test/userNotificationService.test.js test/userRoutes.test.js && node scripts/testCb03Mock.js",
+    "test:kiet": "node --test test/actuatorStateService.test.js test/anomalyEngine.test.js test/authMiddleware.test.js test/chatbotRoutes.test.js test/emailService.test.js test/mqttService.test.js test/telemetryService.test.js test/telemetryRoutes.test.js test/timeSeriesService.test.js test/userNotificationService.test.js test/userRoutes.test.js && node scripts/testCb03Mock.js",
     "seed:demo-user": "node scripts/seedDemoUser.js",
     "seed:demo-user:local": "node scripts/seedDemoUser.js --local"
   },

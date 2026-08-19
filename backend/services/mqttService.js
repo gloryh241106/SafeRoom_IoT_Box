@@ -2,6 +2,9 @@
  * MQTT adapter for the ESP32/backend boundary. Incoming topic identity and JSON
  * shape are validated before persistence; outgoing control messages are published
  * at QoS 1 and only then reflected in the optimistic actuator snapshot.
+ *
+ * Study map (CB-03/NC-03): control flows out through publishControlCommand();
+ * telemetry flows in through handleMqttMessage() and is validated before storage.
  */
 const mqtt = require('mqtt');
 const { processEdgeAlert } = require('./anomalyEngine');
@@ -15,7 +18,6 @@ const {
 } = require('../config/sensorContract');
 
 const TOPIC_PATTERN = /^safebox\/([A-Za-z0-9_-]{1,64})\/(telemetry|alerts|status)$/;
-const ACTUATORS = new Set(['fan']);
 
 let mqttClient = null;
 let mqttMode = 'stopped';
@@ -88,17 +90,22 @@ function validateEdgeAlert(payload, deviceId) {
 
 /** Dispatches a decoded broker message by the channel encoded in its validated topic. */
 async function handleMqttMessage(topic, message) {
+  // Topic parsing establishes the trusted device identity and channel first.
   const { deviceId, channel } = parseTopic(topic);
+  // Parse only after the size limit and JSON syntax checks in parseJsonMessage().
   const payload = parseJsonMessage(message);
 
   if (channel === 'telemetry') {
+    // NC-03 validates and persists the snapshot before NC-01 evaluates it.
     const result = await ingestTelemetry(payload, deviceId);
     // Only a validated and persisted device report may override optimistic command state.
     synchronizeActuatorStates(result.reading.actuatorStates);
     return result;
   }
+  // Edge gas alerts were already decided by firmware and bypass telemetry Z-score rules.
   if (channel === 'alerts') return processEdgeAlert(validateEdgeAlert(payload, deviceId));
 
+  // The only remaining registered channel is device status/LWT.
   if (payload.status !== 'online' && payload.status !== 'offline') {
     throw new TypeError('device status must be online or offline');
   }
@@ -181,24 +188,30 @@ function initializeMqttService({ logger = console, connect = mqtt.connect } = {}
  * confirmed hardware state arrives later in telemetry.
  */
 async function publishControlCommand(deviceId, actuator, state) {
+  // Repeat validation here because routes and anomaly actions can both call this service.
   if (!DEVICE_ID_PATTERN.test(deviceId)) throw new TypeError('Invalid deviceId');
-  if (!ACTUATORS.has(actuator)) throw new TypeError(`Unsupported actuator '${actuator}'`);
+  if (actuator !== 'fan') throw new TypeError(`Unsupported actuator '${actuator}'`);
   if (typeof state !== 'boolean') throw new TypeError('Actuator state must be a boolean');
 
   if (isMockHardware()) {
+    // Simulation updates the same state service without touching a broker.
     updateActuatorState(actuator, state);
     return { status: 'mocked', topic: null };
   }
   if (!mqttClient || !mqttClient.connected) {
+    // A stable error code lets the REST layer map this condition to HTTP 503.
     const error = new Error('MQTT broker is not connected');
     error.code = 'MQTT_OFFLINE';
     throw error;
   }
 
+  // Device identity is encoded in the topic; the payload contains only the command.
   const topic = `safebox/${deviceId}/control`;
   // Firmware accepts strings for wire compatibility even though the REST boundary uses booleans.
   const payload = JSON.stringify({ actuator, state: state ? 'on' : 'off' });
   await new Promise((resolve, reject) => {
+    // retain=false prevents stale command replay after an ESP32 reconnect.
+    // The callback resolves QoS 1 broker delivery, not relay movement.
     mqttClient.publish(topic, payload, { qos: 1, retain: false }, (error) => {
       if (error) reject(error);
       else resolve();

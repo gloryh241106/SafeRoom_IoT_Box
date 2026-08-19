@@ -191,6 +191,41 @@ test('sends to recipients supplied by persisted user preferences', async () => {
   }
 });
 
+test('deduplicates multiple profile recipients and keeps their addresses in BCC', async () => {
+  const restoreEnvironment = withEmailEnvironment();
+  const sentMessages = [];
+  setEmailServiceTestOverrides({
+    transport: {
+      async sendMail(message) {
+        sentMessages.push(message);
+        return { messageId: 'multi-recipient-message' };
+      }
+    },
+    recipients: async () => [
+      ' first@example.test ',
+      'second@example.test',
+      'first@example.test',
+      ''
+    ]
+  });
+
+  try {
+    const result = await sendAlertEmail({
+      deviceId: 'safebox-01',
+      sensorType: 'gasLevel',
+      severity: 'CRITICAL',
+      observedValue: 700,
+      thresholdLimit: 600
+    });
+
+    assert.equal(result.recipientCount, 2);
+    assert.equal(sentMessages[0].to, 'sender@example.test');
+    assert.deepEqual(sentMessages[0].bcc, ['first@example.test', 'second@example.test']);
+  } finally {
+    restoreEnvironment();
+  }
+});
+
 test('skips SMTP when every persisted user has disabled email alerts', async () => {
   const restoreEnvironment = withEmailEnvironment();
   let calls = 0;

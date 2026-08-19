@@ -5,6 +5,9 @@
  * Saving the MQ-2 raw ADC max also rewrites the ESP32 edge-safety constant in
  * firmware/src/config.h and pushes it live to the device over MQTT
  * (safebox/{deviceId}/config), so the buzzer uses the new level immediately.
+ *
+ * Study map (NC-05): this page stores only the user's email opt-in. The alert
+ * recipient remains the immutable email address of the authenticated profile.
  */
 import React, { useState, useEffect } from 'react';
 import { User, Bell, Shield, Save, CheckCircle, Cpu } from 'lucide-react';
@@ -136,7 +139,9 @@ export default function Settings({ user }) {
   };
 
   const handleSaveNotifications = async (e) => {
+    // Keep the browser on this page; the form is persisted through REST instead.
     e.preventDefault();
+    // Only the preference is editable here. The destination stays profileEmail.
     await saveProfileChanges({
       settings: {
         emailEnabled
@@ -186,7 +191,7 @@ export default function Settings({ user }) {
               <span>Backend Safety Threshold Matrix</span>
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              Runtime limits for backend anomaly logs and actions; ESP32 gas edge safety remains compile-time.
+              Runtime anomaly limits; the gas maximum is also pushed to ESP32 edge safety over retained MQTT.
             </p>
           </div>
           <button

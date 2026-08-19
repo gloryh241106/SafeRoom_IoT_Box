@@ -146,8 +146,8 @@ test('sub-samples with maxPoints using last-of-bucket representatives', async ()
   try {
     const query = new URLSearchParams({
       deviceId: 'safebox-01',
-      from: '2026-08-06T00:00:00.000Z',
-      to: '2026-08-06T00:10:00.000Z',
+      from: '2026-08-06T00:00:00.001Z',
+      to: '2026-08-06T00:10:00.001Z',
       maxPoints: '1000'
     });
     const response = await fetch(`${baseUrl}/api/v1/telemetry/historical?${query}`, {
@@ -164,20 +164,25 @@ test('sub-samples with maxPoints using last-of-bucket representatives', async ()
 
     const matchStage = captured.pipeline[0];
     assert.deepEqual(matchStage.$match.deviceId, 'safebox-01');
-    assert.equal(matchStage.$match.timestamp.$gte.toISOString(), '2026-08-06T00:00:00.000Z');
-    assert.equal(matchStage.$match.timestamp.$lte.toISOString(), '2026-08-06T00:10:00.000Z');
+    assert.equal(matchStage.$match.timestamp.$gte.toISOString(), '2026-08-06T00:00:00.001Z');
+    assert.equal(matchStage.$match.timestamp.$lte.toISOString(), '2026-08-06T00:10:00.001Z');
     assert.deepEqual(captured.pipeline[1], { $sort: { timestamp: 1 } });
 
-    // 10-minute window / 1000 points -> 600 ms buckets, last sample per bucket.
+    // Inclusive endpoints require 601 ms buckets. Anchoring at this deliberately
+    // unaligned fromDate prevents the old epoch-based maxPoints + 1 leak.
     const groupStage = captured.pipeline[2].$group;
     assert.deepEqual(groupStage.rep, { $last: '$$ROOT' });
-    const bucketMs = 600;
+    const fromMs = new Date('2026-08-06T00:00:00.001Z').getTime();
+    const bucketMs = 601;
     assert.deepEqual(groupStage._id, {
-      $subtract: [
-        { $toLong: '$timestamp' },
-        { $mod: [{ $toLong: '$timestamp' }, bucketMs] }
-      ]
+      $floor: {
+        $divide: [
+          { $subtract: [{ $toLong: '$timestamp' }, fromMs] },
+          bucketMs
+        ]
+      }
     });
+    assert.ok(Math.floor(600000 / bucketMs) + 1 <= 1000);
 
     assert.deepEqual(captured.pipeline[3], { $replaceRoot: { newRoot: '$rep' } });
     assert.deepEqual(captured.pipeline[4], { $sort: { timestamp: 1 } });

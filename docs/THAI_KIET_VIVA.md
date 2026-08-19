@@ -2,6 +2,11 @@
 
 Tài liệu này bám theo proposal của nhóm và phiên bản code hiện tại của SafeRoom IoT Box. Mục tiêu là giúp Thái Kiệt giải thích đúng phần mình phụ trách, chỉ được code liên quan, nói rõ giới hạn và đưa ra bằng chứng kiểm thử.
 
+Đọc [report ownership](THAI_KIET_CODE_OWNERSHIP_REPORT.md) trước tài liệu này để biết
+đoạn nào là Codex-assisted, đoạn nào là code nền hoặc thay đổi tích hợp của thành viên khác.
+Nếu chưa vững JavaScript/React/Node/Arduino, đọc tiếp
+[cẩm nang code từ số 0](THAI_KIET_BEGINNER_CODE_GUIDE.md) trước khi học phần trình bày vấn đáp.
+
 ## 1. Phạm vi phụ trách
 
 | ID | Chức năng | Điểm trong proposal | Phần cần nắm chắc |
@@ -52,9 +57,9 @@ Ba ý cần nhấn mạnh:
 3. JWT được gắn vào request bởi `apiFetch()`.
 4. Backend kiểm tra `deviceId`, actuator và state.
 5. `mqttService.publishControlCommand()` publish JSON lên `safebox/{deviceId}/control`, QoS 1.
-6. `firmware/src/connectivity/mqtt_client.cpp` parse payload và gọi callback điều khiển.
-7. `RemoteControl::handleCommand()` định tuyến actuator; nếu là `fan` thì gọi `FanRelay::set(state)`, actuator lạ bị bỏ qua.
-8. `FanRelay::set()` ghi GPIO 16 theo cấu hình `RELAY_ACTIVE_LOW`.
+6. `firmware/src/network/mqtt_service.cpp` parse payload và gọi callback điều khiển.
+7. `firmware/src/main.cpp` chỉ chấp nhận `fan`, actuator khác bị bỏ qua.
+8. `Actuators::setFan()` ghi GPIO 16 theo cấu hình `FAN_RELAY_ACTIVE_LOW`.
 9. Backend tạm ghi trạng thái yêu cầu để UI phản hồi nhanh; telemetry kế tiếp từ ESP32 xác nhận lại trạng thái thật.
 
 ### 4.2 Contract quan trọng
@@ -109,6 +114,16 @@ Sau khi broker nhận publish thành công, backend cập nhật requested state
 - JSON sai bị bỏ qua; actuator lạ không có handler. Backend chỉ publish state hợp lệ `on`/`off`.
 - Không có local auto-trigger cho fan ngoài yêu cầu backend, đúng phạm vi dự án.
 
+### 4.7 System Armed tác động ở đâu?
+
+- Frontend khóa fan khi DISARMED nhưng luôn cho phép nút re-arm.
+- Backend trả HTTP 403 cho remote fan khi DISARMED; đây mới là hàng rào tin cậy.
+- Anomaly engine vẫn cập nhật rolling baseline rồi dừng trước bước tạo candidate.
+- Edge gas safety và `processEdgeAlert()` không bị tắt bởi switch này.
+
+Vì vậy không nên trả lời rằng DISARMED tắt toàn bộ hệ thống. Nó tạm dừng remote fan
+và anomaly từ telemetry, nhưng không được phép vô hiệu hóa cảnh báo khí cục bộ.
+
 ## 5. NC-01 - Anomaly engine và Z-score
 
 ### 5.1 Công thức
@@ -160,7 +175,7 @@ Mẫu mới phải được so với baseline trước đó. Nếu đưa spike v
 | Gas | `gasLevel > gasMax` | Hard threshold | CRITICAL | Log + email |
 | Temperature | Ngoài min/max | Hard threshold | HIGH | Log + email; bật fan nếu vượt max |
 | Temperature | Auto mode và Z bất thường | Z-score | HIGH | Log + email; bật fan nếu spike hướng lên |
-| Motion | Motion=true và system armed | Hard threshold | HIGH | Log + email + alert LED |
+| Motion | Motion=true và system armed | Hard threshold | HIGH | Log + email |
 | Humidity | Ngoài min/max | Hard threshold | MEDIUM | Log |
 | Humidity | Auto mode và Z bất thường | Z-score | MEDIUM | Log |
 
@@ -267,14 +282,14 @@ Nếu SMTP lỗi mà vẫn ghi thời điểm throttle, các lần retry tiếp 
 | CB-03 API | `backend/routes/control.js` | Validate request và gọi MQTT service |
 | CB-03 state | `backend/services/actuatorStateService.js` | Requested state và telemetry reconciliation |
 | CB-03 MQTT | `backend/services/mqttService.js` | Publish QoS 1 và nhận telemetry/status |
-| CB-03 MQTT firmware | `firmware/src/connectivity/mqtt_client.cpp` | Subscribe control topic và parse JSON |
-| CB-03 remote control | `firmware/src/features/remote_control.cpp` | Định tuyến lệnh actuator và bảo vệ safety override |
-| CB-03 fan relay | `firmware/src/actuators/fan_relay.cpp` | Ghi GPIO 16 theo polarity cấu hình |
+| CB-03 MQTT firmware | `firmware/src/network/mqtt_service.cpp` | Subscribe control topic, parse JSON và gọi callback |
+| CB-03 allowlist firmware | `firmware/src/main.cpp` | Chỉ định tuyến lệnh `fan`; buzzer/LED là edge-only |
+| CB-03 relay | `firmware/src/actuators/actuators.cpp` | Ghi GPIO 16 theo polarity cấu hình dưới spinlock |
 | NC-01 | `backend/services/anomalyEngine.js` | Z-score, rules, dedupe, actions |
 | NC-01 schema | `backend/models/Schemas.js` | Cấu trúc `anomaly_logs` |
 | NC-03 | `backend/services/timeSeriesService.js` | Tạo và verify Time Series collection |
 | NC-03 ingestion | `backend/services/telemetryService.js` | Validate, create, gọi anomaly engine |
-| NC-03 API | `backend/routes/telemetry.js` | Latest và historical query |
+| NC-03 API | `backend/routes/telemetry.js` | Latest, historical full-resolution và `maxPoints` sub-sampling |
 | NC-05 | `backend/services/emailService.js` | SMTP, template, severity, throttle |
 | Khởi động | `backend/server.js` | MongoDB, Time Series, email, MQTT, mock |
 
@@ -288,16 +303,17 @@ Chạy tại thư mục `backend`:
 npm run test:kiet
 ```
 
-Bộ test chứng minh:
+Bộ 58 test tập trung chứng minh:
 
-- Mapping và reconcile actuator state.
-- JWT chặn request không xác thực trong CB-03 simulation.
+- Kiểm tra trực tiếp fan state và reconcile bằng telemetry thiết bị.
+- JWT chặn request không xác thực; REST giữ cả boolean và `on/off` cho CB-03.
+- MQTT fan giữ QoS 1, `retain=false` và trả lỗi offline ổn định.
 - N=30, per-device buffer, zero variance và minimum delta.
 - Gas/motion không đi qua Z-score.
-- Hard-rule matrix và hành động alert LED.
+- Hard-rule matrix, System Armed và hành động fan/email.
 - Temperature spike tạo Z-score anomaly, bật fan, ghi log và gửi email.
-- Email throttle cùng key và độc lập giữa các key.
-- Time Series options và retention 30 ngày.
+- Email throttle cùng key, độc lập giữa các key và BCC an toàn khi có nhiều profile.
+- Time Series options, retention 30 ngày, newest-N query và bounded `maxPoints` sub-sampling.
 - Historical API chọn N mẫu mới nhất và trả theo thứ tự thời gian.
 
 Điều chưa được test phần mềm thay thế hoàn toàn:
@@ -313,12 +329,13 @@ Các mục này phải được đo bằng TC-02, TC-04, TC-05 và TC-06 với h
 ```text
 CB-03:
 React POST boolean -> backend validate -> MQTT on/off QoS 1
--> ESP32 SafeboxMqttClient -> RemoteControl -> FanRelay -> GPIO 16
+-> MqttService -> main handleControl -> Actuators::setFan -> GPIO 16
 Publish success != physical ACK; telemetry kế tiếp reconcile state.
+DISARMED chặn remote fan/anomaly telemetry, không chặn edge gas safety.
 
 NC-01:
 Z-score chỉ temp/humidity, previous N=30, |Z|>3 và min delta.
-Gas >600 và motion dùng hard rule.
+Gas > gasMax và motion dùng hard rule.
 Cold start dùng hard bounds; sigma=0 thì Z=0.
 Dedupe anomaly 60s khác email throttle 15m.
 

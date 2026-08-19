@@ -2,6 +2,9 @@
  * Backend composition root. Importing this file constructs the Express app for
  * tests without opening sockets; startServer owns external MongoDB, MQTT, SMTP,
  * and HTTP lifecycle side effects.
+ *
+ * Study map: startup order is MongoDB -> Time Series verification -> email
+ * recipient wiring -> MQTT -> HTTP, so no telemetry arrives before storage is ready.
  */
 const express = require('express');
 const mongoose = require('mongoose');

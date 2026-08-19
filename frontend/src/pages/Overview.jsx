@@ -4,6 +4,9 @@
  * Sensor values come from persisted ESP32 telemetry, while broker/LWT state is
  * queried separately. Actuator changes are optimistic commands and are later
  * reconciled by the next device-authored telemetry snapshot.
+ *
+ * Study map (CB-03): click -> authenticated REST -> MQTT command -> ESP32 fan;
+ * this page owns only the click and temporary UI state, not physical actuation.
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { Thermometer, Droplets, Flame, Activity, Fan, Bell, ShieldAlert, ShieldCheck, CheckCheck } from 'lucide-react';
@@ -19,15 +22,11 @@ import {
   rawGasProgressPercent
 } from '../telemetryContract';
 
-const ACTUATOR_STATE_FIELDS = {
-  fan: 'fanOn'
-};
-
 export default function Overview() {
   const [telemetry, setTelemetry] = useState(null);
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
-const [systemArmed, setSystemArmed] = useState(true);
+  const [systemArmed, setSystemArmed] = useState(true);
   const [pendingActuator, setPendingActuator] = useState(null);
   const [connectionState, setConnectionState] = useState('connecting');
   const [controlFeedback, setControlFeedback] = useState(null);
@@ -38,7 +37,7 @@ const [systemArmed, setSystemArmed] = useState(true);
   // live values without hiding the first snapshot behind a false no-data state.
   const hasTelemetryRef = useRef(false);
 
-// A successful telemetry read alone does not prove that the MQTT device is
+  // A successful telemetry read alone does not prove that the MQTT device is
   // online, so the control status/LWT response participates in connection state.
   const fetchData = async () => {
     try {
@@ -86,7 +85,7 @@ const [systemArmed, setSystemArmed] = useState(true);
     const fetchBackendGasThreshold = async () => {
       try {
         const res = await apiFetch('/api/v1/control/thresholds');
-const json = await res.json();
+        const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.error || 'Threshold request failed');
         if (active && Number.isFinite(json.data?.gasMax)) setGasThreshold(json.data.gasMax);
         if (active && Number.isFinite(json.data?.firmwareGasEdgeThreshold)) {
@@ -112,18 +111,24 @@ const json = await res.json();
 
   // Apply the requested state immediately for responsive controls. The next
   // telemetry poll replaces it with the state reported by the physical device.
-const handleActuatorToggle = async (actuator, currentState) => {
+  const handleActuatorToggle = async (actuator, currentState) => {
+    const isSystemArmedCommand = actuator === 'systemArmed';
+    // A non-null value disables the control so one click cannot enqueue duplicates.
     setPendingActuator(actuator);
+    // Remove stale success/error text before starting a new command.
     setControlFeedback(null);
     // The systemArmed toggle itself must stay usable while DISARMED so the
     // system can be re-armed; every physical actuator is blocked instead.
-    if (actuator !== 'systemArmed' && !systemArmed) {
+    if (!isSystemArmedCommand && !systemArmed) {
       setControlFeedback({ type: 'error', message: 'System is DISARMED; remote actuator control is disabled' });
       setPendingActuator(null);
       return;
     }
     try {
+      // Commands carry the desired final state, not a "toggle" instruction.
+      // This makes duplicate QoS 1 deliveries idempotent on the ESP32.
       const targetState = !currentState;
+      // apiFetch injects the current JWT. The body is the REST-side boolean contract.
       const res = await apiFetch('/api/v1/control/actuator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,32 +138,36 @@ const handleActuatorToggle = async (actuator, currentState) => {
           state: targetState
         })
       });
+      // HTTP success and the JSON success flag must both agree.
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || 'Control command failed');
 
-      if (actuator === 'systemArmed') {
+      if (isSystemArmedCommand) {
+        // systemArmed is backend state, so it is not stored inside telemetry.
         setSystemArmed(targetState);
       } else {
-        const stateField = ACTUATOR_STATE_FIELDS[actuator];
-        if (!stateField) throw new Error(`Unsupported actuator '${actuator}'`);
+        // The only remotely controlled physical actuator is the fan.
+        // Preserve every other reading/state while replacing only fanOn.
+        // This is optimistic and can be corrected by the next polling response.
         setTelemetry((prev) => ({
           ...(prev || {}),
           actuatorStates: {
             ...(prev?.actuatorStates || {}),
-            [stateField]: targetState
+            fanOn: targetState
           }
         }));
       }
-      const successMessage = actuator === 'systemArmed'
-        ? 'System state updated'
-        : json.delivery === 'mocked'
-          ? 'Simulation updated'
-          : 'Command published';
+      // Mock mode is labelled explicitly; a real publish still is not a hardware ACK.
+      let successMessage = 'Command published';
+      if (isSystemArmedCommand) successMessage = 'System state updated';
+      else if (json.delivery === 'mocked') successMessage = 'Simulation updated';
       setControlFeedback({ type: 'success', message: successMessage });
     } catch (err) {
+      // Leave the previous confirmed telemetry untouched when a command fails.
       console.error('Error toggling actuator:', err);
       setControlFeedback({ type: 'error', message: err.message });
     } finally {
+      // Re-enable the button on every success or error path.
       setPendingActuator(null);
     }
   };
@@ -375,7 +384,7 @@ const gasAlarm = gasValid && rawGasValue > gasThreshold;
             )}
           </div>
         </div>
-<div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 flex items-center justify-between gap-3">
             <div className="space-y-1">
               <span className="text-sm font-semibold text-slate-950">CB-03 | DC Fan Relay</span>

@@ -2,6 +2,9 @@
  * Persistent data contracts shared by MQTT ingestion, REST queries, anomaly
  * logging, and user settings. Time-Series collection creation is intentionally
  * handled by timeSeriesService rather than by Mongoose's normal auto-create.
+ *
+ * Study map (NC-01/NC-03/NC-05): SensorReading is the persisted input fact,
+ * AnomalyLog is the audit result, and User stores thresholds/email preference.
  */
 const mongoose = require('mongoose');
 const { Schema } = mongoose;

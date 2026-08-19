@@ -72,22 +72,31 @@ void MqttService::mqttCallback(char* topic, byte* payload, unsigned int length) 
     }
 }
 
+// Study map (CB-03): decode the wire format, then delegate through a callback.
+// The network layer never writes GPIO and unknown actuators remain main.cpp's concern.
 // Accepts a boolean or an "on"/"off" state from the backend.
 void MqttService::handleControl(byte* payload, unsigned int length) {
+    // ArduinoJson parses directly from the MQTT byte buffer and explicit length.
     JsonDocument document;
+    // Malformed JSON is logged and stopped before any callback or GPIO path.
     if (deserializeJson(document, payload, length)) {
         SAFEBOX_LOG_LN("[MQTT] Ignored invalid control JSON");
         return;
     }
 
+    // Missing actuator becomes an empty string and will fail main.cpp's allow-list.
     const char* actuator = document["actuator"] | "";
+    // Default OFF is the fail-safe for absent or unrecognized state text.
     bool state = false;
     if (document["state"].is<bool>()) {
+        // Boolean support keeps firmware compatible with direct/manual publishers.
         state = document["state"].as<bool>();
     } else {
+        // The backend's normal wire contract is the readable string "on"/"off".
         state = strcmp(document["state"] | "off", "on") == 0;
     }
 
+    // Delegate policy to main.cpp; this network module does not know output pins.
     if (_controlHandler) _controlHandler(actuator, state);
 }
 

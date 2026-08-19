@@ -68,6 +68,36 @@ test('allows an authenticated CB-03 command and rejects an invalid token', async
   assert.equal(body.currentActuatorStates.fanOn, true);
 });
 
+test('normalizes manual on/off fan states and still rejects unsupported actuators', async () => {
+  const token = jwt.sign(
+    { id: 'auth-test-user', username: 'auth-test' },
+    process.env.JWT_SECRET
+  );
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+
+  for (const [state, expected] of [['on', true], ['off', false]]) {
+    const response = await fetch(`${baseUrl}/api/v1/control/actuator`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ deviceId: 'safebox-01', actuator: 'fan', state })
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200);
+    assert.equal(body.state, expected);
+    assert.equal(body.currentActuatorStates.fanOn, expected);
+  }
+
+  const unsupported = await fetch(`${baseUrl}/api/v1/control/actuator`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ deviceId: 'safebox-01', actuator: 'buzzer', state: true })
+  });
+  assert.equal(unsupported.status, 400);
+});
+
 test('rejects physical actuator commands while DISARMED but keeps the re-arm toggle available', async () => {
   const token = jwt.sign(
     { id: 'auth-test-user', username: 'auth-test' },

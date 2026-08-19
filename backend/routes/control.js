@@ -5,6 +5,9 @@
  * remain backend process state. While the system is DISARMED, physical
  * actuator commands are rejected with 403; only the systemArmed toggle
  * itself is accepted so the system can be re-armed from the dashboard.
+ *
+ * Study map (CB-03): this route is the trust boundary between authenticated
+ * HTTP input and a physical MQTT command. Validate before crossing that boundary.
  */
 const express = require('express');
 const router = express.Router();
@@ -13,8 +16,6 @@ const { getCurrentActuatorStates } = require('../services/actuatorStateService')
 const { setSystemArmed, isSystemArmed, getThresholds, loadUserThresholds, updateThresholds } = require('../services/anomalyEngine');
 const { getMqttStatus, publishControlCommand, publishThresholdConfig } = require('../services/mqttService');
 const { getFirmwareGasThresholds, setFirmwareGasThreshold } = require('../services/firmwareConfigService');
-
-const ALLOWED_ACTUATORS = new Set(['fan']);
 
 /**
  * Resolves the target device for MQTT pushes. Telemetry identity is
@@ -29,6 +30,7 @@ async function resolveDeviceId(explicitDeviceId) {
 }
 
 function parseActuatorState(value) {
+  // React sends booleans; accepting on/off also keeps the REST contract testable by hand.
   if (typeof value === 'boolean') return value;
   if (value === 'on') return true;
   if (value === 'off') return false;
@@ -86,15 +88,19 @@ router.post('/thresholds', async (req, res) => {
 
 router.post('/actuator', async (req, res) => {
   try {
+    // DEVICE_ID is only a fallback; the dashboard normally sends the latest device ID.
     const { deviceId = process.env.DEVICE_ID || 'safebox-01', actuator, state } = req.body;
 
+    // Test state against undefined so the valid boolean false is not rejected.
     if (!actuator || state === undefined) {
       return res.status(400).json({ success: false, error: 'Actuator name and target state are required' });
     }
 
     if (actuator === 'systemArmed') {
-      // Armed state is a backend motion-rule switch, not a physical MQTT actuator.
+      // Armed state is backend process state, not a physical MQTT actuator.
+      // It gates anomaly creation and remote fan commands, but never local gas safety.
       const targetState = parseActuatorState(state);
+      // This changes process-local anomaly/control policy and publishes no MQTT message.
       setSystemArmed(targetState);
       return res.json({
         success: true,
@@ -103,17 +109,22 @@ router.post('/actuator', async (req, res) => {
       });
     }
 
-    if (!ALLOWED_ACTUATORS.has(actuator)) {
+    if (actuator !== 'fan') {
+      // Buzzer and alert LED are intentionally absent because gas safety owns them locally.
       return res.status(400).json({ success: false, error: `Unsupported actuator '${actuator}'` });
     }
 
     if (!isSystemArmed()) {
+      // Enforce the gate server-side; a caller can bypass the frontend button state.
       return res.status(403).json({ success: false, error: 'System is DISARMED; remote actuator control is disabled' });
     }
 
+    // Normalize the REST value before crossing into the stricter MQTT service contract.
     const targetState = parseActuatorState(state);
+    // Await broker publication so an offline broker becomes an HTTP error, not false success.
     const publishResult = await publishControlCommand(deviceId, actuator, targetState);
 
+    // Return both delivery status and the current optimistic snapshot for observability.
     res.json({
       success: true,
       deviceId,
@@ -123,6 +134,7 @@ router.post('/actuator', async (req, res) => {
       currentActuatorStates: getCurrentActuatorStates()
     });
   } catch (err) {
+    // Expected boundary errors get actionable HTTP codes; unexpected failures stay 500.
     const status = err.code === 'MQTT_OFFLINE' ? 503 : err instanceof TypeError ? 400 : 500;
     res.status(status).json({ success: false, error: err.message });
   }

@@ -1,6 +1,9 @@
 /**
  * Boundary service for untrusted MQTT telemetry. It validates and normalizes a
  * complete device snapshot before any database write or anomaly side effect.
+ *
+ * Study map (NC-03 -> NC-01): validate topic/payload identity -> persist the
+ * normalized fact -> run anomaly decisions against that persisted reading.
  */
 const { SensorReading } = require('../models/Schemas');
 const { processTelemetryForAnomalies } = require('./anomalyEngine');
@@ -45,31 +48,16 @@ function requireInteger(value, fieldName, { min = -Infinity, max = Infinity } = 
   return value;
 }
 
-/**
- * Converts a decoded MQTT object into the exact MongoDB document shape.
- * expectedDeviceId comes from the topic and prevents a payload from claiming
- * another device identity while being published on an authorized topic.
- */
-function validateTelemetryPayload(payload, expectedDeviceId) {
-  requireObject(payload, 'telemetry payload');
-  const deviceId = payload.deviceId || expectedDeviceId;
-
-  if (!deviceId || !DEVICE_ID_PATTERN.test(deviceId)) {
-    throw new TypeError('deviceId must contain only letters, numbers, underscores, or hyphens');
-  }
-  if (expectedDeviceId && deviceId !== expectedDeviceId) {
-    throw new TypeError(`payload deviceId '${deviceId}' does not match MQTT topic device '${expectedDeviceId}'`);
-  }
-
-  const metrics = requireObject(payload.metrics, 'metrics');
-  const actuatorStates = requireObject(payload.actuatorStates, 'actuatorStates');
-  const normalizedMetrics = {
+/** Normalizes sensor values after the caller has confirmed metrics is an object. */
+function normalizeMetrics(metrics) {
+  const normalized = {
     temperature: requireFiniteNumber(metrics.temperature, 'metrics.temperature', { min: -40, max: 85 }),
     humidity: requireFiniteNumber(metrics.humidity, 'metrics.humidity', { min: 0, max: 100 }),
     gasLevel: requireInteger(metrics.gasLevel, 'metrics.gasLevel', {
       min: MQ2_ADC_MIN,
       max: MQ2_ADC_MAX
     }),
+    // Legacy firmware omitted gasValid, so absence means usable; explicit false is preserved.
     gasValid: metrics.gasValid === undefined
       ? true
       : requireBoolean(metrics.gasValid, 'metrics.gasValid'),
@@ -77,51 +65,83 @@ function validateTelemetryPayload(payload, expectedDeviceId) {
     motionDetected: requireBoolean(metrics.motionDetected, 'metrics.motionDetected')
   };
 
-if (normalizedMetrics.gasUnit !== MQ2_UNIT) {
-      throw new TypeError(`metrics.gasUnit must be '${MQ2_UNIT}'`);
+  if (normalized.gasUnit !== MQ2_UNIT) {
+    throw new TypeError(`metrics.gasUnit must be '${MQ2_UNIT}'`);
+  }
+  if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
+    normalized.gasRaw = requireInteger(metrics.gasRaw, 'metrics.gasRaw', {
+      min: MQ2_ADC_MIN,
+      max: MQ2_ADC_MAX
+    });
+    // Anomaly rules read gasLevel while dashboards prefer gasRaw, so both aliases
+    // must describe the same physical ADC sample.
+    if (normalized.gasRaw !== normalized.gasLevel) {
+      throw new TypeError('metrics.gasRaw must equal metrics.gasLevel');
     }
-    if (metrics.gasRaw !== undefined && metrics.gasRaw !== null) {
-      normalizedMetrics.gasRaw = requireInteger(metrics.gasRaw, 'metrics.gasRaw', {
-        min: MQ2_ADC_MIN,
-        max: MQ2_ADC_MAX
-      });
-      // New firmware publishes gasLevel only as a compatibility alias. Reject a
-      // split-brain frame: anomaly rules read gasLevel while dashboards prefer
-      // gasRaw, so differing values could display and alert on different facts.
-      if (normalizedMetrics.gasRaw !== normalizedMetrics.gasLevel) {
-        throw new TypeError('metrics.gasRaw must equal metrics.gasLevel');
-      }
-    }
-    // Device-reported live edge alarm threshold. Absent on legacy firmware and
-    // legacy documents, so the field stays optional.
-    if (metrics.gasAlarmThreshold !== undefined && metrics.gasAlarmThreshold !== null) {
-      normalizedMetrics.gasAlarmThreshold = requireInteger(
-        metrics.gasAlarmThreshold,
-        'metrics.gasAlarmThreshold',
-        { min: 1, max: MAX_GAS_ALERT_THRESHOLD }
-      );
-    }
+  }
+  if (metrics.gasAlarmThreshold !== undefined && metrics.gasAlarmThreshold !== null) {
+    normalized.gasAlarmThreshold = requireInteger(
+      metrics.gasAlarmThreshold,
+      'metrics.gasAlarmThreshold',
+      { min: 1, max: MAX_GAS_ALERT_THRESHOLD }
+    );
+  }
+
+  return normalized;
+}
+
+/** Normalizes the complete device-reported actuator snapshot. */
+function normalizeActuatorStates(actuatorStates) {
+  return {
+    fanOn: requireBoolean(actuatorStates.fanOn, 'actuatorStates.fanOn'),
+    buzzerActive: requireBoolean(actuatorStates.buzzerActive, 'actuatorStates.buzzerActive'),
+    alertLedActive: requireBoolean(actuatorStates.alertLedActive, 'actuatorStates.alertLedActive'),
+    // Legacy documents predate the field; the absence means no local override.
+    gasAlarmActive: actuatorStates.gasAlarmActive === undefined
+      ? false
+      : requireBoolean(actuatorStates.gasAlarmActive, 'actuatorStates.gasAlarmActive')
+  };
+}
+
+/**
+ * Converts a decoded MQTT object into the exact MongoDB document shape.
+ * expectedDeviceId comes from the topic and prevents a payload from claiming
+ * another device identity while being published on an authorized topic.
+ */
+function validateTelemetryPayload(payload, expectedDeviceId) {
+  // Reject null, arrays, and primitives before reading nested fields.
+  requireObject(payload, 'telemetry payload');
+  // Topic identity is the fallback for legacy payloads that omit deviceId.
+  const deviceId = payload.deviceId || expectedDeviceId;
+
+  if (!deviceId || !DEVICE_ID_PATTERN.test(deviceId)) {
+    throw new TypeError('deviceId must contain only letters, numbers, underscores, or hyphens');
+  }
+  if (expectedDeviceId && deviceId !== expectedDeviceId) {
+    // Prevent one authorized topic from injecting records for another device.
+    throw new TypeError(`payload deviceId '${deviceId}' does not match MQTT topic device '${expectedDeviceId}'`);
+  }
+
+  // Both nested objects are required because each message is one complete snapshot.
+  const metrics = requireObject(payload.metrics, 'metrics');
+  const actuatorStates = requireObject(payload.actuatorStates, 'actuatorStates');
 
   return {
+    // Invalid dates fail here; omitted timestamps use backend receive time.
     timestamp: normalizeTimestamp(payload.timestamp),
     deviceId,
-    metrics: normalizedMetrics,
-    actuatorStates: {
-      fanOn: requireBoolean(actuatorStates.fanOn, 'actuatorStates.fanOn'),
-      buzzerActive: requireBoolean(actuatorStates.buzzerActive, 'actuatorStates.buzzerActive'),
-      alertLedActive: requireBoolean(actuatorStates.alertLedActive, 'actuatorStates.alertLedActive'),
-      // Legacy documents predate the field; the absence means no local override.
-      gasAlarmActive: actuatorStates.gasAlarmActive === undefined
-        ? false
-        : requireBoolean(actuatorStates.gasAlarmActive, 'actuatorStates.gasAlarmActive')
-    }
+    // Helpers build exact allow-listed shapes; unknown MQTT fields never reach MongoDB.
+    metrics: normalizeMetrics(metrics),
+    actuatorStates: normalizeActuatorStates(actuatorStates)
   };
 }
 
 async function ingestTelemetry(payload, expectedDeviceId) {
+  // No database or action side effect occurs until the complete payload passes validation.
   const normalized = validateTelemetryPayload(payload, expectedDeviceId);
   // Persist first: downstream anomaly decisions should always point to a stored snapshot.
   const reading = await SensorReading.create(normalized);
+  // Pass the stored document so anomaly logs always refer to a persisted source fact.
   const anomalies = await processTelemetryForAnomalies(reading);
   return { reading, anomalies };
 }

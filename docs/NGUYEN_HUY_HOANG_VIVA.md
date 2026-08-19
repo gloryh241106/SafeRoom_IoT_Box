@@ -319,7 +319,7 @@ npm test
   - Test hợp đồng MQ2: `gasLevel` phải là số nguyên ADC 0-4095, `gasUnit = adc_index`.
   - Test chặn alert giả: mẫu `gasValid=false` không tạo anomaly phía backend.
   - `telemetryRoutes.test.js`, `userRoutes.test.js` chạy có JWT.
-- `npm run test:kiet` (46/46) cũng bao gồm phần xác thực CB-03.
+- `npm run test:kiet` (58/58) cũng bao gồm phần xác thực CB-03.
 
 Firmware:
 
